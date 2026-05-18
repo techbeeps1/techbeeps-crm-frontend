@@ -4,5 +4,5 @@ export const apiPath = "https://techbeeps-crm-backend-9i4i.vercel.app";
 // export const imageUrl = "http://localhost:4040";
 export const imageUrl = "https://chat-backend-t73x.onrender.com";
 
-export const chatApiPath = "https://universal-movers-repo.vercel.app/chatBackend";
+export const chatApiPath = "https://techbeeps-crm-backend-9i4i.vercel.app/chatBackend";
 

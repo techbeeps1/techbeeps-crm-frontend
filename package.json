@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "proxy": "https://universal-movers-repo.vercel.app",
+  "proxy": "https://techbeeps-crm-backend-9i4i.vercel.app",
   "author": "TailAdmin <hello@tailadmin.com> (https://tailadmin.com)",
   "dependencies": {
     "@emotion/react": "^11.13.3",
