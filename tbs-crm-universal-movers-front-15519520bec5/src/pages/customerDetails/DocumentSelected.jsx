@@ -46,10 +46,8 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
 
   const handleDownload = async (filename) => {
     try {
-      const response = await axios.get(`${apiPath}/api/document/${filename}`, {
-        responseType: 'blob', // Ensure the response is a file
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+
+      const url = window.URL.createObjectURL(new Blob([filename]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename); // Set the download attribute with the file name
@@ -196,7 +194,7 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
                       ''}
                   </td>
                   <td className="flex gap-3 px-4 py-2">
-                    <IconButton onClick={() => handleDownload(document.name)}>
+                    <IconButton onClick={() => handleDownload(document.path)}>
                       <DownloadForOfflineOutlined />
                     </IconButton>
                     <IconButton onClick={() => deleteDocument(document._id)}>
