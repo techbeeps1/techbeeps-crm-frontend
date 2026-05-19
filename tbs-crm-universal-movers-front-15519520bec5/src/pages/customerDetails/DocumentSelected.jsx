@@ -225,7 +225,7 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
                     ''}
                 </p>
                 <div className="flex gap-3 mt-2">
-                  <IconButton onClick={() => handleDownload(document.name)}>
+                  <IconButton onClick={() => handleDownload(document.path)}>
                     <DownloadForOfflineOutlined />
                   </IconButton>
                   <IconButton onClick={() => deleteDocument(document._id)}>
