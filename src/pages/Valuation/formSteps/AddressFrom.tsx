@@ -41,7 +41,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                     />
                 </div>
             </div>}
-            {(!addressKnown || type === 'load') && <div className="w-full">
+            {(!!addressKnown || type === 'load') && <div className="w-full">
                 {/* Postcode */}
                 <div className="mb-4">
                     <label htmlFor="postcode" className="block text-lg font-medium">Postcode*</label>

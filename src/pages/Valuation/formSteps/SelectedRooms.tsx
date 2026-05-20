@@ -12,6 +12,7 @@ const SelectedRooms: React.FC<any> = ({
   const [isModalOpen, setModalOpen] = useState(false);
 
   const updateSelectedRoom = (updatedItem: any) => {
+    
     setSelectedRoom((prevRooms: any[]) =>
       prevRooms.map((room, index) =>
         index === updatedItem.index ? updatedItem : room,
@@ -21,9 +22,13 @@ const SelectedRooms: React.FC<any> = ({
 
   useEffect(() => {
     if (selectItem) {
+   
       updateSelectedRoom(selectItem);
     }
   }, [selectItem]);
+  useEffect(() => {
+    console.log('Selected Rooms:', selectedRoom);
+  }, [selectedRoom]);
 
   return (
     <div className="px-10 py-5">

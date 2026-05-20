@@ -31,6 +31,11 @@ export const DragDrawer: React.FC<any> = ({ selectItem, setSelectItem, services 
     setDismantledItems(itemsWithQuantity);
     setStorageItems(itemsWithQuantity)
     setAssembledItems(itemsWithQuantity);
+
+    console.log('Updated furniture items:', furnitureItems);
+    console.log('Dismantled items:', itemsWithQuantity);
+    console.log('Storage items:', itemsWithQuantity);
+    console.log('Assembled items:', itemsWithQuantity);
   }, [furnitureItems])
 
   const [dismantledItems, setDismantledItems] = useState<any>([]);
@@ -59,7 +64,7 @@ export const DragDrawer: React.FC<any> = ({ selectItem, setSelectItem, services 
   useEffect(() => {
     setSteps(() => {
       const newSteps = [{ label: `Do You want to give the ${selectItem?.roomTypeName} a different Name ?` },
-      { label: `What furniture is in the ${selectItem?.roomTypeName} ?` },
+      { label: `What furniture is in the ${roomName} ?` },
       { label: 'What Material is Needed ?' }];
       if (services.find((service: any) => service.serviceTypeName === "disassembling") &&
         !newSteps.some(step => step.label === 'Does anything need to be Disassambled ?')) {
@@ -75,7 +80,7 @@ export const DragDrawer: React.FC<any> = ({ selectItem, setSelectItem, services 
       }
       return newSteps;
     });
-  }, [services, selectItem]);
+  }, [services, selectItem,roomName]);
 
 
   const handleBack = () => setActiveStep((prev) => prev - 1);
@@ -142,9 +147,22 @@ export const DragDrawer: React.FC<any> = ({ selectItem, setSelectItem, services 
     <div className="grid place-content-center">
       <DragCloseDrawer open={selectItem} setOpen={setSelectItem}>
         <div className="flex justify-center align-center flex-col h-full space-y-2 text-neutral-400" style={{ width: '720px', maxWidth: '90vw' }}>
-          <h3 className="text-white text-center font-bold text-xl mb-1">
+          <h3 className="text-white text-center font-bold text-xl mb-1 flex flex-col">
             {steps[activeStep]?.label}
+
+      
           </h3>
+                {activeStep === 1 && (
+              <span className="text-sm text-gray-100 block mt-1 text-right">
+                 Total {roomName}: {
+    furnitureItems.reduce(
+      (total: number, item: any) =>
+        total + ((item.quantity || 0) * (item.cubicMeter || 0)),
+      0
+    ).toFixed(2)
+  } m3
+              </span>
+            )}
           {activeStep === 0 && <>
             <div className="mb-4 h-full">
               <label htmlFor="name" className="block mb-3 text-white text-lg font-medium">
@@ -157,7 +175,7 @@ export const DragDrawer: React.FC<any> = ({ selectItem, setSelectItem, services 
                 id="name"
                 className="font-medium text-lg w-full px-4 py-2 border-b border-gray bg-black shadow outline-none"
               />
-              {!roomName && (
+              {(!roomName || !roomName.trim()) && (
                 <p className="text-white text-sm mt-1">Name is Required</p>
               )}
             </div>
@@ -196,7 +214,7 @@ export const DragDrawer: React.FC<any> = ({ selectItem, setSelectItem, services 
             <Button
               variant="contained"
               color="primary"
-              disabled={!roomName}
+              disabled={!roomName || !roomName.trim()}
               type="button"
               onClick={activeStep === steps.length - 1 ? onSubmit : handleNext}
             >

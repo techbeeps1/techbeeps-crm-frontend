@@ -100,7 +100,7 @@ const AddressVerification: React.FC<any> = ({ watch, type, mode, countries }) =>
                         <AddressDrawer selectItem={loadAddress} setSelectItem={setLoadAddress} countries={countries} type={type} />
                     </>
                 }
-                {!addressKnown && <AddressSection
+                {!!addressKnown && <AddressSection
                     title="Unload"
                     address={`${unload?.houseNumber} ${unload?.street} ${unload?.addition}`}
                     postalCode={unload?.postalCode}

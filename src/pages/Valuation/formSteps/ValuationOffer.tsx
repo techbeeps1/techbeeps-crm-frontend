@@ -93,8 +93,8 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
 
 
     const replacePlaceholders = (value: string, data: Record<string, string | number>): string => {
-        return value.replace(/{{(.*?)}}/g, (_, key) => {
-            return data[key.trim()]?.toString() || 0;
+        return value.replace(/{{(.*?)}}/g, (_ , key) => {
+            return data[key.trim()]?.toString() || "0";
         });
     };
 
@@ -482,8 +482,8 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                                 className={`col-span-1 p-3 shadow font-medium`}
                                 {...register(`offer.items.${index}.btw`, { required: 'btw is required' })}
                             >
-                                <option value="">Select</option>
-                                <option value="0">0%</option>
+                               
+                               <option value="0">0%</option>
                                 <option value="9">9%</option>
                                 <option value="21">21%</option>
                             </select>

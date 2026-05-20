@@ -34,10 +34,10 @@ const steps = [
   { label: 'Customer Details ?', heading: 'CUSTOMER' },
   { label: 'Is this information correct?', heading: 'CUSTOMER' },
   { label: 'What do you really need to remember?', heading: 'Notes' },
-  {
-    label: 'Are there any other addresses for the move?',
-    heading: 'THE ADDRESS',
-  },
+  // {
+  //   label: 'Are there any other addresses for the move?',
+  //   heading: 'THE ADDRESS',
+  // },
   { label: 'The payment agreement ?', heading: 'OFFERS' },
   { label: 'The estimate', heading: 'OFFERS' },
   { label: 'From offer', heading: 'OFFERS' },
@@ -67,7 +67,7 @@ const ValuationPage: React.FC = () => {
     });
 
   const handleBack = () => {
-    if (activeStep === 13) {
+    if (activeStep === 12) {
       setActiveStep((prev) => prev - 2);
     } else {
       setActiveStep((prev) => prev - 1);
@@ -352,7 +352,10 @@ const ValuationPage: React.FC = () => {
                   {activeStep === 6 && (
                     <MaterialNeeds useFieldArray={useFieldArray} />
                   )}
-                  {activeStep === 7 && <CustomerForm type="customer" />}
+                  {activeStep === 7 && (
+                     <CustomerForm type="customer" />
+
+                  )}
                   {activeStep === 8 && (
                     <AddressVerification
                       watch={methods.watch}
@@ -360,29 +363,29 @@ const ValuationPage: React.FC = () => {
                     />
                   )}
                   {activeStep === 9 && <NotesForm type="notes" />}
-                  {activeStep === 10 && (
+                  {/* {activeStep === 10 && (
                     <AddressVerification watch={methods.watch} type="load" />
-                  )}
-                  {activeStep === 11 && (
+                  )} */}
+                  {activeStep === 10 && (
                     <PriceAgree
                       setPackageData={setPackageData}
                       setAppendedItems={setAppendedItems}
                     />
                   )}
-                  {activeStep === 12 && (
+                  {activeStep === 11 && (
                     <PriceCalculation
                       rooms={selectedRoom}
                       selectedServices={selectedServices}
                     />
                   )}
-                  {activeStep === 13 && (
+                  {activeStep === 12 && (
                     <ValuationOffer
                       packageData={packageData}
                       setAppendedItems={setAppendedItems}
                       appendedItemsRef={appendedItemsRef}
                     />
                   )}
-                  {activeStep === 14 && <FinalStep />}
+                  {activeStep === 13 && <FinalStep />}
                 </div>
                 <div className="absolute bottom-0 left-0 right-0  py-2 px-6 bg-white">
                   <div className="md:flex justify-between mt-2 mb-2 text-center">

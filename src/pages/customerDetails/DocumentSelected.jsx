@@ -44,23 +44,40 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
           autoClose: 2000,
       });
 
-  const handleDownload = async (filename) => {
-    try {
-      const response = await axios.get(`${apiPath}/api/document/${filename}`, {
-        responseType: 'blob', // Ensure the response is a file
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename); // Set the download attribute with the file name
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error downloading the file:', error);
-    }
-  };
+const handleDownload = async (fileUrl) => {
+  try {
+    // Fetch file from URL
+    const response = await fetch(fileUrl);
 
+    if (!response.ok) {
+      throw new Error('Failed to fetch file');
+    }
+
+    // Convert response to blob
+    const blob = await response.blob();
+
+    // Create download URL
+    const url = window.URL.createObjectURL(blob);
+
+    // Extract filename from URL
+    const fileName = fileUrl.split('/').pop();
+
+    // Create anchor tag
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error('Error downloading the file:', error);
+  }
+};
   const fetchDocumentList = async () => {
   setLoading(true);
   try {
@@ -196,7 +213,7 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
                       ''}
                   </td>
                   <td className="flex gap-3 px-4 py-2">
-                    <IconButton onClick={() => handleDownload(document.name)}>
+                    <IconButton onClick={() => handleDownload(document.path)}>
                       <DownloadForOfflineOutlined />
                     </IconButton>
                     <IconButton onClick={() => deleteDocument(document._id)}>
@@ -227,7 +244,7 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
                     ''}
                 </p>
                 <div className="flex gap-3 mt-2">
-                  <IconButton onClick={() => handleDownload(document.name)}>
+                  <IconButton onClick={() => handleDownload(document.path)}>
                     <DownloadForOfflineOutlined />
                   </IconButton>
                   <IconButton onClick={() => deleteDocument(document._id)}>

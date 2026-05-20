@@ -23,7 +23,11 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
     const [movingLiftCharges, setMovingLiftCharges] = useState<any>(0)
     const [totalPrice, setTotalPrice] = useState<any>(0);
     const priceAgreement = watch("priceAgree");
+ useEffect(() => {
+console.log('selectedServices:', selectedServices);
+console.log('rooms:', rooms);
 
+ }, [rooms, selectedServices])
     function filterFurnitureData(data: any) {
         return data.map((room: any) => {
             const filteredFurniture = room.furnitureType.filter((furniture: any) => furniture.quantity > 0);
@@ -221,10 +225,12 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
     }, [totalSum, totalAssemblingCharge, totalStorageCharge, totalDismantleCharge, packingCharges, unpackingCharges, movingLiftCharges, movingPackagesCharge, insuranceCharge, certificateCharge]);
 
     return (
-        <div className="p-5">
-            <div className="flex justify-between items-center p-5 mb-1 bg-white cursor-pointer">
-                <h3 className="text-xl font-medium">Total Price</h3>
+        <div className="p-5 flex flex-col gap-2">
+            <div className=" flex justify-end gap-5  cursor-pointer">
+            <div className="flex justify-between  gap-5 items-center p-4 mb-1 bg-[#1976d2] cursor-pointer text-white rounded">
+                <h3 className="text-xl font-medium">Total Price: </h3>
                 <span className="text-lg font-bold">{totalPrice.toFixed(2) || 0} $</span>
+            </div>
             </div>
             <RelocationCalculation totalSum={totalSum} priceAgreement={priceAgreement} rooms={rooms} />
             {selectedServices.find(
@@ -267,38 +273,87 @@ const ServiceDetails: React.FC<any> = ({ service, price, serviceCharge }) => {
     }, [])
 
     return (
-        <div className="flex my-1 justify-between px-4 py-2 items-center bg-white cursor-pointer">
-            <div className="w-full grid grid-cols-4 gap-3 items-center text-md border-gray">
-                <span className="capitalize text-lg font-medium">{service}</span>
-                <Controller
-                    name={`${service}.quantity`}
-                    control={control}
-                    defaultValue="0"
-                    render={({ field }) => (
-                        <input
-                            {...field}
-                            type="number"
-                            min={0}
-                            className="text-right font-medium bg-white rounded px-2 py-2 border border-gray text-lg outline-none"
-                        />
-                    )}
-                />
-                <Controller
-                    name={`${service}.price`}
-                    control={control}
-                    defaultValue='0'
-                    render={({ field }) => (
-                        <input
-                            {...field}
-                            type="number"
-                            min={0}
-                            className="text-right font-medium bg-white rounded px-2 py-2 border border-gray text-lg outline-none"
-                        />
-                    )}
-                />
-                <span className="text-md text-right font-bold mx-2">{serviceCharge || 0} $</span>
-            </div>
+<details className="group overflow-hidden border border-slate-200 bg-white transition-all duration-300">
+  {/* Header */}
+  <summary className="list-none cursor-pointer bg-gradient-to-r from-slate-50 to-gray-100 p-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="text-xl font-medium capitalize">
+          {service} Service
+        </h3>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <p className="text-lg font-bold">
+          {serviceCharge || 0} $
+        </p>
+
+        <span className="transform transition-transform group-open:rotate-180">
+          ▼
+        </span>
+      </div>
+    </div>
+  </summary>
+
+  {/* Content */}
+  <div className="bg-slate-50 p-6">
+    <div className="bg-white border border-slate-200 p-5 shadow-sm">
+      <h4 className="mb-5 font-semibold text-slate-800 capitalize">
+        {service} Details
+      </h4>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+
+
+        {/* Quantity */}
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Quantity
+          </label>
+
+          <Controller
+            name={`${service}.quantity`}
+            control={control}
+            defaultValue="0"
+            render={({ field }) => (
+              <input
+                {...field}
+                type="number"
+                min={0}
+                placeholder="Enter quantity"
+                className="w-full rounded-[5px] border border-slate-300 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            )}
+          />
         </div>
+
+        {/* Price */}
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Price
+          </label>
+
+          <Controller
+            name={`${service}.price`}
+            control={control}
+            defaultValue="0"
+            render={({ field }) => (
+              <input
+                {...field}
+                type="number"
+                min={0}
+                placeholder="Enter amount"
+                className="w-full rounded-[5px] border border-slate-300 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            )}
+          />
+        </div>
+
+
+      </div>
+    </div>
+  </div>
+</details>
     )
 }
 
