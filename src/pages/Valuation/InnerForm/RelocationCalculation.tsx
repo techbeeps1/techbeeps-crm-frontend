@@ -210,13 +210,7 @@ const RelocationCalculation: React.FC<any> = ({
   //         </div>
   //     </details>
   // )
-  useEffect(() => {
-    console.log(rooms, 'Merged Inventory Items');
-    console.log(priceAgreement, 'Merged Inventory Items');
-    console.log('====================================');
-    console.log(control);
-    console.log('====================================');
-  }, [rooms,priceAgreement,control]);
+
   return (
     <details className="group overflow-hidden  border border-slate-200 bg-white  transition-all duration-300">
       {/* Header */}

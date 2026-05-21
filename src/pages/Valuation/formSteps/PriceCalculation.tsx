@@ -23,11 +23,7 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
     const [movingLiftCharges, setMovingLiftCharges] = useState<any>(0)
     const [totalPrice, setTotalPrice] = useState<any>(0);
     const priceAgreement = watch("priceAgree");
- useEffect(() => {
-console.log('selectedServices:', selectedServices);
-console.log('rooms:', rooms);
 
- }, [rooms, selectedServices])
     function filterFurnitureData(data: any) {
         return data.map((room: any) => {
             const filteredFurniture = room.furnitureType.filter((furniture: any) => furniture.quantity > 0);

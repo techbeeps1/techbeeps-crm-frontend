@@ -93,7 +93,7 @@ const FurnitureSelection: React.FC<any> = ({ setFurnitures, data, setData }) => 
         );
     };
     useEffect(() => {
-        const filteredFurnitureItems = data.map(({ _id, quantity, cubicMeter,done, furnitureTypeName, icon }: any) => ({ _id, quantity,done, cubicMeter, furnitureTypeName, icon }));
+        const filteredFurnitureItems = data.map(({ _id, quantity, cubicMeter,done, furnitureTypeName, isDisassambled,icon }: any) => ({ _id, quantity,done, cubicMeter, furnitureTypeName,isDisassambled, icon }));
         setFurnitures(filteredFurnitureItems)
     }, [data])
 
