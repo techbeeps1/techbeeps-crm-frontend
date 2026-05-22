@@ -13,13 +13,14 @@ const MaterialNeeds: React.FC<any> = ({ useFieldArray }) => {
         name: "materials",
     });
 
+
     const handleAllData = async () => {
         setLoading(true)
         try {
             const response = await axios.get(`${apiPath}/api/box?type=Material`);
             const materials = watch("materials");
             if (!materials || materials.length === 0) {
-                append(response.data.map((box: any) => ({ _id: box._id, name: box.name, quantity: 0, storageQuantity: 0, cubicMeter: box.cubicMeter })));
+                append(response.data.map((box: any) => ({ _id: box._id, name: box.name, quantity: 0,sellingPrice: box.sellingPrice, storageQuantity: 0, cubicMeter: box.cubicMeter })));
             }
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || "Something went wrong. Please try again.";

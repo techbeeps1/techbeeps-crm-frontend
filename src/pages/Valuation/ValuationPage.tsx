@@ -3,7 +3,12 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Button } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import {
+  useForm,
+  useFieldArray,
+  FormProvider,
+  FieldError,
+} from 'react-hook-form';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import Loader from '../../common/Loader';
@@ -22,6 +27,7 @@ import { toast } from 'react-toastify';
 import { EmailContext } from '../../EmailProvider/EmailContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
+import { m } from 'framer-motion';
 
 const steps = [
   { label: 'Where do you need to move from ?', heading: 'THE ADDRESS' },
@@ -75,6 +81,43 @@ const ValuationPage: React.FC = () => {
   };
 
   const handleNext = () => {
+    if (activeStep === 7) {
+
+       if (
+        !methods.watch('customer')?.typeOfCustomer &&
+        !methods.watch('customer')?.gender &&
+        !methods.watch('customer')?.firstName &&
+        !methods.watch('customer')?.lastName &&
+        !methods.watch('customer')?.email &&
+        !methods.watch('customer')?.mobile
+      ) {
+        notifyError('please add customer details ');
+        return;
+      }
+      if (!methods.watch('customer')?.typeOfCustomer) {
+        notifyError('Select type of customer');
+        return;
+      } else if (!methods.watch('customer')?.gender) {
+        notifyError('Select gender');
+        return;
+      } else if (!methods.watch('customer')?.firstName) {
+        notifyError('First Name is required');
+        return;
+      } else if (!methods.watch('customer')?.lastName) {
+        notifyError('Last Name is required');
+        return;
+      } else if (!methods.watch('customer')?.email) {
+        notifyError('Email is required');
+        return;
+      } else if (!methods.watch('customer')?.mobile) {
+        notifyError('Phone is required');
+        return;
+      }
+
+     
+      
+    }
+
     methods.handleSubmit(
       (data) => {
         setActiveStep((prev) => prev + 1);
@@ -89,7 +132,14 @@ const ValuationPage: React.FC = () => {
       },
       (errors) => {
         console.error('Validation errors:', errors);
-        notifyError('Validation errors:');
+        const loadErrors = errors?.load as Record<string, FieldError>;
+
+        const firstKey = Object.keys(loadErrors || {})[0];
+
+        notifyError(
+          loadErrors?.[firstKey]?.message ||
+            'Please fill all required fields in the current step before proceeding.',
+        );
       },
     )();
   };
@@ -156,7 +206,7 @@ const ValuationPage: React.FC = () => {
         (furniture: any) => furniture.quantity > 0,
       ),
     }));
-  
+
     const formattedMaterials = data.materials
       .filter((material: any) => material.quantity > 0) // Filter materials with quantity > 0
       .map((material: any) => ({
@@ -203,7 +253,7 @@ const ValuationPage: React.FC = () => {
     }
   };
 
-  const SendInvoice = async (data:any) => {
+  const SendInvoice = async (data: any) => {
     let activityData = {
       type: 'offer',
       title: `Quotation has been sending on ${data.email}`,
@@ -271,15 +321,15 @@ const ValuationPage: React.FC = () => {
         notifyError('Error fetching countries:');
         console.error('Error fetching countries:', error);
       });
-      axios
-       .get(`${apiPath}/api/sale_group?type=property`)
-       .then((response) => {
-              const countryNames = response.data.map((country:any) => country.name);
-                  setProperty(countryNames);
-               })
-        .catch((error) => {
-               console.error('Error fetching countries:', error);
-              });
+    axios
+      .get(`${apiPath}/api/sale_group?type=property`)
+      .then((response) => {
+        const countryNames = response.data.map((country: any) => country.name);
+        setProperty(countryNames);
+      })
+      .catch((error) => {
+        console.error('Error fetching countries:', error);
+      });
   }, []);
 
   return (
@@ -320,11 +370,19 @@ const ValuationPage: React.FC = () => {
               </div>
               <form onSubmit={methods.handleSubmit(onSubmit)}>
                 <div className="absolute md:top-22 top-35 bottom-18 left-0 right-0 overflow-auto bg-gray">
-                  {activeStep === 1 && (
-                    <AddressFrom countries={countries} type="load" property={property} />
+                  {activeStep === 0 && (
+                    <AddressFrom
+                      countries={countries}
+                      type="load"
+                      property={property}
+                    />
                   )}
                   {activeStep === 1 && (
-                    <AddressFrom countries={countries} type="unload" property={property}/>
+                    <AddressFrom
+                      countries={countries}
+                      type="unload"
+                      property={property}
+                    />
                   )}
                   {activeStep === 2 && (
                     <AddressVerification watch={methods.watch} type="load" />
@@ -355,12 +413,7 @@ const ValuationPage: React.FC = () => {
                   {activeStep === 6 && (
                     <MaterialNeeds useFieldArray={useFieldArray} />
                   )}
-                  {activeStep === 0 && (
-                     <div>
-
-                     <CustomerForm type="customer" />
- </div>
-                  )}
+                  {activeStep === 7 && <CustomerForm type="customer" />}
                   {activeStep === 8 && (
                     <AddressVerification
                       watch={methods.watch}
@@ -381,6 +434,7 @@ const ValuationPage: React.FC = () => {
                     <PriceCalculation
                       rooms={selectedRoom}
                       selectedServices={selectedServices}
+                      data={methods.watch()}
                     />
                   )}
                   {activeStep === 12 && (

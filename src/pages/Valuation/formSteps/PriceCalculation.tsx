@@ -6,9 +6,10 @@ import RelocationCalculation from "../InnerForm/RelocationCalculation";
 import PackingCalculation from "../InnerForm/PackingCalculation";
 import AssemblingCalculation from "../InnerForm/AssemblingCalculation";
 import StorageCalculation from "../InnerForm/StorageCalculation";
+import MaterialsCalculation from "../InnerForm/MaterialsCalculation";
 
 
-const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
+const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
     const { setValue, watch } = useFormContext() as any;
     const { settings } = useContext(EmailContext) as any;
     const [totalSum, setTotalSum] = useState<any>(0)
@@ -16,6 +17,7 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
     const [unpackingCharges, setUnpackingCharges] = useState<any>(0)
     const [movingPackagesCharge, setMovingPackagesCharge] = useState<any>(0)
     const [insuranceCharge, setInsuranceCharge] = useState<any>(0)
+    const [materialsCharge, setMaterialsCharge] = useState<any>(0)
     const [totalAssemblingCharge, setTotalAssemblingCharge] = useState<any>(0)
     const [totalDismantleCharge, setTotalDismantleCharge] = useState<any>(0)
     const [totalStorageCharge, setTotalStorageCharge] = useState<any>(0)
@@ -23,6 +25,8 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
     const [movingLiftCharges, setMovingLiftCharges] = useState<any>(0)
     const [totalPrice, setTotalPrice] = useState<any>(0);
     const priceAgreement = watch("priceAgree");
+
+
 
     function filterFurnitureData(data: any) {
         return data.map((room: any) => {
@@ -185,10 +189,28 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
 
     let insurance = watch('insurance')
     useEffect(() => {
+
         const validQuantity = Number(insurance?.quantity) || 0;
         const validPrice = Number(insurance?.price) || 0;
         setInsuranceCharge(validQuantity * validPrice);
     }, [insurance?.quantity, insurance?.price]);
+
+
+    let materials = watch('materials')
+    
+useEffect(() => {
+    if (!Array.isArray(materials)) {
+        setMaterialsCharge(0);
+        return;
+    }
+    const totalPrice = materials.reduce((total, item) => {
+        const quantity = Number(item.quantity) || 0;
+        const price = Number(item.sellingPrice) || 0;
+        return total + (quantity * price);
+    }, 0);
+    setMaterialsCharge(totalPrice);
+  
+}, [materials]);
 
     let certificate = watch('certificate')
     useEffect(() => {
@@ -213,12 +235,13 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
         const validMovingLiftCharges = isNaN(Number(movingLiftCharges)) ? 0 : Number(movingLiftCharges);
         const validMovingPackagesCharge = isNaN(Number(movingPackagesCharge)) ? 0 : Number(movingPackagesCharge);
         const validInsuranceCharge = isNaN(Number(insuranceCharge)) ? 0 : Number(insuranceCharge);
+        const validMaterialsCharge = isNaN(Number(materialsCharge)) ? 0 : Number(materialsCharge);
         const validCertificateCharge = isNaN(Number(certificateCharge)) ? 0 : Number(certificateCharge);
         const validAssemblingCharge = isNaN(Number(totalAssemblingCharge)) ? 0 : Number(totalAssemblingCharge);
         const validTotalDismantleCharge = isNaN(Number(totalDismantleCharge)) ? 0 : Number(totalDismantleCharge);
         const validTotalStorageCharge = isNaN(Number(totalStorageCharge)) ? 0 : Number(totalStorageCharge);
-        setTotalPrice(validTotalSum + validTotalStorageCharge + validAssemblingCharge + validTotalDismantleCharge + validPackingCharges + validUnpackingCharges + validMovingLiftCharges + validMovingPackagesCharge + validInsuranceCharge + validCertificateCharge);
-    }, [totalSum, totalAssemblingCharge, totalStorageCharge, totalDismantleCharge, packingCharges, unpackingCharges, movingLiftCharges, movingPackagesCharge, insuranceCharge, certificateCharge]);
+        setTotalPrice(validTotalSum + validTotalStorageCharge + validAssemblingCharge + validTotalDismantleCharge + validPackingCharges + validUnpackingCharges + validMovingLiftCharges + validMovingPackagesCharge + validInsuranceCharge + validMaterialsCharge + validCertificateCharge);
+    }, [totalSum, totalAssemblingCharge, totalStorageCharge, totalDismantleCharge, packingCharges, unpackingCharges, movingLiftCharges, movingPackagesCharge, insuranceCharge, materialsCharge, certificateCharge]);
 
     return (
         <div className="p-5 flex flex-col gap-2">
@@ -229,6 +252,9 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices }) => {
             </div>
             </div>
             <RelocationCalculation totalSum={totalSum} priceAgreement={priceAgreement} rooms={rooms} />
+            { materialsCharge > 0 && (
+                <MaterialsCalculation totalSum={materialsCharge} materials={data.materials} />
+            )}
             {selectedServices.find(
                 (service: any) => service.serviceTypeName === "movingLift"
             ) && <ServiceDetails service={'movingLift'} serviceCharge={movingLiftCharges} price={selectedServices.find((service: any) => service.serviceTypeName === "movingLift")?.price} />}

@@ -42,10 +42,10 @@ export const DragDrawer: React.FC<any> = ({
   const [assembledItems, setAssembledItems] = useState<any>([]);
   const [storageItems, setStorageItems] = useState<any>([]);
 
+  (useEffect(() => {}), [dismantledItems, assembledItems, storageItems]);
 
   const fetchRoomInner = async () => {
     try {
-
       setData(
         selectItem?.furnitureType.map((item: any) => ({
           ...item,
@@ -207,7 +207,7 @@ export const DragDrawer: React.FC<any> = ({
                   0,
                 )
                 .toFixed(2)}{' '}
-              m3
+              m³
             </span>
           )}
           {activeStep === 0 && (
@@ -242,7 +242,17 @@ export const DragDrawer: React.FC<any> = ({
             />
           )}
           {activeStep === 2 && (
-            <PackingBox selectItem={selectItem} setBoxes={setPackingItems} />
+            <>
+              <div className='text-right pe-5'>
+                Total Boxes:{' '}
+                {packingBoxes?.reduce(
+                  (total: number, box: any) =>
+                    total + (box.quantity || 0) * (box.cubicMeter || 0),
+                  0,
+                )} {'m³'}
+              </div>
+              <PackingBox selectItem={selectItem} setBoxes={setPackingItems} />
+            </>
           )}
           {services.find(
             (service: any) => service.serviceTypeName === 'disassembling',
