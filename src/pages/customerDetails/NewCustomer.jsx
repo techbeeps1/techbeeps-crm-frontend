@@ -56,8 +56,10 @@ const NewCustomer = ({ handler, setOpen, open, type }) => {
       );
       notify('Customer added successfully');
       handler();
-    } catch (error) {
-      notifyError('Error:', error.message);
+    } catch (error) {  
+        notifyError(
+    error.response?.data?.error || 'Something went wrong'
+  );
     }
   };
 

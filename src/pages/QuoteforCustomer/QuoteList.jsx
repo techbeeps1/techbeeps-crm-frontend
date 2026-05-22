@@ -49,8 +49,15 @@ const QuoteList = ({ customerId }) => {
         try {
             const response = await axios.get(`${apiPath}/finance/financeList?customer=${customerId || ''}`);
             setData(response["data"].financeData);
+            console.log(response["data"].financeData);
             setTimeout(() => {
-                $('#quote').DataTable();
+                if ($.fn.DataTable.isDataTable('#quote')) {
+        $('#quote').DataTable().destroy();
+    }
+
+    $('#quote').DataTable({
+        order: [[0, 'desc']] // Date column sort
+    });
             }, 0);
         } catch (err) {
             setError('Failed to fetch agents. Please try again later.');

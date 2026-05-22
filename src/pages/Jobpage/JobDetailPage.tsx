@@ -52,11 +52,13 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
       const response = await axios.get(`${apiPath}/api/jobList?customer=${customerId || ''}&offer=${offer || ''}&invoice=${invoice || ''}`);
       setData(response.data.jobList);
       setTimeout(() => {
-        if (!$.fn.DataTable.isDataTable('#joblist')) {
-          $('#joblist').DataTable({
-            order: [[1, 'desc']]
-          });
+            if ($.fn.DataTable.isDataTable('#joblist')) {
+          $('#joblist').DataTable().destroy();
         }
+         $('#joblist').DataTable({
+          order: [[1, 'desc']], // Date column sort
+        });
+  
       }, 0);
     } catch (err) {
       setError('Failed to fetch agents. Please try again later.');
@@ -139,8 +141,11 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
                   <td style={{ padding: "15px 7px" }} className="font-bold capitalize">
                     {item?.customer?.firstName} {item?.customer?.lastName}
                   </td>
-                  <td>
-                    {new Date(item?.date).toLocaleDateString('en-GB')}
+                  <td> 
+           
+                    {new Date(item?.date).getFullYear()}-
+{String(new Date(item?.date).getMonth() + 1).padStart(2, '0')}-
+{String(new Date(item?.date).getDate()).padStart(2, '0')}
                   </td>
                   <td className="">
                     {item?.load?.city} {item?.load?.country}<ArrowForwardIcon /> <br /> {item?.unload?.city} {item?.unload?.country}

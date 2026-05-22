@@ -10,38 +10,124 @@ import { Link } from 'react-router-dom';
 const Shortcuts: React.FC = () => {
     const [open, setOpen] = useState(false);
     return (
-        <div className="max-w-lg overflow-y-auto" style={{ maxHeight: `calc(100vh - 100px)` }}>
-            <div className="grid gap-4">
-                <Link to="/intake">
-                <div className="flex flex-col items-center justify-center p-4 bg-white rounded-md shadow hover:bg-gray hover:border cursor-pointer">
-                    <div className="text-5xl mb-2"><ArchitectureIcon fontSize="inherit" /></div>
-                    <span className="text-center text-lg font-medium text-black">New Valuation</span>
+        <div className="overflow-y-auto mt-5">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-7">
+
+    <Link to="/intake">
+        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(59,130,246,0.15)] transition-all duration-500 hover:-translate-y-2">
+            
+            <div className="absolute top-0 right-0 w-40 h-40 bg-blue-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
+
+            <div className="relative z-10">
+                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-sky-500 to-green-400 text-white flex items-center justify-center text-5xl shadow-lg">
+                    <ArchitectureIcon fontSize="inherit" />
                 </div>
-                </Link>
-                <div onClick={() => setOpen(true)} className="flex flex-col items-center justify-center p-4 bg-white rounded-md shadow hover:bg-gray hover:border cursor-pointer">
-                    <div className="text-5xl mb-2"><PersonIcon fontSize="inherit" /></div>
-                    <span className="text-center text-lg font-medium text-black">New customer</span>
+
+                <div className="mt-5">
+                    <h2 className="text-xl font-bold text-gray-800 text-center">
+                        New Valuation
+                    </h2>
                 </div>
-                <Link to="/jobs">
-                <div className="flex flex-col items-center justify-center p-4 bg-white rounded-md shadow hover:bg-gray hover:border cursor-pointer">
-                    <div className="text-5xl mb-2"><LocalShippingIcon fontSize="inherit" /></div>
-                    <span className="text-center text-lg font-medium text-black">New Job</span>
-                </div>
-                </Link>
-                <Link to="/jobs">
-                <div className="flex flex-col items-center justify-center p-4 bg-white rounded-md shadow hover:bg-gray hover:border cursor-pointer">
-                    <div className="text-5xl mb-2"><ConstructionIcon fontSize="inherit" /></div>
-                    <span className="text-center text-lg font-medium text-black">New moving lift job</span>
-                </div>
-                </Link>
-                <Link to="/new_offer">
-                <div className="flex flex-col items-center justify-center p-4 bg-white rounded-md shadow hover:bg-gray hover:border cursor-pointer">
-                    <div className="text-5xl mb-2"><AddCircleIcon fontSize="inherit" /></div>
-                    <span className="text-center text-lg font-medium text-black">New Offer</span>
-                </div>
-                </Link>
+
+
             </div>
-            <div style={{ display: 'none' }}>
+        </div>
+    </Link>
+
+
+    <div
+        onClick={() => setOpen(true)}
+        className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(168,85,247,0.15)] transition-all duration-500 hover:-translate-y-2"
+    >
+        <div className="absolute top-0 right-0 w-40 h-40 bg-purple-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
+
+        <div className="relative z-10">
+            <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center text-5xl shadow-lg">
+                <PersonIcon fontSize="inherit" />
+            </div>
+
+            <div className="mt-5">
+                <h2 className="text-xl font-bold text-gray-800 text-center">
+                    New Customer
+                </h2>
+
+
+            </div>
+
+        </div>
+    </div>
+
+
+    <Link to="/jobs">
+        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(34,197,94,0.15)] transition-all duration-500 hover:-translate-y-2">
+
+            <div className="absolute top-0 right-0 w-40 h-40 bg-green-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
+
+            <div className="relative z-10">
+                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-green-500 to-emerald-400 text-white flex items-center justify-center text-5xl shadow-lg">
+                    <LocalShippingIcon fontSize="inherit" />
+                </div>
+
+                <div className="mt-5">
+                    <h2 className="text-xl font-bold text-gray-800 text-center">
+                        New Job
+                    </h2>
+
+                </div>
+            </div>
+        </div>
+    </Link>
+
+
+    <Link to="/jobs">
+        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(249,115,22,0.15)] transition-all duration-500 hover:-translate-y-2">
+
+            <div className="absolute top-0 right-0 w-40 h-40 bg-orange-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
+
+            <div className="relative z-10">
+                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-orange-500 to-red-400 text-white flex items-center justify-center text-5xl shadow-lg">
+                    <ConstructionIcon fontSize="inherit" />
+                </div>
+
+                <div className="mt-5">
+                    <h2 className="text-xl font-bold text-gray-800 text-center">
+                        Moving Lift Job
+                    </h2>
+
+           
+                </div>
+
+            </div>
+        </div>
+    </Link>
+
+
+    <Link to="/new_offer">
+        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(236,72,153,0.15)] transition-all duration-500 hover:-translate-y-2">
+
+            <div className="absolute top-0 right-0 w-40 h-40 bg-pink-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
+
+            <div className="relative z-10">
+                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-pink-500 to-rose-400 text-white flex items-center justify-center text-5xl shadow-lg">
+                    <AddCircleIcon fontSize="inherit" />
+                </div>
+
+                <div className="mt-5">
+                    <h2 className="text-xl font-bold text-gray-800 text-center">
+                        New Offer
+                    </h2>
+
+             
+                </div>
+
+            </div>
+        </div>
+    </Link>
+
+</div>
+            
+            <div className='hidden'>
                 <NewCustomer setOpen={setOpen} open={open} handler={console.log('customer Created')} type='Customer' />
             </div>
         </div>

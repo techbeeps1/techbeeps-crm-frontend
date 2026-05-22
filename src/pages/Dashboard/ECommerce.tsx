@@ -7,7 +7,7 @@ const ECommerce = () => {
   return (
     <>
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 md:col-span-10 xl:col-span-10">
+        {/* <div className="col-span-12 md:col-span-10 xl:col-span-10">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-2 xl:grid-cols-4 2xl:gap-3">
             <CardOne name="Invoices" />
             <CardOne name="Proforma Invoices" />
@@ -23,9 +23,9 @@ const ECommerce = () => {
               <ChatCard />
             </div>
           </div>
-        </div>
+        </div> */}
 
-        <div className="col-span-12 md:col-span-2 xl:col-span-2">
+        <div className="col-span-12 ">
           <Shortcuts />
         </div>
       </div>

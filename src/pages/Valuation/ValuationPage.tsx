@@ -156,11 +156,14 @@ const ValuationPage: React.FC = () => {
         (furniture: any) => furniture.quantity > 0,
       ),
     }));
+  
     const formattedMaterials = data.materials
       .filter((material: any) => material.quantity > 0) // Filter materials with quantity > 0
       .map((material: any) => ({
         material: material._id, // Only include the _id of the material
         quantity: material.quantity,
+        cubicMeter: material.cubicMeter,
+        name: material.name,
       }));
     postData({
       notes: data.notes,

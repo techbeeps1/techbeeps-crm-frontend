@@ -26,7 +26,16 @@ const CustomerList = ({ data, fetchCustomer, type }) => {
 
   useEffect(() => {
     setTimeout(() => {
-      $(`#${type}`).DataTable();
+
+         if ($.fn.DataTable.isDataTable(`#${type}`)) {
+        $(`#${type}`).DataTable().destroy();
+    }
+
+    $(`#${type}`).DataTable({
+        order: [[0, 'desc']] // Date column sort
+    });
+   
+
     }, 0);
   }, []);
 
