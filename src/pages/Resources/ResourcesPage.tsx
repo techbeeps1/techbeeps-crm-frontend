@@ -7,9 +7,9 @@ import StorageLocation from "./StorageLocation";
 import StorageList from "./StorageList";
 
 const tabs = [
-    { label: "storage" },
+    { label: "Storage" },
     { label: "Warehouse" },
-    { label: "storage Locations" },
+    { label: "Storage Locations" },
     { label: "Boxes" },
     { label: "Materials" },
     { label: "Vehicles" },

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { UserContext } from '../UserContext';
-
+import { GiAutoRepair } from "react-icons/gi";
 import { LiaFileInvoiceSolid } from "react-icons/lia";
 import { HiOutlineDocumentAdd } from "react-icons/hi";
 import {
@@ -220,6 +220,13 @@ const { pathname, search } = location;
           access: 'Settings',
           icon: <Settings />,
         },
+         {
+      label: 'Features',
+      path: '/data',
+      access: 'Features',
+      icon: <GiAutoRepair />,
+    },
+      
          {
       label: 'Profile',
       path: '/profile',
