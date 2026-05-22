@@ -320,7 +320,7 @@ const ValuationPage: React.FC = () => {
               </div>
               <form onSubmit={methods.handleSubmit(onSubmit)}>
                 <div className="absolute md:top-22 top-35 bottom-18 left-0 right-0 overflow-auto bg-gray">
-                  {activeStep === 0 && (
+                  {activeStep === 1 && (
                     <AddressFrom countries={countries} type="load" property={property} />
                   )}
                   {activeStep === 1 && (
@@ -355,9 +355,11 @@ const ValuationPage: React.FC = () => {
                   {activeStep === 6 && (
                     <MaterialNeeds useFieldArray={useFieldArray} />
                   )}
-                  {activeStep === 7 && (
-                     <CustomerForm type="customer" />
+                  {activeStep === 0 && (
+                     <div>
 
+                     <CustomerForm type="customer" />
+ </div>
                   )}
                   {activeStep === 8 && (
                     <AddressVerification

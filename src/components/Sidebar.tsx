@@ -41,7 +41,9 @@ interface MenuItem {
 }
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
-  const { pathname } = useLocation();
+ const location = useLocation();
+
+const { pathname, search } = location;
   const { userData }: any = useContext(UserContext);
 
   const trigger = useRef<any>(null);
@@ -84,6 +86,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
     return () => document.removeEventListener('click', clickHandler);
   }, [sidebarOpen]);
+
+  const isRouteActive = (
+  path?: string
+) => {
+  if (!path) return false;
+
+  // split query string
+  const [routePath, query] =
+    path.split('?');
+
+  // path match
+  if (pathname !== routePath) {
+    return false;
+  }
+
+  // if no query param
+  if (!query) {
+    return search === '';
+  }
+
+  // compare query string
+  return search === `?${query}`;
+};
 
   const menuItems: MenuItem[] = [
     {
@@ -342,17 +367,22 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                               <li key={child.path}>
                                 <NavLink
                                   to={child.path!}
-                                  className={({ isActive }) =>
-                                    `
-                                      flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300
-                                      
-                                      ${
-                                        isActive
-                                          ? 'bg-indigo-600 text-white shadow-md'
-                                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                                      }
-                                    `
-                                  }
+                               className={() => {
+  const isActive =
+    isRouteActive(child.path);
+
+  return `
+    flex items-center gap-3
+    px-4 py-2.5 rounded-xl
+    transition-all duration-300
+
+    ${
+      isActive
+        ? 'bg-indigo-600 text-white shadow-md'
+        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+    }
+  `;
+}}
                                 >
                                   {child.icon}
                                   {child.label}

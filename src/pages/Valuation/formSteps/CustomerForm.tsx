@@ -211,7 +211,10 @@ const CustomerForm: React.FC<any> = ({ type }) => {
           How did you find us?*
         </label>
         <select
-          id="findUs"
+          {...register(`${type}.findUs`, {
+    required: 'Find us is required.',
+  })}
+  id="findUs"
           className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
         >
           <option value="">Select Option</option>

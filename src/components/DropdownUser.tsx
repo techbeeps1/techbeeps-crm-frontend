@@ -58,7 +58,7 @@ const DropdownUser = () => {
           <span className="block text-xs">{role && role}</span>
         </span>
 
-        <span style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:"22px",fontWeight:"600",boxShadow:"1px 0 15px",textTransform:"uppercase"}} className="h-11 w-11 rounded-full">
+        <span style={{display:"flex",alignItems:"center",justifyContent:"center",fontSize:"22px",fontWeight:"600",boxShadow:"0px 0 3px",textTransform:"uppercase"}} className="h-11 w-11 rounded-full">
           {username && username.slice(0,1)}
         </span>
 
