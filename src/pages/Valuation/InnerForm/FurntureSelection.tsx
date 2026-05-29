@@ -14,6 +14,21 @@ const FurnitureSelection: React.FC<any> = ({ setFurnitures, data, setData }) => 
     const [furniture, setFurniture] = useState<any[]>([]);
     const [selectedFurniture, setSelectedFurniture] = useState<any>([]);
     const [loading,setLoading] = useState<boolean>(false);
+    const [search, setSearch] = useState('');
+
+    const filteredFurniture = furniture.filter((item: any) =>
+    item?.furnitureTypeName
+        ?.toLowerCase()
+        .includes(search.toLowerCase())
+);
+
+
+    const filteredFurniturelist = data.filter((item: any) =>
+    item?.furnitureTypeName
+        ?.toLowerCase()
+        .includes(search.toLowerCase())
+);
+
 
     const fetchFurniture = async () => {
         setLoading(true)
@@ -99,8 +114,17 @@ const FurnitureSelection: React.FC<any> = ({ setFurnitures, data, setData }) => 
 
     return (
         <>
+                                           <div className="px-4" >
+                    <input
+    type="text"
+    placeholder="Search furniture..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+ className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pl-11 text-sm shadow-sm outline-none transition-all duration-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+/></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-full px-4 py-2 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
                 {loading && <Loader/>}
+
                 <div
                     className="bg-sky-500 flex flex-col items-center justify-center h-45 w-full rounded-lg shadow-md cursor-pointer"
                     onClick={() => setModalOpen(true)}
@@ -138,7 +162,8 @@ const FurnitureSelection: React.FC<any> = ({ setFurnitures, data, setData }) => 
                     </div>
                     <p className="text-center text-black text-lg font-medium">Custom Furniture</p>
                 </div>
-                {data.map((item: any) => (
+                
+                {filteredFurniturelist.map((item: any) => (
                     <div
                         key={item._id}
                         className={`relative overflow-hidden w-full h-45 flex flex-col justify-center items-center bg-gray rounded-lg shadow-lg 
@@ -214,9 +239,18 @@ const FurnitureSelection: React.FC<any> = ({ setFurnitures, data, setData }) => 
                     <h3 className="text-white text-center font-bold text-xl">
                         Add Furniture
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-full px-4 py-2 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+                    <div className="px-4" >
+                    <input
+    type="text"
+    placeholder="Search furniture..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+ className="w-full rounded-md border border-gray-300 bg-gray-50 px-4 py-3 pl-11 text-sm shadow-sm outline-none transition-all duration-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+/></div>
 
-                        {furniture && furniture.map((item: any, index: number) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-full px-4 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+
+                        {filteredFurniture && filteredFurniture.map((item: any, index: number) => (
                             <div
                                 key={index}
                                 className={`flex flex-col items-center justify-center h-45 w-full rounded shadow-md cursor-pointer ${selectedFurniture.some((furniture: any) => furniture._id === item._id) ? 'bg-primary text-white' : 'bg-gray text-black'}`}
