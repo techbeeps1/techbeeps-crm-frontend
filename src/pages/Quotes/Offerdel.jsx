@@ -20,6 +20,8 @@ import { toast } from 'react-toastify';
 import { ApprovalOutlined, ElevatorOutlined, GifBoxOutlined } from '@mui/icons-material';
 
 const Offer = ({ data, notes, fetchInvoice }) => {
+
+    console.log('offer data', data)
     const { Id } = useParams();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false)
