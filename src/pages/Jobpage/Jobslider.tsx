@@ -25,6 +25,7 @@ import { useNavigate } from 'react-router-dom';
 import DocumentSelected from '../customerDetails/DocumentSelected';
 import EmailLayout from '../Emailpage/EmailComponent';
 import TaskPage from '../Taskcomponent/TaskPage';
+import JobOfferRooms from './jobDetailmodules/JobOfferRooms';
 
 interface job {
     _id: string;
@@ -301,10 +302,24 @@ const Jobslider: React.FC<JobsliderProps> = ({ job, onClose, Ondelete }) => {
                                         </li>
                                     </ul>
                                 </div>
-                                <hr className="my-4 text-gray" />
+                              
                             </>
                         )}
-
+                      <JobOfferRooms type='offer' job={job} />
+                       
+                    
+                     { job?.materials.length > 0 && ( <>  <hr className="my-4 text-gray" />
+                    <div className="max-w-xs">
+                        <h4 className="text-xl mb-2">Necessary</h4>
+                        <ul className="space-y-1">
+                            {job?.materials.map((item: any, index:number) => (
+                                <li key={index} className="text-gray-700 leading-relaxed">
+                                    {item.quantity} {item.material.name}
+                                </li>
+                            ))}
+                        </ul>
+                    </div></>)}
+                     <hr className="my-6 text-gray" />
                     <div className="mb-4 mt-4">
                         <h3 className="font-bold text-lg text-slate-800 mb-3 mt">CUSTOMER INFORMATION :</h3>
 
@@ -403,17 +418,7 @@ const Jobslider: React.FC<JobsliderProps> = ({ job, onClose, Ondelete }) => {
                             </div>
                         ) : 'There are no appointments available'}
                     </div>
-                    <hr className="my-6 text-gray" />
-                    <div className="max-w-xs">
-                        <h4 className="text-xl mb-2">Necessary</h4>
-                        <ul className="space-y-1">
-                            {job?.materials.map((item: any, index:number) => (
-                                <li key={index} className="text-gray-700 leading-relaxed">
-                                    {item.quantity} {item.material.name}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                  
                     <hr className="my-6 text-gray" />
                     <div className="mb-4">
                         <div className='grid grid-cols-2 gap-4 '>
@@ -524,8 +529,10 @@ const Jobslider: React.FC<JobsliderProps> = ({ job, onClose, Ondelete }) => {
                             </div>
                         </Dialog>
                     </div>
+                    
                 </div>
             )}
+            
             {tabIndex === 1 && (
                 <JobOffermodule type='offer' job={job} />
             )}

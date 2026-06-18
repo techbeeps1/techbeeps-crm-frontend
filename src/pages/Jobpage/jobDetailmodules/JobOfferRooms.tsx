@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Divider } from '@mui/material';
-// import { apiPath } from '../../../../apiPath';
-// import axios from 'axios';
+import { apiPath } from '../../../../apiPath';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const JobOffermodule: React.FC<{ job: any, type: string }> = ({ type, job }) => {
+const JobOfferRooms: React.FC<{ job: any, type: string }> = ({ type, job }) => {
 
     const [offerData, setOfferData] = useState<any>([]);
-    // const [valutionRoom, setValutionRoom] = useState<any>([]);
-    // const [showAllBoxes, setShowAllBoxes] = useState(false);
-    // const [showAllAssembled, setShowAllAssembled] = useState(false);
-    // const [showAllDismantled, setShowAllDismantled] = useState(false);
-    // const [showAllFurniture, setShowAllFurniture] = useState(false);
+    const [valutionRoom, setValutionRoom] = useState<any>([]);
+    const [showAllBoxes, setShowAllBoxes] = useState(false);
+    const [showAllAssembled, setShowAllAssembled] = useState(false);
+    const [showAllDismantled, setShowAllDismantled] = useState(false);
+    const [showAllFurniture, setShowAllFurniture] = useState(false);
 
     let navigate = useNavigate();
 
@@ -32,74 +32,31 @@ const JobOffermodule: React.FC<{ job: any, type: string }> = ({ type, job }) => 
         }
     };
 
-    // const getAllValuationRooms = async (): Promise<any> => {
-    //     try {
-    //         const response = await axios.get(`${apiPath}/api/valuation/rooms?jobId=${job._id}`);
-    //         if (response.status === 200) {
-    //             setValutionRoom(response.data);
-    //         } else {
-    //             setValutionRoom([])
-    //         }
-    //     } catch (error: any) {
-    //         setValutionRoom([])
-    //     }
-    // };
+    const getAllValuationRooms = async (): Promise<any> => {
+        try {
+            const response = await axios.get(`${apiPath}/api/valuation/rooms?jobId=${job._id}`);
+            if (response.status === 200) {
+                setValutionRoom(response.data);
+            } else {
+                setValutionRoom([])
+            }
+        } catch (error: any) {
+            setValutionRoom([])
+        }
+    };
 
-    // useEffect(() => {
-    //     getAllValuationRooms();
-    // }, [job])
-
+    useEffect(() => {
+        getAllValuationRooms();
+    }, [job])
+if (valutionRoom.length === 0 ) return null;
     return (
-        <Box sx={{ paddingX: 3, lineHeight: 1.5 }}>
-            <Typography variant="h6" fontWeight="bold" gutterBottom>
-                SUMMARY
-            </Typography>
-            <Box display="flex" justifyContent="space-between">
-                <Typography>Price agreement</Typography>
-                <Typography>{job.package?.priceAgree}</Typography>
-            </Box>
-            <Divider sx={{ my: 2 }} />
-            {/* Quote Details */}
+        <> <Divider sx={{ my: 2 }} />
+        <h2 className='text-warmGray-600 py-2 text-2xl'>Valuation Rooms</h2>
+        <Box sx={{  lineHeight: 1.5 }}>
             {offerData.length > 0 ? offerData.map((offerData: any) =>
                 <div className='mb-4' key={offerData._id}>
-                    <div>
-                        <h6 className="text-lg font-semibold mb-2">
-                            # {offerData && offerData?.index}
-                        </h6>
-                        <p onClick={()=>{type === "offer" ? navigate(`/offer-detail/${offerData?._id}`) : navigate(`/invoice-detail/${offerData?._id}`)}} className="text-primary cursor-pointer mb-2">
-                            Go to {type === "offer" ? 'Quote' : 'Invoice'}
-                        </p>
-                        <div className="flex justify-between mb-1">
-                            <span className="">Subtotal</span>
-                            <span className=" font-medium">$ {offerData?.subTotal}</span>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <span className="">BTW</span>
-                            <span className=" font-medium">$ {offerData?.btw}</span>
-                        </div>
-                        <div className="flex justify-between font-bold mb-1">
-                            <span className="">Total</span>
-                            <span className="">$ {offerData?.total}</span>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <span className="">BTW-scenario</span>
-                            <span className="">{offerData?.vat}</span>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <span className="">Created On</span>
-                            <span className="">{formatDate(offerData?.createdAt)}</span>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <span className="">Expiry date</span>
-                            <span className="">{formatDate(offerData?.expire_date)}</span>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <span className="">Status</span>
-                            <span className="">{offerData?.Status}</span>
-                        </div>
-                    </div>
-                    
-                    {/* <div className="">
+
+                    <div className="">
                        
                         {valutionRoom &&
                             valutionRoom.map((item: any, index: number) => (
@@ -107,7 +64,7 @@ const JobOffermodule: React.FC<{ job: any, type: string }> = ({ type, job }) => 
                                     key={index}
                                     className="bg-white mt-4"
                                 >
-                                    <Divider sx={{ my: 2 }} />
+                                    
                                      
                                     <h4 className="text-xl bg-gray py-2 font-bold mb-2 text-black">
                                         {item.name || item.roomTypeName}
@@ -163,7 +120,7 @@ const JobOffermodule: React.FC<{ job: any, type: string }> = ({ type, job }) => 
                                             </div>
                                         )}
 
-                                    
+                                        {/* Assembling Items */}
                                         {item.assembledItems.length > 0 && (
                                             <div>
                                                 <h4 className="text-lg font-semibold text-black">Assembling</h4>
@@ -217,11 +174,13 @@ const JobOffermodule: React.FC<{ job: any, type: string }> = ({ type, job }) => 
                                     </div>
                                 </div>
                             ))}
-                    </div> */}
+                    </div>
                 </div>)
                 : <> No Linked Quotaion </>}
         </Box>
+
+        </>
     );
 };
 
-export default JobOffermodule;
+export default JobOfferRooms;
