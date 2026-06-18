@@ -25,6 +25,7 @@ import { useNavigate } from 'react-router-dom';
 import RecordPayment from './Recordpayment';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Loader from '../../common/Loader';
+import { toast } from 'react-toastify';
 
 const InvoiceList = ({ customerId }) => {
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -42,6 +43,7 @@ const InvoiceList = ({ customerId }) => {
   const [invoiceData, setInvoiceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 
@@ -55,16 +57,20 @@ const InvoiceList = ({ customerId }) => {
       const response = await axios.get(
         `${apiPath}/invoice/invoiceList?customer=${customerId || ''}`,
       );
-      setInvoiceData(response['data'].invoiceData);
-      setTimeout(() => {
-        if ($.fn.DataTable.isDataTable('#invoice')) {
-          $('#invoice').DataTable().destroy();
-        }
+      
 
-        $('#invoice').DataTable({
-          order: [[0, 'desc']], // Date column sort
-        });
-      }, 0);
+      if ($.fn.DataTable.isDataTable('#invoice')) {
+                      $('#invoice').DataTable().destroy();
+                    }           
+                  setInvoiceData(response['data'].invoiceData);         
+                    setTimeout(() => {
+                      $('#invoice').DataTable({
+              order: [[0, 'desc']] // 0 = first column
+            });
+                    }, 10);
+
+                    
+
     } catch (err) {
       setError('Failed to fetch agents. Please try again later.');
       console.error(err);
@@ -91,6 +97,7 @@ const InvoiceList = ({ customerId }) => {
         `${apiPath}/invoice/deleteInvoice/${selectedAgent._id}`,
       );
       if (response.status == 200) {
+        toast.success('Invoice deleted successfully!');
         handleAllInvoice();
       }
     } catch (err) {
@@ -179,11 +186,18 @@ const InvoiceList = ({ customerId }) => {
                       <Button
                         aria-controls={anchorEl ? 'simple-menu' : undefined}
                         aria-haspopup="true"
-                        onClick={(event) => handleClick(event, item)}
+                        onClick={(event) => {handleClick(event, item);setSelectedInvoice(item)}}
                       >
                         <MoreVertIcon />
                       </Button>
-                      <Menu
+                     
+                    </div>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+         <Menu
                         id="simple-menu"
                         anchorEl={anchorEl}
                         open={Boolean(anchorEl)}
@@ -195,7 +209,7 @@ const InvoiceList = ({ customerId }) => {
                         <MenuItem
                           onClick={(event) => {
                             event.stopPropagation(); // Prevent unintended navigation
-                            navigate(`/invoice/${item._id}`);
+                            navigate(`/invoice/${selectedInvoice._id}`);
                             handleClose();
                           }}
                         >
@@ -206,19 +220,13 @@ const InvoiceList = ({ customerId }) => {
                           onClick={(event) => {
                             event.stopPropagation(); // Prevent unintended propagation
                             handleClose();
-                            setSelectedAgent(item);
+                            setSelectedAgent(selectedInvoice); // Set the selected agent for deletion
                             openDeleteModal();
                           }}
                         >
                           <DeleteIcon /> &nbsp; Delete
                         </MenuItem>
                       </Menu>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
         <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>
           <Box className="bg-white p-6 rounded shadow-md max-w-md mx-auto mt-30">
             <IconButton

@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form'; // React Hook Form
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { ApprovalOutlined, DeleteOutline, EditOutlined, ElevatorOutlined, GifBoxOutlined } from '@mui/icons-material';
 import CustomerAddress from './CustomerAddress.tsx';
+import { toast } from 'react-toastify';
 
 const CustomerData = ({ customerData, handleCustomer }) => {
     const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
@@ -79,9 +80,17 @@ const CustomerData = ({ customerData, handleCustomer }) => {
                 originalCustomerId: originalCustomerId,
                 selectedCustomerId: customerData._id,
             });
-            console.log(response.data.message);
+            if(response.data.success) {
+toast.success('Customers merged successfully!');
+                closeMergeModal();
+                handleCustomer();
+            }else {
+                toast.error( response.data.message ?? 'Error merging customers');
+            }
+           
         } catch (error) {
-            console.error('Error merging customers:', error);
+            toast.error(error.response?.data.message ?? error.message ?? 'Error merging customers');
+            console.error('Error merging customers:', error.response?.data ?? error.message);
         }
     };
 
@@ -218,23 +227,29 @@ const CustomerData = ({ customerData, handleCustomer }) => {
             <Dialog
                 open={isMergeModalOpen}
                 onClose={closeMergeModal}
+                aria-labelledby="merge-dialog-title"
+                aria-describedby="merge-dialog-description"
+                
             >
                 <DialogTitle>Merge Customers</DialogTitle>
-                <DialogContent>
+                <DialogContent >
                     <form onSubmit={handleSubmit(handleMerge)}>
                         <div>
                             <input
                                 {...register("originalCustomerId")}
                                 type="text"
-                                placeholder="Original Customer ID"
+                                className="border border-[#ccc] p-1 rounded w-full mb-4"
+                                placeholder="Enter Customer UUID"
                                 value={originalCustomerId}
                                 onChange={(e) => setOriginalCustomerId(e.target.value)}
                                 required
                             />
                         </div>
                         <DialogActions>
+                              <Button variant="contained" color="inherit" onClick={closeMergeModal}>Cancel</Button>
                             <Button variant="contained" color="primary" type="submit">Merge</Button>
-                            <Button variant="contained" color="secondary" onClick={closeMergeModal}>Cancel</Button>
+                          
+                            
                         </DialogActions>
                     </form>
                 </DialogContent>

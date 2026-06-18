@@ -20,13 +20,13 @@ import { DeleteOutlineOutlined, EditOutlined } from '@mui/icons-material';
 
 const CustomerAddress = ({ handleCustomer, address, customerId }: any) => {
     const [open, setOpen] = useState(false);
-    const { register, handleSubmit, formState: { errors }, control } = useForm({
+    const { register, handleSubmit, formState: { errors }, control, reset } = useForm({
         defaultValues: address
     });
     const [countries, setCountries] = useState([]);
     const [property, setProperty] = useState([]);
     const handleOpen = () => setOpen(true);
-    const handleClose = () => setOpen(false);
+    const handleClose = () => { setOpen(false); reset(); };
 
     useEffect(() => {
         axios.get(`${apiPath}/api/sale_group?type=country`)

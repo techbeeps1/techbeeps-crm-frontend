@@ -25,7 +25,8 @@ import { Controller } from 'react-hook-form';
 const RoleSettings = () => {
   const [data, setData] = useState<[]>([]);
   const [loading, setLoading] = useState(false);
-  const { id }: any = useContext(UserContext);
+  const [changedata, setchangedata] = useState(0);
+
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const { control, register, handleSubmit, reset } = useForm();
   const roles = [
@@ -99,6 +100,7 @@ const RoleSettings = () => {
     return () => setData([]);
   }, []);
 
+
   useEffect(() => {
     if (selectedUser) {
       reset({
@@ -110,7 +112,7 @@ const RoleSettings = () => {
           ) || [],
       });
     }
-  }, [selectedUser, reset]);
+  }, [selectedUser, reset,changedata]);
 
   if (loading) {
     return <Loader />;
@@ -133,7 +135,7 @@ const RoleSettings = () => {
           <tbody>
             {data &&
               data.map((item: any) => (
-                <tr key={item._id} onClick={() => setSelectedUser(item)}>
+                <tr key={item._id} onClick={() => { setSelectedUser(item);setchangedata((d)=>d+1) }}>
                   <td className="border-b p-4">{item.username}</td>
                   <td className="border-b">{item.role}</td>
                   <td className="border-b cursor-pointer">

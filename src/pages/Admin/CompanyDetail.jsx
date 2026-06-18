@@ -33,9 +33,68 @@ const CompanySettings = () => {
   }, [reset]);
 
   const onSubmit = async (data) => {
+
+      const validateLength = (value, min, max) => {
+  const trimmed = (value || "").trim();
+  return trimmed.length >= min && trimmed.length <= max;
+};
+
+if (!validateLength(data.companyName, 2, 55)) {
+  notifyError("Company Name must be between 2 and 55 characters.");
+  return;
+}
+
+if (!validateLength(data.companyAddress, 2, 55)) {
+  notifyError("Company Address must be between 2 and 55 characters.");
+  return;
+}
+
+if (!validateLength(data.companyState, 2, 55)) {
+  notifyError("Company State must be between 2 and 55 characters.");
+  return;
+}
+
+if (!validateLength(data.companyEmail, 5, 55)) {
+  notifyError("Company Email must be between 5 and 55 characters.");
+  return;
+}
+
+if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.companyEmail.trim())) {
+  notifyError("Please enter a valid Company Email.");
+  return;
+}
+
+if (!/^\d{7,15}$/.test(data.companyPhone.trim())) {
+  notifyError("Company Phone must be between 7 and 15 digits.");
+  return;
+}
+
+if (!validateLength(data.companyWebsite, 5, 55)) {
+  notifyError("Company Website must be between 5 and 55 characters.");
+  return;
+}
+
+if (!/^[a-zA-Z0-9]{8,20}$/.test(data.companyTaxNumber.trim())) {
+  notifyError(
+    "Company Tax Number must be 8 to 20 characters and contain only letters and numbers."
+  );
+  return;
+}
+
+if (!validateLength(data.companyVatNumber, 8, 15)) {
+  notifyError("Company VAT Number must be between 8 and 15 characters.");
+  return;
+}
+
+if (!validateLength(data.companyRegNumber, 6, 25)) {
+  notifyError("Company Register Number must be between 6 and 25 characters.");
+  return;
+}
     const confirmUpdate = window.confirm("Are you sure you want to update your company details?");
     if (confirmUpdate) {
       setLoading(true);
+
+  
       try {
         const response = await fetch(`${apiPath}/api/company-details`, {
           method: 'POST', // Adjust method based on your API (POST, PUT, PATCH, etc.)

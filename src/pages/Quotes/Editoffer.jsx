@@ -96,13 +96,18 @@ const Editoffer = ({ display, offer, onclose }) => {
       setValue('financialTemplate', invoiceData?.financialTemplate._id);
       setValue('reference', invoiceData?.reference);
       setValue('Status', invoiceData?.Status);
+      setValue('discount', invoiceData?.discount);
+      setValue('discount_description', invoiceData?.discount_description);
+      setValue('items', invoiceData?.items || []);
       setVatSelected(invoiceData?.vat);
       setValue('ignoreRules', invoiceData?.ignoreRules);
       setValue(
         'expire_date',
         new Date(invoiceData?.expire_date).toISOString().split('T')[0],
       );
+
       fields.forEach((_, index) => remove(index));
+   
       if (invoiceData.items && invoiceData?.items.length > 0) {
         invoiceData.items.forEach((item) => {
           append({
@@ -463,6 +468,8 @@ const Editoffer = ({ display, offer, onclose }) => {
 
             {/* Form Fields */}
             {fields.map((item, index) => (
+
+
               <div
                 key={item.id}
                 className="grid grid-cols-1 md:grid-cols-6 gap-2 mb-4"
@@ -473,14 +480,16 @@ const Editoffer = ({ display, offer, onclose }) => {
                 </div>
                 <select
                   className="p-2 border border-gray w-full"
-                  {...register(`items.${index}.salesgroup`)}
+                  {...register(`items.${index}.salesgroup._id`)}                 
                 >
                   <option value="">Select</option>
                   {salesgroup?.map((sg, idx) => (
-                    <option key={idx} value={sg._id}>
+                    <option key={idx} value={sg._id} >
                       {sg.name}
                     </option>
                   ))}
+
+                
                 </select>
 
                 <div className="block md:hidden font-semibold text-gray-700">

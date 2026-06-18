@@ -19,6 +19,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Loader from '../../common/Loader';
+import { toast } from 'react-toastify';
 
 
 const QuoteList = ({ customerId }) => {
@@ -45,20 +46,24 @@ const QuoteList = ({ customerId }) => {
     const { register, handleSubmit, reset } = useForm();
     const { id } = useContext(UserContext);
 
+
+
+
     const handleAllInvoice = async () => {
         try {
-            const response = await axios.get(`${apiPath}/finance/financeList?customer=${customerId || ''}`);
-            setData(response["data"].financeData);
-            console.log(response["data"].financeData);
-            setTimeout(() => {
-                if ($.fn.DataTable.isDataTable('#quote')) {
-        $('#quote').DataTable().destroy();
-    }
 
-    $('#quote').DataTable({
-        order: [[0, 'desc']] // Date column sort
-    });
-            }, 0);
+            const response = await axios.get(`${apiPath}/finance/financeList?customer=${customerId || ''}`);
+                    if ($.fn.DataTable.isDataTable('#quote')) {
+                      $('#quote').DataTable().destroy();
+                    }           
+                    setData(response["data"].financeData);           
+                    setTimeout(() => {
+                      $('#quote').DataTable({
+              order: [[0, 'desc']] // 0 = first column
+            });
+                    }, 10);
+          
+             
         } catch (err) {
             setError('Failed to fetch agents. Please try again later.');
             console.error(err);
@@ -68,6 +73,7 @@ const QuoteList = ({ customerId }) => {
     };
 
     const openDeleteModal = (agent) => {
+
         setDeleteModalOpen(true);
     };
 
@@ -80,6 +86,8 @@ const QuoteList = ({ customerId }) => {
         try {
             const response = await axios.delete(`${apiPath}/finance/deleteFinance/${selectedAgent._id}`);
             if (response.status == 200) {
+                console.log(response.data.status);
+                toast.success('Offer deleted successfully!');
                 handleAllInvoice()
             }
         } catch (err) {
@@ -133,7 +141,7 @@ const QuoteList = ({ customerId }) => {
                                 <td className="border-b">{new Date(item.date).toLocaleDateString()}</td>
                                 <td className="border-b">$ {item.total}</td>
                                 <td className="border-b">{item.Status}</td>
-                                <td className="border-b relative" style={{ display: "flex", gap: "20px" }}>
+                                <td className="border-b " style={{ display: "flex", gap: "20px" }}>
                                     <div>
                                         {/* 3-dot button */}
                                         <Button
@@ -143,7 +151,19 @@ const QuoteList = ({ customerId }) => {
                                         >
                                             <MoreVertIcon />
                                         </Button>
-                                        <Menu
+   
+                                      
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                    {/* Dropdown menu for Edit and Delete */}       
+                 
+                 { anchorEl && selectedAgent &&
+                    
+                    <Menu
                                             id="simple-menu"
                                             anchorEl={anchorEl}
                                             open={Boolean(anchorEl)}
@@ -171,12 +191,8 @@ const QuoteList = ({ customerId }) => {
                                                 <DeleteIcon /> &nbsp; Delete
                                             </MenuItem>
                                         </Menu>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+}
+
                 <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>
                     <Box className="bg-white p-6 rounded shadow-md max-w-md mx-auto mt-30">
                         <IconButton
@@ -189,12 +205,12 @@ const QuoteList = ({ customerId }) => {
                             Confirm Delete
                         </Typography>
                         <Typography className="mb-4" style={{ margin: "5px 0" }}>
-                            Are you sure you want to delete Performa #{selectedAgent?.index} ?
+                            Are you sure you want to delete offer #{selectedAgent?.index} ?
                         </Typography>
                         <Box className="flex justify-end" style={{ margin: "5px 0", display: "flex", gap: "10px" }}>
                             <Button
                                 variant="contained"
-                                color="secondary"
+                                color="error"
                                 onClick={confirmDelete}
                                 className="mr-2"
                             >

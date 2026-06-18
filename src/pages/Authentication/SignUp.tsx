@@ -3,7 +3,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { useState } from 'react';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
-
+import { toast } from 'react-toastify';
 
 interface SignUpFormInputs {
   username: string;
@@ -18,12 +18,18 @@ interface SignUpProps {
 }
 
 const SignUp: React.FC<SignUpProps> = ({ signup, setsignup }) => {
+
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [showOtpPopup, setShowOtpPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [otp, setOtp] = useState('');
   const [userData, setUserdata] = useState<any>({});
+
+  const notify = (message: string) => toast(message);
+  const notifyError = (message: string) => toast.error(message, {
+    autoClose: 2000,
+  });
 
   const {
     register,
@@ -35,6 +41,8 @@ const SignUp: React.FC<SignUpProps> = ({ signup, setsignup }) => {
   const password = watch('password');
 
   const handlesignup = async (data: SignUpFormInputs) => {
+ 
+
     try {
       const response = await axios.post(`${apiPath}/user/register`, data, {
         headers: {
@@ -53,6 +61,14 @@ const SignUp: React.FC<SignUpProps> = ({ signup, setsignup }) => {
   };
 
   const handleVerifyOTP = async () => {
+    if (!otp.trim()) {
+      setErrorMessage('Please enter the OTP.');
+      return;
+    }
+    if (otp.trim().length !== 6) {
+      setErrorMessage('OTP must be 6 digits long.');
+      return;
+    }
     try {
       const response = await axios.post(`${apiPath}/email/verify-otp`, { email : userData.email , otp }, {
         headers: {
@@ -69,6 +85,29 @@ const SignUp: React.FC<SignUpProps> = ({ signup, setsignup }) => {
   };
 
   const onSubmit: SubmitHandler<SignUpFormInputs> = async (data) => {
+
+    //validation
+   
+    if (!data.email.trim() || !data.confirmPassword.trim() || !data.password.trim() || !data.username.trim()) {
+      notifyError('Please fill in all fields');
+      return;
+    }
+    if(data.username.length > 30 || data.username.length < 2){
+      notifyError('Name must be between 2 and 30 characters long');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(data.email)) {
+      notifyError('Please enter a valid email address');
+      return;
+    }
+    if(data.email.length > 55  ){
+      notifyError('Email must be less than 55 characters long');
+      return;
+    }
+    if (data.password.length < 6 || data.password.length > 12) {
+      notifyError('Password must be between 6 and 12 characters long');
+      return;
+    }
     try {
       const response = await axios.post(`${apiPath}/email/send-otp`, { email: data.email }, {
         headers: {

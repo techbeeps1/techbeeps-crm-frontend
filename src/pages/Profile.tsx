@@ -71,6 +71,58 @@ const Profile: React.FC = () => {
 
   const updateProfile = async (data: any): Promise<any> => {
     setLoading(true);
+   if(data.username.trim() === "") {
+      notifyError("Username cannot be empty")
+      setLoading(false);
+      return;
+    }
+    if(data.username.length < 3 || data.username.length > 20) {
+      notifyError("Username must be between 3 and 20 characters")
+      setLoading(false);
+      return;
+    }
+    
+    if(!/^\+?[0-9]{7,15}$/.test(data.telephone)) {
+      notifyError("Invalid telephone number")
+      setLoading(false);
+      return;
+    }
+    if(data.city.trim() === "") {
+      notifyError("City cannot be empty")
+      setLoading(false);
+      return;
+    }
+    if(data.city.length < 2 || data.city.length > 50) {
+      notifyError("City must be between 2 and 50 characters")
+      setLoading(false);
+      return;
+    }
+    if(data.country.trim() === "") {
+      notifyError("Country cannot be empty")
+      setLoading(false);
+      return;
+    }
+    if(data.country.length < 2 || data.country.length > 50) {
+      notifyError("Country must be between 2 and 50 characters")
+      setLoading(false);
+      return;
+    }
+    if(data.houseNumber.length > 10 || data.houseNumber.length < 1) {
+      notifyError("House number must be between 1 and 10 characters")
+      setLoading(false);
+      return;
+    }
+    if(data.street.length > 56 || data.street.length < 2 ) {
+      notifyError("Street must be between 2 and 56 characters")
+      setLoading(false);
+      return;
+    }
+    if(data.postCode.length > 12 || data.postCode.length < 3) {
+      notifyError("Postal code must be between 3 and 12 characters")
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await axios.post(`${apiPath}/user/update`, data);
       handleClose()

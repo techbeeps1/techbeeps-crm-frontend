@@ -15,6 +15,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
 const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
+
     const [tabIndex, setTabIndex] = useState(0);
     const [comments, setComments] = useState([]);
     const [commentForm, setCommentForm] = useState('');
@@ -78,6 +79,14 @@ const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
         }
     }
     const submitCommentForm = async () => {
+        if (!commentForm.trim()) {
+            notifyError('Comment cannot be empty');
+            return;
+        }
+        if (commentForm.length < 2 || commentForm.length > 125) {
+            notifyError('Comment should be between 2 and 125 characters');
+            return;
+        }
         setLoading(true);
         try {
             const response = await axios.post(`${apiPath}/api/comment`, {
@@ -124,7 +133,10 @@ const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
             } else {
                 setRelocation(null)
             }
+        }else {
+            setRelocation(null)
         }
+
     }, [task]);
 
 

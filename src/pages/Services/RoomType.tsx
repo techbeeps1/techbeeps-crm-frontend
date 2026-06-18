@@ -16,6 +16,7 @@ import IconPicker from './IconPicker';
 const RoomType: React.FC = () => {
     const { register, handleSubmit, control, setValue, reset, formState: { errors } } = useForm();
     const [data, setData] = useState([]);
+      const [removeicon, setremoveIcon] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setModalOpen] = useState(false);
     const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -27,6 +28,7 @@ const RoomType: React.FC = () => {
 
     const openModal = (group: any) => {
         setSelectedSalesGroup(group);
+         setremoveIcon(false);
         setModalOpen(true);
         if (!group) {
             reset({ roomTypeName: '', icon: null });
@@ -82,6 +84,15 @@ const RoomType: React.FC = () => {
     // };
 
     const onSubmit = async (formData: any) => {
+    
+        if(formData.roomTypeName.trim() === ''){
+            notifyError('Room type name is required');
+            return;
+        }
+        if(formData.roomTypeName.length > 55 || formData.roomTypeName.length < 2){
+            notifyError('Room type name must be between 2 and 55 characters');
+            return;
+        }
         setLoading(true);
         try {
             if (selectedSalesGroup) {
@@ -215,9 +226,40 @@ const RoomType: React.FC = () => {
                                     <p className="text-red-500 text-sm mt-1">{errors.roomTypeName.message}</p>
                                 )}
                             </div>
+
+                            {  selectedSalesGroup && !removeicon ? 
+              <div className="flex flex-col ">
+              
+                  <label htmlFor="price" className="font-medium mb-2">
+                    Icon
+                  </label>
+                    <div className='flex gap-2'>
+                  <div
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      padding: '2px',
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: selectedSalesGroup?.icon,
+                    }}
+                  />
+                  
+                  <div className='flex items-center cursor-pointer text-blue'
+                    onClick={() => setremoveIcon(true)}
+                  >
+                {' Change '}
+                  </div>
+                </div>
+              </div>
+            :
                             <div className="">
                                 <IconPicker setValue={setValue} register={register} icons={icons} control={control} errors={errors} />
-                            </div>
+                            </div> }
                             {/* Submit Button */}
                             <div className="flex justify-end mt-4">
                                 <button

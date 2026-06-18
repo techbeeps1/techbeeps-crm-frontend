@@ -452,22 +452,26 @@ const NewOffer = ({ display, job, onclose }) => {
               <label className="md:hidden text-sm font-semibold">
                 Sales Group
               </label>
-              <div className='w-full'>
-              <select
-                className="p-2 border border-gray"
-                {...register(`items.${index}.salesgroup`, { required: 'Sales group is required' })}
-              >
-                <option value="">Select</option>
-                {salesgroup?.map((item, idx) => (
-                  <option key={idx} value={item._id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-               {errors?.items?.[index]?.salesgroup && (
-                <p className="text-red-500 text-xs">{errors.items[index].salesgroup.message}</p>
+              <div className="w-full">
+                <select
+                  className="p-2 pe-3 border border-gray w-full"
+                  {...register(`items.${index}.salesgroup`, {
+                    required: 'Sales group is required',
+                  })}
+                >
+                  <option value="">Select</option>
+                  {salesgroup?.map((item, idx) => (
+                    <option key={idx} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                {errors?.items?.[index]?.salesgroup && (
+                  <p className="text-red-500 text-xs">
+                    {errors.items[index].salesgroup.message}
+                  </p>
                 )}
-                </div>
+              </div>
               <label className="md:hidden text-sm font-semibold">
                 Description
               </label>
@@ -483,6 +487,12 @@ const NewOffer = ({ display, job, onclose }) => {
                 type="number"
                 placeholder="Quantity"
                 className="p-2 border border-gray"
+                min="1"
+                onKeyDown={(e) => {
+                  if (e.key === '+' || e.key === '-' || e.key === 'e') {
+                    e.preventDefault();
+                  }
+                }}
                 {...register(`items.${index}.quantity`, {
                   valueAsNumber: true,
                 })}
@@ -507,6 +517,11 @@ const NewOffer = ({ display, job, onclose }) => {
                 type="number"
                 placeholder="Price"
                 className="p-2 border border-gray"
+                onKeyDown={(e) => {
+                  if (e.key === '+' || e.key === '-' || e.key === 'e') {
+                    e.preventDefault();
+                  }
+                }}
                 {...register(`items.${index}.price`, { valueAsNumber: true })}
               />
 
@@ -559,6 +574,11 @@ const NewOffer = ({ display, job, onclose }) => {
                 type="number"
                 className="mt-1 block w-1/2 p-2 border border-gray "
                 min={0}
+                onKeyDown={(e) => {
+                  if (e.key === '+' || e.key === '-' || e.key === 'e') {
+                    e.preventDefault();
+                  }
+                }}
                 {...register('discount', { valueAsNumber: true })}
               />
             </div>

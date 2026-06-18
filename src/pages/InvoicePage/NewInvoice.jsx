@@ -148,7 +148,7 @@ const NewInvoice = () => {
         handletemplate()
         handlesalesgroup()
         handleTaxTypeSalesGroup()
-    }, [])
+    }, [open]);
 
     function restructureData(inputData) {
         const jobinput = {};
@@ -288,7 +288,7 @@ const NewInvoice = () => {
                 <div className="mb-4">
                     <label className="block font-bold text-sm mb-2">Is the price inclusive or exclusive of VAT?</label>
                     <div className='grid grid-cols-2 gap-4 mb-4'>
-                    <div className="space-x-2 flex">
+                    <div className="space-x-2 flex items-center">
                         <button
                             type="button"
                             className={`px-4 py-2 rounded-md border focus:outline-none ${vatSelected === 'inclusive'
@@ -372,8 +372,18 @@ const NewInvoice = () => {
                             <input
                                 type="number"
                                 placeholder="Quantity"
+                                min="0"
                                 className="w-1/12 p-2 border border-gray "
                                 {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                                 onKeyDown={(e) => {
+        if (e.key === '+' || e.key === '-' || e.key === 'e') {
+            e.preventDefault();
+        }
+    }}
+    {...register(`items.${index}.quantity`, {
+        valueAsNumber: true,
+        min: 0
+    })}
                             />
                             <select
                                 className={`w-1/12 p-2 border border-gray`}
@@ -386,9 +396,19 @@ const NewInvoice = () => {
                             </select>
                             <input
                                 type="number"
+                                min="0"
                                 placeholder="Price"
                                 className="w-1/12 p-2 border border-gray "
-                                {...register(`items.${index}.price`, { valueAsNumber: true })}
+                              
+                                onKeyDown={(e) => {
+        if (e.key === '+' || e.key === '-' || e.key === 'e') {
+            e.preventDefault();
+        }
+    }}
+    {...register(`items.${index}.price`, {
+        valueAsNumber: true,
+        min: 0
+    })}
                             />
                             <button
                                 type="button"
@@ -428,7 +448,16 @@ const NewInvoice = () => {
                             <input
                                 type="number"
                                 className="mt-1 block w-1/2 p-2 border  border-gray "
-                                {...register('discount', { valueAsNumber: true })}
+                               onKeyDown={(e) => {
+        if (e.key === '+' || e.key === '-' || e.key === 'e') {
+            e.preventDefault();
+        }
+    }}
+    {...register('discount', {
+        valueAsNumber: true,
+        min: 0,
+        max: 100
+    })}
                             />
                         </div>
                     </div>

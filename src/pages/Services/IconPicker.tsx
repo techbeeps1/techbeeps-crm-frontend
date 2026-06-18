@@ -19,6 +19,7 @@ const IconPicker: React.FC<IconPickerProps> = ({ register, errors, setValue,sele
     const [svgStyle, setSvgStyle] = useState<boolean>(false);
     const [iconFileName, setIconFileName] = useState<string | null>(null);
 
+
     const openDialog = () => setIsDialogOpen(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const closeDialog = () => {

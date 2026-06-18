@@ -69,10 +69,29 @@ const TaskPage = ({ jobId }) => {
       const response = await axios.get(
         `${apiPath}/api/task?scheduledFor=${filter}&jobId=${jobId || ''}`,
       );
-      setData(response['data']);
-      setTimeout(() => {
-        $('#tasks').DataTable();
-      }, 0);
+      if (response?.data?.length > 0) {
+        if ($.fn.DataTable.isDataTable('#tasks')) {
+          $('#tasks').DataTable().destroy();
+        }
+
+        setData(response['data']);
+
+        setTimeout(() => {
+          $('#tasks').DataTable({
+  order: [[2, 'desc']] // 0 = first column
+});
+        }, 10);
+      } else {
+        if ($.fn.DataTable.isDataTable('#tasks')) {
+          $('#tasks').DataTable().destroy();
+        }
+        setData([]);
+        setTimeout(() => {
+         $('#tasks').DataTable({
+  order: [[2, 'desc']] 
+});
+        }, 10);
+      }
     } catch (err) {
       setData([]);
       setError('Failed to fetch agents. Please try again later.');
@@ -118,6 +137,16 @@ const TaskPage = ({ jobId }) => {
 
   const onSubmit = async (formData) => {
     setLoading(true);
+    if (formData.summary.length < 2 || formData.summary.length > 55) {
+      notifyError('Title should be between 2 and 55 characters');
+      setLoading(false);
+      return;
+    }
+    if (formData.description.length < 5 || formData.description.length > 125) {
+      notifyError('Description should be between 5 and 125 characters');
+      setLoading(false);
+      return;
+    }
     try {
       let response = await axios.post(`${apiPath}/api/task`, formData);
       notify('task created successfully');
@@ -293,14 +322,13 @@ const TaskPage = ({ jobId }) => {
           )}
           <div className="overflow-x-auto">
             {/* Table for larger screens */}
-            <table
-              id="tasks"
-              className="hidden md:table w-full"
-            >
+            <table id="tasks" className="hidden md:table w-full">
               <thead className="bg-gray-200 border-b">
                 <tr>
+                
                   <th className="p-3 text-left">Title</th>
                   <th className="p-3 text-center">Assigned to</th>
+                    <th className="p-3 text-left">Created</th>
                   <th className="p-3 text-center">Status</th>
                 </tr>
               </thead>
@@ -312,6 +340,7 @@ const TaskPage = ({ jobId }) => {
                       onClick={() => setSelectedStaff(item)}
                       className="bg-white shadow-md cursor-pointer hover:bg-gray-100 transition border-b"
                     >
+                 
                       <td className="p-3 font-bold capitalize md:flex items-center">
                         <Badge
                           color="error"
@@ -326,7 +355,11 @@ const TaskPage = ({ jobId }) => {
                         {item?.summary} {item?.customer?.firstName}{' '}
                         {item?.customer?.lastName} ({item?.job?.index || ''})
                       </td>
+
                       <td className="p-3 text-center">{item?.assignedTo}</td>
+                           <td className="p-3 text-center">
+                        {new Date(item?.createdAt).toLocaleString()}
+                      </td>
                       <td className="p-3 text-center">
                         <Button variant="outlined" size="small">
                           {item?.status}
@@ -397,9 +430,9 @@ const TaskPage = ({ jobId }) => {
               >
                 <Button
                   variant="contained"
-                  color="secondary"
+                  color="#FF0000"
                   onClick={confirmDelete}
-                  className="mr-2"
+                  className="mr-2 b"
                 >
                   Yes
                 </Button>

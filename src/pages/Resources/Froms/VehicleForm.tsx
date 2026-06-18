@@ -49,7 +49,10 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
         })();
     };
     const handleBack = () => setActiveStep((prev) => prev - 1);
-    const handleClose = () => setOpen(false);
+    const handleClose = () => {
+        setOpen(false);
+        reset();
+    };
 
     const steps = [
         { label: 'Vehicle' },

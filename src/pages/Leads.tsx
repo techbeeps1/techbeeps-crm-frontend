@@ -224,7 +224,36 @@ function Leads() {
   const notify = () => toast('🦄 leads created Successfully!');
 
   const handleFormSubmission = async () => {
+
+    if(firstName.trim() === '') {
+        toast.error('First name is required.');
+        return;
+      }
+      if(firstName.trim().length < 2 || firstName.trim().length > 20) {
+        toast.error('First name must be between 2 and 20 characters.');
+        return;
+      }
+      if(lastName.trim() === '') {
+        toast.error('Last name is required.');
+        return;
+      }
+      if(lastName.trim().length < 2 || lastName.trim().length > 20) {
+        toast.error('Last name must be between 2 and 20 characters.');
+        return;
+      }
+      if(email.trim() === '') { 
+        toast.error('Email is required.');
+        return;
+      }
+      if(email.trim().length < 5  || email.trim().length > 55) {
+        toast.error('Email must be between 5 and 55 characters.');
+        return;
+      }
+      
     if (activeFormIndex === forms.length - 1) {
+     
+     
+
       const formData = {
         typeOfCustomer,
         salutation,
@@ -265,6 +294,7 @@ function Leads() {
         setActiveFormIndex(0);
       }
     } else {
+
       setActiveFormIndex(activeFormIndex + 1);
       setShowBackButton(true);
     }

@@ -32,6 +32,27 @@ const SignIn: React.FC<SignInProps> = ({ signup, setsignup, onResetPassword }) =
 
 
   const handleLogin = async (data: LoginFormInputs) => {
+   
+
+    //validation 
+
+    if (!data.email || !data.password) {
+      notifyError('Please fill in all fields');
+      return;
+    }
+    if (!/\S+@\S+\.\S+/.test(data.email)) {
+      notifyError('Please enter a valid email address');
+      return;
+    }
+    if(data.email.length > 55  ){
+      notifyError('Email must be less than 55 characters long');
+      return;
+    }
+    if (data.password.length < 6 || data.password.length > 12) {
+      notifyError('Password must be between 6 and 12 characters long');
+      return;
+    }
+    
     setLoading(true);
     try {
       const response = await axios.post(`${apiPath}/user/login`, data);
@@ -187,7 +208,7 @@ const SignIn: React.FC<SignInProps> = ({ signup, setsignup, onResetPassword }) =
             </button> */}
 
             {/* Switch to Register */}
-            <div className="text-center mt-2">
+            {/* <div className="text-center mt-2">
               <div>
                 <span>
                   Don't have an account?{' '}
@@ -200,7 +221,7 @@ const SignIn: React.FC<SignInProps> = ({ signup, setsignup, onResetPassword }) =
 
                 </span>
               </div>
-            </div>
+            </div> */}
           </form>
         </div>
       </div>

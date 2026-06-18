@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
+import { toast } from 'react-toastify';
 import {
   Button,
   IconButton,
@@ -124,45 +124,77 @@ const NewJob = ({ handler }) => {
     JobHandler(data);
   };
 
-  const JobHandler = async (jobData) => {
-    setLoading(true);
+ const JobHandler = async (jobData) => {
+  setLoading(true);
+
+  try {
     let customerId = '';
-    try {
-      if (jobData.customer == '') {
+
+    if (jobData.customer === '') {
+      try {
         const customerResponse = await axios.post(
           `${apiPath}/customer/customeradd`,
-          jobData.client,
+          jobData.client
         );
-        customerId = customerResponse.data._id;
-      } else {
-        customerId = jobData.customer;
+
+        customerId = customerResponse.data.customerID;
+      } catch (error) {
+        if (error.response?.status === 400) {
+          toast.error(
+            error.response?.data?.error || 'Customer email already exists'
+          );
+          return; // stop further execution
+        }
+
+        throw error;
       }
-      const jobScheduleData = {
-        date: jobData.date,
-        customer: customerId,
-        package: jobData.package,
-        hasElevator: hasElevator,
-        unloadElevator: unloadElevator,
-        load: jobData.load,
-        unload: jobData.knownAddress == true ? {} : jobData.unload,
-        knownAddress: jobData.knownAddress,
-      };
-      const jobResponse = await axios.post(
-        `${apiPath}/api/jobSchedule`,
-        jobScheduleData,
-      );
-      alert('job created successfully');
-      const jobId = jobResponse.data._id;
-      createAppointment(jobId, valuation);
-      createAppointment(jobId, appointData);
-      handleClose();
-      handler();
-    } catch (error) {
-      console.error('Error processing job handler:', error);
-    } finally {
-      setLoading(false);
+    } else {
+      customerId = jobData.customer;
     }
-  };
+
+    const jobScheduleData = {
+      date: jobData.date,
+      customer: customerId,
+      package: jobData.package,
+      hasElevator,
+      unloadElevator,
+      load: jobData.load,
+      unload: jobData.knownAddress ? {} : jobData.unload,
+      knownAddress: jobData.knownAddress,
+    };
+
+    const jobResponse = await axios.post(
+      `${apiPath}/api/jobSchedule`,
+      jobScheduleData
+    );
+
+    toast.success('Job created successfully');
+
+    const jobId = jobResponse.data._id;
+
+    createAppointment(jobId, valuation);
+    createAppointment(jobId, appointData);
+
+    setData([]);
+    setSelectedEmployee('');
+    setSelectedDate(null);
+
+    handleClose();
+    handler();
+
+  } catch (error) {
+    console.error(error);
+
+    toast.error(
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      error.message ||
+      'Something went wrong'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const createAppointment = async (jobId, appointData) => {
     if (appointData) {

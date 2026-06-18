@@ -375,7 +375,13 @@ const EditInvoice = () => {
                             />
                             <input
                                 type="number"
+                                min="1"
                                 placeholder="Quantity"
+                                onKeyDown={(e) => {
+      if (e.key === '+' || e.key === '-' || e.key === 'e') {
+            e.preventDefault();
+        }
+    }}
                                 className="w-1/12 p-2 border border-gray "
                                 {...register(`items.${index}.quantity`, { valueAsNumber: true })}
                             />
@@ -391,6 +397,12 @@ const EditInvoice = () => {
                             <input
                                 type="number"
                                 placeholder="Price"
+                                min="0"
+                                onKeyDown={(e) => {
+      if (e.key === '+' || e.key === '-' || e.key === 'e') {
+            e.preventDefault();
+        }
+    }}
                                 className="w-1/12 p-2 border border-gray "
                                 {...register(`items.${index}.price`, { valueAsNumber: true })}
                             />
@@ -431,6 +443,12 @@ const EditInvoice = () => {
                         <div className="w-1/2">
                             <input
                                 type="number"
+                                min="0"
+                                onKeyDown={(e) => {
+        if (e.key === '+' || e.key === '-' || e.key === 'e') {
+            e.preventDefault();
+        }
+    }}
                                 className="mt-1 block w-1/2 p-2 border border-gray "
                                 {...register('discount', { valueAsNumber: true })}
                             />

@@ -91,6 +91,29 @@ const FurnitureType: React.FC = () => {
     // };
 
     const onSubmit = async (formData: any) => {
+
+        if(formData.furnitureTypeName.trim() === ''){
+            notifyError('Furniture type name is required');
+            return;
+        }
+        if(formData.furnitureTypeName.length > 55 || formData.furnitureTypeName.length < 2){
+            notifyError('Furniture type name must be between 2 and 55 characters');
+            return;
+        }
+        if(formData.cubicMeter === '' || formData.cubicMeter <= 0){
+            notifyError('Area in cubic Meter is required and must be a positive number');
+            return;
+        }
+        const numberPattern = /^\d*\.?\d*$/;
+        if (!numberPattern.test(formData.cubicMeter)) {
+            notifyError('Area in cubic Meter must be a valid number');
+            return;
+        }
+
+        if(formData.weight === '' || formData.weight < 0){
+            notifyError('Weight is required and must be a positive number');
+            return;
+        }
         setLoading(true);
         try {
             if (selectedSalesGroup) {
@@ -240,7 +263,8 @@ const FurnitureType: React.FC = () => {
                                     required: 'cubicMeter is required',
                                 })}
                                 id="cubicMeter"
-                                type="text"
+                                type="number"
+                                step="0.01"
                                 placeholder="Enter cubicMeter"
                                 className={`border p-2 rounded focus:outline-none focus:ring focus:ring-blue-300 ${errors.cubicMeter ? 'border-red-500' : 'border-gray'
                                     }`}

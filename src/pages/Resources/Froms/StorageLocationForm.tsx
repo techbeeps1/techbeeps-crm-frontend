@@ -57,6 +57,7 @@ const StorageLocationForm: React.FC<any> = ({ warehouse, type, data, handler }) 
 
     const handleCancel = () => {
         setOpen(false);
+        reset();
     };
 
     const handleOpen = () => {

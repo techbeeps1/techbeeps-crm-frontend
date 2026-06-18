@@ -41,6 +41,24 @@ const NewPackageModal = ({ open, onClose}) => {
     };
 
     const createPackage = async (packageData) => {
+
+        if(packageData.name.trim() === ''){
+            alert('Please enter a package name');
+            return;
+        }
+        if(packageData.name.length < 2 || packageData.name.length > 55){
+            alert('Package name must be between 2 and 55 characters');
+            return;
+        }
+        if(packageData?.invoice?.discountDescription.trim()===''){
+alert('Please enter a discount description for the invoice');
+return;
+        }
+         if(packageData?.invoice?.discountDescription.length < 5 || packageData?.invoice?.discountDescription.length > 100){
+            alert('Discount description must be between 5 and 100 characters');
+            return;
+        }
+
         try {
             const response = await axios.post(`${apiPath}/api/packages`, packageData);
             console.log('Package created:', response.data);

@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { apiPath } from "../../../apiPath";
 import CloseIcon from '@mui/icons-material/Close';
 import { useParams } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const RecordPayment = () => {
     const {
@@ -24,10 +25,32 @@ const RecordPayment = () => {
 
     const paymentHandler = async (data) => {
         try {
+            if (data.amount <= 0) {
+                toast.error("Amount must be greater than zero.");
+                return;
+            }
+            if (!data.paymentMode) {
+                toast.error("Please select a payment mode.");
+                return;
+            }
+            if (!data.date) {
+                toast.error("Please select a payment date.");
+                return;
+            }
+           
+
+
             const response = await axios.post(apiPath + "/api/record-payment", data);
-            closePayModal();
+            if (response.data.message=="Payment recorded successfully") {
+                toast.success("Payment recorded successfully!");
+                 closePayModal();
             handlePayments();
+            } else {
+                toast.error("Failed to record payment. Please try again.");
+            }
+           
         } catch (error) {
+                toast.error(error.response?.data?.message || "An error occurred while recording payment.");
             console.error("Error recording payment", error.message);
         }
     }
@@ -116,6 +139,12 @@ const RecordPayment = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
                                 <input
                                     type="number"
+                                    min="1"
+                                    onKeyDown={(e) => {
+                                        if (e.key === '-' || e.key === '+' || e.key === 'e') {
+                                            e.preventDefault();
+                                        }
+                                    }}
                                     className={`block w-full p-2 border ${errors.amount ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none`}
                                     {...register("amount", { required: "Amount is required" })}
                                 />

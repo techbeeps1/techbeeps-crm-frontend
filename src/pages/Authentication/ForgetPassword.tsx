@@ -19,7 +19,7 @@ interface ResetPasswordProps {
 }
 
 const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
-  const [oldpasswordVisible, setPasswordVisible] = useState(false);
+
   const [newpasswordVisible, setnewPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [showOtpPopup, setShowOtpPopup] = useState(false);
@@ -42,52 +42,55 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
 
   const new_password = watch("new_password");
 
-  const handleReset = async (data: { email: string; oldPassword: string; newPassword: string }) => {
-    setLoading(true);
-    try {
-      const response = await axios.post(`${apiPath}/user/reset_password`, data, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.status === 200) {
-        setShowOtpPopup(false);
-        notify('Passward reset Successfully')
-        handler();
-      }
-    } catch (error: any) {
-      notifyError(`Failed to reset password.${error?.message}`);
-      console.error('Error submitting the form:', error.response || error.message);
-      throw new Error(error.response?.data?.message || 'Failed to submit form.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleVerifyOTP = async () => {
     setLoading(true);
     try {
-      const response = await axios.post(`${apiPath}/email/verify-otp`, { email: userData.email, otp }, {
+      const response = await axios.post(`${apiPath}/user/reset_password`, { email: userData.email, otp, newPassword: userData.newPassword }, {
         headers: {
           'Content-Type': 'application/json',
         },
       });
       if (response.status == 200) {
-        handleReset(userData)
+
+         notify('Passward reset Successfully')
+         setErrorMessage('');
+         setShowOtpPopup(false);
       }
     } catch (error: any) {
-      notifyError(`Failed to verify otp.${error.response?.data?.message}`);
-      setErrorMessage(error.response?.data?.message || 'Failed to verify OTP.');
+      notifyError(`${error.response?.data?.msg ?? 'Failed to verify OTP.'}`);
+      setErrorMessage(error.response?.data?.msg || 'Failed to verify OTP.');
     }finally{
       setLoading(false);
     }
   };
 
   const onSubmit: SubmitHandler<ResetPasswordFormInputs> = async (data) => {
+
+    if (data.new_password !== data.confirm_newPassword) {
+      notifyError("Passwords do not match");
+      return;
+    }
+
+    if(data.email.trim() === ''){
+      notifyError("Email is required");
+      return;
+    }
+    if(data.email && !/^\S+@\S+$/i.test(data.email)){
+      notifyError("Please enter a valid email address");
+      return;
+    }
+    if(data.email.length > 55){
+      notifyError("Email must be less than 55 characters");
+      return;
+    }
+      if (data.new_password.length < 6 || data.new_password.length > 12) {
+      notifyError("Password must be between 6 and 12 characters long");
+      return;
+    }
     setLoading(true);
     const finalData = {
       email: data.email,
-      oldPassword: data.old_password,
       newPassword: data.confirm_newPassword,
     };
     try {
@@ -99,7 +102,8 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
       if (response.status === 200) {
         setUserdata(finalData)
         setShowOtpPopup(true);
-        notify('Otp Send to your email address')
+        setOtp('');
+        notify('OTP Send to your email address')
       }
     } catch (error: any) {
       notifyError(`Failed to send otp.${error?.message}`);
@@ -108,9 +112,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
     }
   };
 
-  const toggleoldPasswordVisibility = () => {
-    setPasswordVisible(!oldpasswordVisible);
-  };
+
   const togglenewPasswordVisibility = () => {
     setnewPasswordVisible(!newpasswordVisible);
   };
@@ -152,62 +154,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="mb-2.5 block font-medium text-black dark:text-white">
-                Old Password
-              </label>
-              <div className="relative">
-                <input
-                  {...register("old_password", { required: "Old Password is required" })}
-                  type={oldpasswordVisible ? "text" : "password"}
-                  placeholder="Enter your password"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                />
-                <span
-                  className="absolute right-4 top-4 cursor-pointer"
-                  onClick={toggleoldPasswordVisibility}
-                >
-                  {oldpasswordVisible ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      width="22"
-                      height="22"
-                    >
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-.59 1.687-1.601 3.178-2.875 4.25M15 12a3 3 0 11-6 0 3 3 0 016 0zm-3 7v-1m0-4v-1"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      width="22"
-                      height="22"
-                    >
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 5c-4.477 0-8.268 2.943-9.542 7C3.732 16.057 7.523 19 12 19c4.477 0 8.268-2.943 9.542-7C20.268 7.943 16.477 5 12 5z"
-                      />
-                    </svg>
-                  )}
-                </span>
-                {errors.old_password && (
-                  <p className="text-red-500 text-sm mt-1">{errors.old_password.message}</p>
-                )}
-              </div>
-            </div>
+
             <div className="mb-4">
               <label className="mb-2.5 block font-medium text-black dark:text-white">
                 New Password
@@ -351,7 +298,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
             <input
               type="text"
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) =>{ setErrorMessage(''); setOtp(e.target.value)}}
               placeholder="Enter OTP"
               className="w-full mb-4 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
             />

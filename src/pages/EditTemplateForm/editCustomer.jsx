@@ -32,6 +32,7 @@ const EditCustomer = ({
     register,
     handleSubmit,
     formState: { errors },
+    reset,
     control,
   } = useForm({
     defaultValues: (formType !== 'address' && customerData) || {},
@@ -39,7 +40,7 @@ const EditCustomer = ({
   const [countries, setCountries] = useState([]);
   const [property, setProperty] = useState([]);
   const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {setOpen(false); reset();};
 
   useEffect(() => {
     axios

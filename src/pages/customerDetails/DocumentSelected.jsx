@@ -30,6 +30,7 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
     documentType: '',
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStarted, setUploadStarted] = useState(false);
 
   const openDialog = () => setIsDialogOpen(true);
 
@@ -38,6 +39,7 @@ const DocumentSelected = ({ id, isEmployee, email }) => {
     setFile(null);
     setUploadFormData({ filename: '', documentType: '' });
     setUploadProgress(0);
+    setUploadStarted(false);
   };
 
   const notifyError = (message) => toast.error(message, {
@@ -146,6 +148,8 @@ const handleDownload = async (fileUrl) => {
   };
 
   const handleUpload = async (e) => {
+    if(uploadStarted) retrun;
+    setUploadStarted(true);
     e.preventDefault();
     if (!file) {return (notifyError("No file selected"))}
     const formData = new FormData();
@@ -330,7 +334,7 @@ const handleDownload = async (fileUrl) => {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpload} variant="contained" color="primary">
+            <Button onClick={handleUpload} variant="contained" color="primary" disabled={uploadStarted}>
               Save
             </Button>
           </div>

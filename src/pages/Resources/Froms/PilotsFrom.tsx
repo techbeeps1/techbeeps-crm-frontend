@@ -33,6 +33,68 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
         if (data._id) {
             path = `${path}/${data?._id}`;
         }
+        if(data.name.trim() === ''){
+            notifyError("Name is a required field")
+            setLoading(false)
+            return
+        }else if(data.name.length > 50 || data.name.length < 2){
+            notifyError("Name must be between 2 and 50 characters")
+            setLoading(false)
+            return
+        }
+        if(data.postcode.trim() === ''){
+            notifyError("Postcode is a required field")
+            setLoading(false)
+            return
+        }else if(data.postcode.length > 12 || data.postcode.length < 2){
+            notifyError("Postcode must be between 2 and 12 characters")
+            setLoading(false)
+            return
+        }
+        if(data.houseNumber.trim() === ''){
+            notifyError("House number is a required field")
+            setLoading(false)
+            return
+        }else if(data.houseNumber.length > 15 || data.houseNumber.length < 1){
+            notifyError("House number must be between 1 and 15 characters")
+            setLoading(false)
+            return
+        }
+if(data.addition.trim() !== '' && (data.addition.length > 55 || data.addition.length < 2)){
+            notifyError("Addition must be between 2 and 55 characters")
+            setLoading(false)
+            return
+        }
+if(data.street.trim() === ''){
+            notifyError("Street is a required field")
+            setLoading(false)
+            return
+        }else if(data.street.length > 55 || data.street.length < 2){
+            notifyError("Street must be between 2 and 55 characters")
+            setLoading(false)
+            return
+        }
+
+        if(data.city.trim() === ''){
+            notifyError("City is a required field")
+            setLoading(false)
+            return
+        }else if(data.city.length > 55 || data.city.length < 2){
+            notifyError("City must be between 2 and 55 characters")
+            setLoading(false)
+            return
+        }
+
+
+        if(data.street.trim() === ''){
+            notifyError("Street is a required field")
+            setLoading(false)
+            return
+        }else if(data.street.length > 55 || data.street.length < 2){
+            notifyError("Street must be between 2 and 55 characters")
+            setLoading(false)
+            return
+        }
         try {
             const response = await axios.post(path, data, {
                 headers: {
@@ -57,6 +119,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
 
     const handleCancel = () => {
         setOpen(false);
+        reset();
     };
 
     const handleOpen = () => {

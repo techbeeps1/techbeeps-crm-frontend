@@ -38,6 +38,7 @@ const StorageLocation: React.FC<any> = ({ type, size, warehouseId }) => {
         setLoading(true);
         try {
             const response = await axios.get(`${apiPath}/api/storage_loaction?warehouseId=${warehouseId && warehouseId || ''}`);
+            console.log(response["data"], "storage location");
             setData(response["data"]);
             setTimeout(() => {
                 $(`#${type}`).DataTable();
@@ -58,6 +59,7 @@ const StorageLocation: React.FC<any> = ({ type, size, warehouseId }) => {
             if (response.status === 201 || response.status === 200) {
                 notify("Request successfully!");
                 handleAllData()
+                
                 setSelectedStaff(Formdata)
             } else {
                 notifyError(response.data.message);
@@ -121,7 +123,7 @@ const StorageLocation: React.FC<any> = ({ type, size, warehouseId }) => {
     }
     return (
         <div className="flex md:flex-row flex-col p-0 pt-2" style={{ justifyContent: "flex-start", minHeight: "85vh" }}>
-            <div className={`md:w-1/2 bg-white p-4 ${size && 'w-full'}`}>
+            <div className={` bg-white p-4 ${size ? 'w-full' : 'md:w-1/2'}`}>
                 <StorageLocationForm warehouse={warehouse} type={type} handler={handleAllData} />
                 <div className="rounded-sm mt-5 dark:border-strokedark dark:bg-boxdark overflow-auto">
                     <table style={{ paddingTop: "30px" }} id={type} className="">
@@ -231,7 +233,7 @@ const StorageLocation: React.FC<any> = ({ type, size, warehouseId }) => {
                                     </div>
 
                                     <div className="mt-5">
-                                        <StorageLocationForm warehouse={warehouse} type={type} handler={handleAllData} data={selectedStaff} />
+                                        <StorageLocationForm warehouse={warehouse} type={type} handler={() => { handleAllData(); setSelectedStaff(null); } } data={selectedStaff} />
                                     </div>
                                 </div>
                             )}

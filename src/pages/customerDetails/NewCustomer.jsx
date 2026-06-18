@@ -28,7 +28,10 @@ const NewCustomer = ({ handler, setOpen, open, type }) => {
     control,
     reset,
     trigger,
+    watch
+    
   } = useForm({});
+  const allValues = watch();
   const [countries, setCountries] = useState([]);
   const [property, setProperty] = useState([]);
   const [step, setStep] = useState(1);
@@ -44,6 +47,46 @@ const NewCustomer = ({ handler, setOpen, open, type }) => {
     });
 
   const NewCustomer = async (e) => {
+   
+     if (e.head?.postcode.trim() === '' ) {
+      notifyError('Postcode is required');
+      return;
+    }
+    else if(e.head?.postcode.trim().length < 3 || e.head?.postcode.trim().length > 12){
+      notifyError('Postcode must be between 3 and 12 characters');
+      return;
+
+    }
+
+    if (e.head?.houseNumber.trim() === '' ) {
+      notifyError('House number is required');
+      return;
+    }
+    else if(e.head?.houseNumber.trim().length < 1 || e.head?.houseNumber.trim().length > 15){
+      notifyError('House number must be between 1 and 15 characters');
+      return;
+    }
+    if (e.head?.street.trim() === '' ) {
+      notifyError('Street is required');
+      return;
+    }else if(e.head?.street.trim().length < 2 || e.head?.street.trim().length > 55){
+      notifyError('Street must be between 2 and 55 characters');
+      return;
+    }
+    if (e.head?.city.trim() === '' ) {
+      notifyError('City is required');
+      return;
+    }
+    else if(e.head?.city.trim().length < 2 || e.head?.city.trim().length > 55){
+      notifyError('City must be between 2 and 55 characters');
+      return;
+    }
+    if (e.head?.addition.trim() && (e.head?.addition.trim().length < 2 || e.head?.addition.trim().length > 56)) {
+      notifyError('Additional information must be between 2 and 56 characters');
+      return;
+    }
+      
+
     try {
       const response = await axios.post(
         `${apiPath}/customer/customeradd`,
@@ -54,9 +97,14 @@ const NewCustomer = ({ handler, setOpen, open, type }) => {
           },
         },
       );
+      if(response.data.message=== 'customer created'){
+        handleClose();
+        reset();
       notify('Customer added successfully');
-      handler();
+      }
+      
     } catch (error) {  
+      console.log(error)
         notifyError(
     error.response?.data?.error || 'Something went wrong'
   );
@@ -86,12 +134,62 @@ const NewCustomer = ({ handler, setOpen, open, type }) => {
 
   const onSubmit = (data) => {
     NewCustomer(data);
-    handleClose();
+    
   };
-  const goToNextStep = async () => {
+  const goToNextStep = async (e) => {
+
+    e.preventDefault();
+
+
+  if(allValues.firstName.trim()==''){
+      notifyError('First name is required');
+      return;
+    }
+    else if(allValues.firstName.trim().length < 3 || allValues.firstName.trim().length > 30){
+      notifyError('First name must be between 3 and 30 characters');
+      return;
+    }
+     if (allValues.lastName.trim() === '' ) {
+      notifyError('Last name is required');
+      return;
+    }
+      else if(allValues.lastName.trim().length < 3 || allValues.lastName.trim().length > 30){ 
+      notifyError('Last name must be between 3 and 30 characters');
+      return;
+    }
+
+     if (allValues.gender.trim() === '' ) {
+      notifyError('Gender is required');
+      return;
+    }
+  
+     if (allValues.email.trim() === '' ) {
+      notifyError('Email is required');
+      return;
+    }
+      else if(!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(allValues.email.trim())){
+      notifyError('Invalid email address');
+      return;
+    }
+    if(allValues.contact && (allValues.contact.trim().length < 10 || allValues.contact.trim().length > 13)){
+
+      notifyError('Contact number must be between 10 and 13 digits');
+      return;
+    }
+     if (allValues.mobile.trim() === '' ) {
+      notifyError('Mobile number is required');
+      return;
+    }
+    else if(allValues.mobile.trim().length < 10 || allValues.mobile.trim().length > 13){
+      notifyError('Mobile number must be between 10 and 13 digits');
+      return;
+  }
+
     const isValid = await trigger();
     if (isValid) setStep(step + 1); // Move to next step if valid
   };
+
+
   const goToPreviousStep = () => setStep(step - 1);
 
   return (
@@ -379,8 +477,9 @@ const NewCustomer = ({ handler, setOpen, open, type }) => {
             )}
             {step < 2 ? (
               <Button
-                type="button"
+                 type="button"
                 onClick={goToNextStep}
+
                 variant="contained"
                 color="primary"
               >

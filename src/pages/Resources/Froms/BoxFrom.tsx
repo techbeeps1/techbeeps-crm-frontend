@@ -57,6 +57,7 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
 
     const handleCancel = () => {
         setOpen(false);
+        reset();
     };
 
     const handleOpen = () => {
