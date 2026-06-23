@@ -46,8 +46,15 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
 
   const handleActivity = async () => {
     setLoading(true);
+
+    if (!invoiceData?._id) {
+      setActivities([]);
+      setLoading(false);
+      return;
+    }
     try {
-      const response = await axios.get(`${apiPath}/api/activities?offer=${invoiceData._id}`);
+      
+      const response = await axios.get(`${apiPath}/api/activities?offer=${invoiceData?._id}`);
       setActivities(response.data)
       const activiteList: Activity[] = response?.data.map((item: any) => ({
         ...item,
@@ -55,7 +62,8 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
       }));
       setActivities(activiteList)
     } catch (error) {
-      notifyError(`Error ${error.message}`);
+   
+      notifyError(`Error ${error}`);
       setActivities([])
     } finally {
       setLoading(false);
@@ -177,7 +185,14 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
               </Typography>
             </VerticalTimelineElement>
           ))}
+
+
         </VerticalTimeline>
+               { activities.length === 0 && (
+            <div className="text-center text-gray-500 mt-4">
+              No activities found.
+            </div>
+          )}
       </div>
       <Dialog
         open={isModalOpen}
