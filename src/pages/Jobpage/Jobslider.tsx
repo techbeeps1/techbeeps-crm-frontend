@@ -66,7 +66,7 @@ const Jobslider: React.FC<JobsliderProps> = ({ job, onClose, Ondelete }) => {
     const [tabIndex, setTabIndex] = useState(0);
     const [isNotesModalShow, setIsNotesModalShow] = useState(false);
     const [open, setOpen] = useState(false);
-    const { handleSubmit, register, setValue, formState: { errors } } = useForm<any>();
+    const { handleSubmit, register, setValue, reset, formState: { errors } } = useForm<any>();
     const [notes, setNotes] = useState<NotesFormInputs>({ _id: '', genralNotes: '', employeeNotes: '', customerNotes: '' });
     const [appointment, setAppointment] = useState<any>([])
     const [relocation, setRelocation] = useState<any>();
@@ -509,7 +509,10 @@ const Jobslider: React.FC<JobsliderProps> = ({ job, onClose, Ondelete }) => {
                                             <Button
                                                 variant="outlined"
                                                 color="secondary"
-                                                onClick={() => setIsNotesModalShow(false)}
+                                                onClick={() => {
+                                                    setIsNotesModalShow(false);
+                                                    reset();
+                                                }}
                                                 className="w-full sm:w-1/4 border border-stroke bg-gray text-black hover:bg-meta-1 dark:border-strokedark dark:bg-meta-4 dark:text-white"
                                             >
                                                 Cancel

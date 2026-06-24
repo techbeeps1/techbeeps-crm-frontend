@@ -33,16 +33,24 @@ const Team = () => {
     const { control, register, handleSubmit, reset, formState: { errors } } = useForm();
 
     const handleAllAgents = async () => {
-        try {
-            const response = await axios.get(`${apiPath}/api/teams`);
-            setData(response["data"]);
-            setTimeout(() => {
-                $('#teams').DataTable();
-            }, 0);
-        } catch (err) {
-            setError('Failed to fetch agents. Please try again later.');
-            console.error(err);
-        } finally {
+           try {
+
+        if ($.fn.DataTable.isDataTable('#teams')) {
+            $('#teams').DataTable().destroy();
+        }
+
+        const response = await axios.get(`${apiPath}/api/teams`);
+        setData(response.data);
+
+        setTimeout(() => {
+            $('#teams').DataTable({
+                destroy: true
+            });
+        }, 100);
+
+    } catch (err) {
+        console.error(err);
+    }finally {
             setLoading(false);
         }
     };
@@ -83,6 +91,9 @@ const Team = () => {
         try {
             let response = await axios.post(`${apiPath}/api/teams`, formData);
                 handleAllAgents()
+                        if ($.fn.DataTable.isDataTable('#teams')) {
+            $('#teams').DataTable().draw();
+        }
                 reset()
         } catch (err) {
             console.error('Failed to update agent:', err);
@@ -107,7 +118,7 @@ const Team = () => {
 
     useEffect(() => {
         handleAllAgents();
-        handleAllEmployee();
+       handleAllEmployee();
     }, []);
 
     if (loading) {
@@ -171,10 +182,10 @@ const Team = () => {
                     </Modal>
 
                     {/* new Agent Modal */}
-                    <Modal open={isEditModalOpen} onClose={closeEditModal}>
+                    <Modal open={isEditModalOpen} onClose={ () => {closeEditModal(); reset();}}>
                         <Box className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg mx-auto mt-24 relative">
                             <IconButton
-                                onClick={closeEditModal}
+                                onClick={() => {closeEditModal(); reset();}}
                                 className="absolute top-2 right-2"
                             >
                                 <CloseIcon />
@@ -241,7 +252,7 @@ const Team = () => {
                                     </Button>
                                     <Button
                                         variant="outlined"
-                                        onClick={closeEditModal}
+                                        onClick={()=>{closeEditModal();  reset()}}
                                     >
                                         Cancel
                                     </Button>
@@ -252,7 +263,7 @@ const Team = () => {
                 </div>
             </div>
             <div className="relative md:w-1/2 bg-white border-l">
-                <TeamSlider Ondelete={openDeleteModal} selectedStaff={selectedStaff} onClose={() => setSelectedStaff(null)} />
+                <TeamSlider Ondelete={openDeleteModal} selectedStaff={selectedStaff} onClose={() => setSelectedStaff(null)} isEdited = {()=>handleAllAgents()} />
             </div>
         </div>
 

@@ -67,12 +67,20 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
         setLoading(true);
         try {
             const tableId = `#${type}`;
+
+             if ($.fn.DataTable.isDataTable(tableId)) {
+                $(tableId).DataTable().destroy();
+                 }
             const response = await axios.get<SalesGroup[]>(`${apiPath}/api/sale_group?type=${type}`);
             setData(response.data);
             // setTimeout(() => { new DataTable(tableId) }, 0)
-            setTimeout(() => {
-                $(tableId).DataTable();
-            }, 0);
+         
+
+                setTimeout(() => {
+            $(tableId).DataTable({
+                destroy: true
+            });
+        }, 100);
         } catch (err: any) {
             notifyError(`Failed to fetch: ${err.message}`);
         } finally {

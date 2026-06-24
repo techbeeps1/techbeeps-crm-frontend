@@ -63,6 +63,104 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
     };
 
     const postUserData = async (data) => {
+    if(data.firstName.trim()===""){
+        notifyError("First Name is required");
+        return;
+    }
+    if(data.surname.trim()===""){
+        notifyError("Surname is required");
+        return;
+    }
+    if(data.firstName.trim().length<3  || data.firstName.trim().length>20){
+        notifyError("First Name must be between 3 and 20 characters");
+        return;
+    }
+    if(data.surname.trim().length<3  || data.surname.trim().length>20){
+        notifyError("Surname must be between 3 and 20 characters");
+        return;
+    }
+
+    if(data.email.trim()===""){
+        notifyError("Email is required");
+        return;
+    }
+    if(data.email.trim().length<5  || data.email.trim().length>50){
+        notifyError("Email must be between 5 and 50 characters");
+        return;
+    }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())){
+        notifyError("Enter a valid email address");
+        return;
+    }
+    if(data.telephone.trim()===""){
+        notifyError("Telephone is required");
+        return;
+    }
+    if(data.telephone.trim().length<10  || data.telephone.trim().length>15){
+        notifyError("Telephone must be between 10 and 15 digits");
+        return;
+    }
+    if(!/^[0-9]{10,15}$/.test(data.telephone.trim())){
+        notifyError("Enter a valid phone number (10-15 digits)");
+        return;
+    }
+    if(data.postcode.trim()===""){
+        notifyError("Postcode is required");
+        return;
+    }
+     if(data.postcode.trim().length<4  || data.postcode.trim().length>10){
+        notifyError("Postcode must be between 4 and 10 characters");
+        return;
+    }
+    if(data.houseNumber.trim()===""){
+        notifyError("House Number is required");
+        return;
+    }
+    if(data.houseNumber.trim().length<1  || data.houseNumber.trim().length>10){
+        notifyError("House Number must be between 1 and 10 characters");
+        return;
+    }
+    if(data.street.trim()===""){
+        notifyError("Street is required");
+        return;
+    }
+    if(data.street.trim().length<3  || data.street.trim().length>50){
+        notifyError("Street must be between 3 and 50 characters");
+        return;
+    }
+    if(data.city.trim()===""){
+        notifyError("City is required");
+        return;
+    }
+    if(data.city.trim().length<3  || data.city.trim().length>50){
+        notifyError("City must be between 3 and 50 characters");
+        return;
+    }
+    if(data.country.trim()===""){
+        notifyError("Country is required");
+        return;
+    }
+     if(data.country.trim().length<3  || data.country.trim().length>50){
+        notifyError("Country must be between 3 and 50 characters");
+        return;
+    }
+    if(data.documentNumber.trim()===""){
+        notifyError("Document Number is required");
+        return;
+    }
+    if(data.documentNumber.trim().length<3  || data.documentNumber.trim().length>20){
+        notifyError("Document Number must be between 3 and 20 characters");
+        return;
+    }
+    if(data.password.trim()===""){
+        notifyError("Password is required");
+        return;
+    }
+    if(data.password.trim().length<6  || data.password.trim().length>20){
+        notifyError("Password must be between 6 and 20 characters");
+        return;
+    }
+
         setLoading(true);
         const transformedData = {
             username: `${data.firstName} ${data.surname}`,
@@ -102,7 +200,7 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
             handler();
             notify('Employee created successfully!');
         } catch (error) {
-            notifyError(`Error : ${error?.response?.data?.msg}`);
+            notifyError(`${error?.response?.data?.msg === "User already exists" ? "User Email already exists" : error?.response?.data?.msg}`);
         } finally {
             setLoading(false);
         }

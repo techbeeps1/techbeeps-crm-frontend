@@ -116,9 +116,10 @@ const Features: React.FC = () => {
           <Grid item xs={12} key={item.label}>
             <TextField
               variant="standard"
+              className="w-auto font-medium border-b border-gray-300 focus:outline-none focus:border-blue-500"
               defaultValue={item.defaultValue}
               label={item.label}
-              InputProps={{ style: { width: 80 } }}
+              InputProps={{ style: { width: '450px' } }}
             />
           </Grid>
         ))}
@@ -259,10 +260,11 @@ const Features: React.FC = () => {
         ].map((item) => (
           <Grid item xs={12} key={item.label}>
             <TextField
+            className="w-auto font-medium border-b border-gray-300 focus:outline-none focus:border-blue-500"
               variant="standard"
               defaultValue={item.defaultValue}
               label={item.label}
-              InputProps={{ style: { width: 80 } }}
+              InputProps={{ style: { width: '450px' } }}
             />
           </Grid>
         ))}
@@ -291,10 +293,11 @@ const Features: React.FC = () => {
         ].map((label) => (
           <Grid item xs={12} key={label}>
             <TextField
+            className="w-auto font-medium border-b border-gray-300 focus:outline-none focus:border-blue-500"
               variant="standard"
               defaultValue="€ 0,00"
               label={label}
-              InputProps={{ style: { width: 200 } }}
+              InputProps={{ style: { width: '450px' } }}
             />
           </Grid>
         ))}
@@ -312,10 +315,11 @@ const Features: React.FC = () => {
         ].map((label) => (
           <Grid item xs={12} key={label}>
             <TextField
+              className="w-auto font-medium border-b border-gray-300 focus:outline-none focus:border-blue-500"
               variant="standard"
               defaultValue="€ 0,00"
               label={label}
-              InputProps={{ style: { width: 200 } }}
+              InputProps={{ style: { width: '450px' } }}
             />
           </Grid>
         ))}

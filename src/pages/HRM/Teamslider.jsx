@@ -19,11 +19,18 @@ import axios from 'axios';
 
 
 
-const TeamSlider = ({ selectedStaff, onClose, Ondelete }) => {
+const TeamSlider = ({ selectedStaff, onClose, Ondelete,isEdited }) => {
+
+    const [selectedStaffData, setSelectedStaff] = useState( );
     const [tabIndex, setTabIndex] = useState(0);
     const [isEditModalOpen, setEditModalOpen] = useState(false);
     const [roles, setRoles] = useState([]);
 
+
+    useEffect(() => {
+
+setSelectedStaff(selectedStaff);
+    }, [selectedStaff,]);
     const { control, register, handleSubmit, reset } = useForm();
 
     const handleChange = (event, newValue) => {
@@ -41,8 +48,17 @@ const TeamSlider = ({ selectedStaff, onClose, Ondelete }) => {
     const onEditSubmit = async (formData) => {
         const members = formData.members.map(member => member.value);
         try {
-            let response = await axios.put(`${apiPath}/api/teams/${selectedStaff._id}`, {teamName: formData.teamName, members: members});
+            let response = await axios.put(`${apiPath}/api/teams/${selectedStaffData._id}`, {teamName: formData.teamName, members: members});
             console.log('Team updated:', response.data);
+
+            setSelectedStaff(prevStaff => ({
+                ...prevStaff,
+
+                teamName: formData.teamName,
+                members: formData.members.map(member => ({ username: member.label, _id: member.value }))  // Update members with the new data  
+            }));
+
+            isEdited();
         } catch (err) {
             console.error('Failed to update agent:', err);
         } finally {
@@ -73,20 +89,20 @@ const TeamSlider = ({ selectedStaff, onClose, Ondelete }) => {
     }, [selectedStaff, reset])
 
 
-    if (!selectedStaff) return null;
+    if (!selectedStaffData) return null;
     return (
         // <div className="absolute top-0 right-0 left-0 h-full bg-white p-3 overflow-y-auto transition-transform">
             <div className={`${
-          selectedStaff
+          selectedStaffData
             ? 'z-10 transition-all delay-400 ease-in-out top-0 right-0 left-full bottom-0'
             : 'w-full  h-full shadow border-l border-gray'
-        } ${selectedStaff && '!left-0'} bg-white h-full overflow-auto `}
+        } ${selectedStaffData && '!left-0'} bg-white h-full overflow-auto `}
       >
             <IconButton onClick={onClose} className="absolute top-0 left-0">
                 <CloseIcon />
             </IconButton>
             <div className="flex justify-between">
-                <div style={{ textTransform: "uppercase" }} className="text-2xl font-bold mb-4">{selectedStaff.teamName}</div>
+                <div style={{ textTransform: "uppercase" }} className="text-2xl font-bold mb-4">{selectedStaffData.teamName}</div>
             </div>
             {/* Navigation Bar */}
             <Tabs value={tabIndex} onChange={handleChange} variant="standard">
@@ -98,22 +114,22 @@ const TeamSlider = ({ selectedStaff, onClose, Ondelete }) => {
                         <div>
                             <div className="flex mb-3">
                                 <h2 className="text-xl font-bold mb-2 me-4">Team Information</h2>
-                                <DeleteIcon onClick={() => Ondelete(selectedStaff)} />
+                                <DeleteIcon onClick={() => Ondelete(selectedStaffData)} />
                             </div>
 
 
                             <div className="flex justify-between">
                                 <p>Name:</p>
-                                <p className="text-lg font-bold pe-5">{selectedStaff?.teamName}</p>
+                                <p className="text-lg font-bold pe-5">{selectedStaffData?.teamName}</p>
                                 <p></p>
                             </div>
                         </div>
                         <div>
                             <h3 className="text-lg font-bold mb-3 mt-4"> Members of the Team</h3>
                             <div className="flex flex-wrap">
-                                {selectedStaff?.members?.map((member, index) => <div className=" m-3 flex items-center gap-4" key={index}>
+                                {selectedStaffData?.members?.map((member, index) => <div className=" m-3 flex items-center gap-4" key={index}>
                                     <div className="w-10 h-10 rounded-full bg-blue flex items-center justify-center text-white font-bold" style={{textTransform:"uppercase"}}>
-                                        {member.username.split('')[0]}
+                                       {member.username.split('')[0]} 
                                     </div>
                                     <div>
                                         <p className="font-bold">Team Member</p>
@@ -139,7 +155,7 @@ const TeamSlider = ({ selectedStaff, onClose, Ondelete }) => {
                         <CloseIcon />
                     </IconButton>
                     <Typography variant="h6" component="h2" className="mb-4 text-center">
-                        Make New Team
+                        Edit Team Information
                     </Typography>
                     <form onSubmit={handleSubmit(onEditSubmit)}>
                         <TextField

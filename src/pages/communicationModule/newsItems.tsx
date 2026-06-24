@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import EditNewsItem from '../EditTemplateForm/Communication/editNewsItem';
+import { toast } from 'react-toastify';
+
 
 function NewsItems() {
   const [showNewsItemsFrom, setShowNewsItemsFrom] = useState(false);
@@ -53,6 +55,22 @@ function NewsItems() {
   // create news item handlar
   const handleFormSubmission = async (e: any) => {
     e.preventDefault();
+
+    if(formState.title.trim() === "" || formState.body.trim() === "" || formState.publishAt.trim() === "") {
+
+      toast.error("Please fill all the fields")
+      return;
+    }
+    if(formState.title.length < 5 || formState.body.length > 100) {
+      toast.error("News title should be between 5 and 100 characters long")
+      return;
+    }
+    if(formState.body.length > 1000 || formState.body.length < 10) {
+      toast.error("News content should be between 10 and 1000 characters long")
+      return;
+    }
+
+
     const response = await fetch(`${apiPath}/Communication/createNewsItem`, {
       method: 'POST',
       body: JSON.stringify(formState),
@@ -63,6 +81,9 @@ function NewsItems() {
     const data = await response.json();
     if (response.ok) {
       getNewsItemList();
+      // Reset the form after successful submission
+      dispatch(resetForm({ formName: newsItemsForm }));
+      setShowNewsItemsFrom(false);
     }
     console.log('Form data to be saved:', data);
     dispatch(resetForm({ formName: newsItemsForm }));
@@ -70,7 +91,11 @@ function NewsItems() {
 
   // edit news item handlar
   const handleEditSupplierSubmit = async (editedData: any) => {
+
     try {
+
+
+
       const response = await fetch(
         `${apiPath}/Communication/editNewsItem/${editedData._id}`,
         {
@@ -112,8 +137,8 @@ function NewsItems() {
 
   return (
     <>
-      <div className="flex flex-col gap-[20px] xl:flex-row item-center bg-white">
-        <div>
+      <div className="flex flex-col gap-[20px] xl:flex-row item-center bg-white min-h-[80vh]">
+        <div className="w-1/2 p-6">
           <div className="flex justify-between p-2">
             <button
               className="bg-blue-200 text-black active:bg-blue-500 
@@ -139,6 +164,20 @@ function NewsItems() {
               <div className="inline-block min-w-full py-2 sm:px-6 lg:px-8">
                 <div className="overflow-hidden">
                   <table className="min-w-full text-left text-sm font-light">
+                    <thead className="border-b font-medium dark:border-neutral-500">
+                      <tr>
+                        
+                        <th scope="col" className="px-6 py-4">
+                          Title & Content
+                        </th>
+                        <th scope="col" className="px-6 py-4">
+                          Publish Date
+                        </th>
+                        <th scope="col" className="px-6 py-4">
+                          Edit
+                        </th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {newsItemList.map((newsItem: any, index: number) => (
                         <tr
@@ -147,19 +186,20 @@ function NewsItems() {
                             index % 2 === 0 ? 'bg-gray-100' : ''
                           } border-b dark:border-neutral-500`}
                         >
-                          <th 
-                          onClick={()=>handleNewsItemClick(newsItem)}
-                          className="whitespace-nowrap px-6 py-4 cursor-pointer">
-                          ✏️ 
-                          </th>
+                         
                           <th className="whitespace-nowrap px-6 py-4">
                           {newsItem.title} <br />
-                          <span className='font-medium'>{newsItem.body}</span>
+                         
                           </th>
                           <th
                             className="whitespace-nowrap px-6 py-4"
                           >
                             {new Date(newsItem.publishAt).toISOString().split('T')[0]} 
+                          </th>
+                           <th 
+                          onClick={()=>handleNewsItemClick(newsItem)}
+                          className="whitespace-nowrap px-6 py-4 cursor-pointer">
+                          ✏️ 
                           </th>
                         </tr>
                       ))}
@@ -171,78 +211,98 @@ function NewsItems() {
           </div>
         </div>
 
-        <div className="border-l border-gray-300 flex-grow"></div>
+        <div className="border-l border-gray-300 "></div>
 
-        <div className="w-full xl:w-1/2 p-4">
-          {showNewsItemsFrom && (
-            <form onSubmit={handleFormSubmission}>
-              <h1 className='text-center p-1'>Not yet published</h1>
-              <div className="mb-4.5 ml-1">
-                <label className="mb-2.5 ml-2 block text-black dark:text-white">
-                  NEW ITEM
-                </label>
-                <div className="relative z-20 bg-transparent dark:bg-form-input">
-                  <input
-                    type="text"
-                    placeholder="New Item"
-                    className="w-full xl:w-[18rem] ml-2 rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                    name="title"
-                    onChange={handleFormChange}
-                  />
-                </div>
-              </div>
-              <textarea
-                id="chat"
-                className="block mx-4 p-2.5 w-full xl:w-[18rem] h-100 text-sm text-gray-900 bg-white rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                name="body"
-                onChange={handleFormChange}
-                required
-              ></textarea>
-              <div className="container p-2">
-                <div>
-                  <label className="mb-2.5 block text-black dark:text-white">
-                    Publish on
-                  </label>
-                  <div className="relative z-20 bg-transparent dark:bg-form-input">
-                    <input
-                      type="date"
-                      placeholder="New Item"
-                      className="w-50  rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                      name="publishAt"
-                      onChange={handleFormChange}
-                    />
-                  </div>
-                </div>
+<div className="w-full xl:w-1/2 p-6">
+  {showNewsItemsFrom && (
+    <form
+      onSubmit={handleFormSubmission}
+      className="bg-white dark:bg-boxdark p-6"
+    >
+      <div className="mb-6 text-center">
+        <h2 className="text-2xl font-bold text-black dark:text-white">
+          Create News Item
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          News will remain unpublished until the publish date.
+        </p>
+      </div>
 
-                <div>
-                  <button
-                    className="bg-blue-200 text-black active:bg-blue-500 mt-9
-       font-bold px-6 py-3 ml-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
-                    type="button"
-                    onClick={() => deleteNewsItem(selectedNewsItem._id)}
-                  >
-                    Delete message
-                  </button>
-                  <button
-                    className="bg-blue-200 text-black active:bg-blue-500 mt-9
-       font-bold px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
-                    type="submit"
-                  >
-                    Save changes
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
-          {isNewsItemSelected && (
-            <EditNewsItem
-              newsItemData={selectedNewsItem}
-              handleEditSubmit={handleEditSupplierSubmit}
-              deleteNewsItem={deleteNewsItem}
-              handleCloseEditForm={setIsNewsItemSelected}
-            ></EditNewsItem>
-          )}
-        </div>
+      {/* Title */}
+      <div className="mb-5">
+        <label className="mb-2 block text-sm font-semibold text-black dark:text-white">
+          News Title
+        </label>
+
+        <input
+          type="text"
+          placeholder="Enter news title..."
+          className="w-full rounded-lg border border-stroke bg-transparent px-4 py-3 text-black dark:text-white outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-form-strokedark dark:bg-form-input"
+          name="title"
+          onChange={handleFormChange}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="mb-5">
+        <label className="mb-2 block text-sm font-semibold text-black dark:text-white">
+          News Content
+        </label>
+
+        <textarea
+          id="chat"
+          name="body"
+          onChange={handleFormChange}
+          required
+          placeholder="Write your news content here..."
+          className="w-full h-50 rounded-lg border border-stroke bg-transparent p-4 text-black dark:text-white outline-none transition-all resize-none focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-form-strokedark dark:bg-form-input"
+        ></textarea>
+      </div>
+
+      {/* Publish Date */}
+      <div className="mb-6">
+        <label className="mb-2 block text-sm font-semibold text-black dark:text-white">
+          Publish On
+        </label>
+
+        <input
+          type="date"
+          required
+          name="publishAt"
+          onChange={handleFormChange}
+          className="w-full md:w-64 rounded-lg border border-stroke bg-transparent px-4 py-3 text-black dark:text-white outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-form-strokedark dark:bg-form-input"
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          type="button"
+          onClick={() => setShowNewsItemsFrom(false)}
+          className="rounded-lg bg-red-500 px-6 py-3 font-semibold text-white transition-all hover:bg-gray-600 hover:shadow-lg"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          className="rounded-lg bg-primary px-6 py-3 font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg"
+        >
+          Save Changes
+        </button>
+      </div>
+    </form>
+  )}
+
+  {isNewsItemSelected && (
+    <EditNewsItem
+      newsItemData={selectedNewsItem}
+      handleEditSubmit={handleEditSupplierSubmit}
+      deleteNewsItem={deleteNewsItem}
+      handleCloseEditForm={setIsNewsItemSelected}
+    />
+  )}
+</div>
       </div>
     </>
   );

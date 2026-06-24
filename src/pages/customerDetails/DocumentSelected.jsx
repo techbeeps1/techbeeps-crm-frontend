@@ -180,7 +180,7 @@ const handleDownload = async (fileUrl) => {
 
   useEffect(() => {
     fetchDocumentList();
-  }, []);
+  }, [id, email, isEmployee]);
 
   return (
     <div className="p-6">
