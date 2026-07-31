@@ -8,6 +8,7 @@ import {
   useFieldArray,
   FormProvider,
   FieldError,
+  Watch,
 } from 'react-hook-form';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
@@ -30,6 +31,7 @@ import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
 import { m } from 'framer-motion';
 
 const steps = [
+  { label: 'Customer Details ?', heading: 'CUSTOMER' },
   { label: 'Where do you need to move from ?', heading: 'THE ADDRESS' },
   { label: 'Where should unloading take place ?', heading: 'THE ADDRESS' },
   { label: 'Is this information correct ?', heading: 'THE ADDRESS' },
@@ -37,7 +39,7 @@ const steps = [
   { label: 'Which rooms need to be moved ?', heading: 'ROOMS' },
   { label: 'What needs to be moved ?', heading: 'ROOMS' },
   { label: 'What Material is Needed ?', heading: 'ROOMS' },
-  { label: 'Customer Details ?', heading: 'CUSTOMER' },
+
   { label: 'Is this information correct?', heading: 'CUSTOMER' },
   { label: 'What do you really need to remember?', heading: 'Notes' },
   // {
@@ -58,8 +60,12 @@ const ValuationPage: React.FC = () => {
   const [selectedRoom, setSelectedRoom] = useState<number[]>([]);
   const [activeStep, setActiveStep] = useState(0);
   const [services, setServices] = useState<any>([]);
+  const [fetchservices, setFetchServices] = useState<any>([]);
   const [rooms, setRooms] = useState<any>([]);
-  const { jobId } = useParams<{ jobId: string }>();
+  const { Id: OpenId, type: OpenType } = useParams<{
+    Id: string;
+    type: string;
+  }>();
   const [packageData, setPackageData] = useState<any>();
   const { settings } = useContext(EmailContext) as any;
   const [appendedItemsRef, setAppendedItems] = useState<Set<string>>(new Set());
@@ -80,16 +86,23 @@ const ValuationPage: React.FC = () => {
     }
   };
 
-  const handleNext = () => {
-    if (activeStep === 7) {
+  useEffect(() => {
+    if (fetchservices.length > 0 && services.length > 0) {
+      const updatedSelectedServices = services.filter((service: any) =>
+        fetchservices.includes(service._id),
+      );
 
-       if (
+      setSelectedServices(updatedSelectedServices);
+    }
+  }, [fetchservices, services]);
+  const handleNext = () => {
+    if (activeStep === 0) {
+      if (
         !methods.watch('customer')?.typeOfCustomer &&
         !methods.watch('customer')?.gender &&
         !methods.watch('customer')?.firstName &&
         !methods.watch('customer')?.lastName &&
-        !methods.watch('customer')?.email &&
-        !methods.watch('customer')?.mobile
+        !methods.watch('customer')?.email
       ) {
         notifyError('please add customer details ');
         return;
@@ -109,13 +122,7 @@ const ValuationPage: React.FC = () => {
       } else if (!methods.watch('customer')?.email) {
         notifyError('Email is required');
         return;
-      } else if (!methods.watch('customer')?.mobile) {
-        notifyError('Phone is required');
-        return;
       }
-
-     
-      
     }
 
     methods.handleSubmit(
@@ -147,7 +154,7 @@ const ValuationPage: React.FC = () => {
   const handleJob = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${apiPath}/api/jobs/${jobId}`);
+      const response = await axios.get(`${apiPath}/api/jobs/${OpenId}`);
       const offer = response.data?.offer[response.data?.offer.length - 1];
       if (offer) {
         Object.entries(offer).forEach(([key, value]: any) => {
@@ -159,12 +166,24 @@ const ValuationPage: React.FC = () => {
           }
         });
       }
+
+      setFetchServices(response.data?.services || []);
+
+      setSelectedRoom(() => {
+        const roomsWithFinishedStatus = response.data?.rooms?.map(
+          (room: any) => ({
+            ...room,
+            finished: true,
+          }),
+        );
+        return roomsWithFinishedStatus || [];
+      });
+      methods.setValue('materials', response.data?.materials || []);
       methods.setValue('load', response.data?.load);
       methods.setValue('unload', response.data?.unload);
       methods.setValue('knownAddress', response.data?.knownAddress);
       methods.setValue('customer', response.data?.customer);
       methods.setValue('priceAgree', response.data?.package?.priceAgree);
-      methods.setValue('package', response.data?.package?._id);
     } catch (err: any) {
       notifyError(err?.response?.data?.message);
     } finally {
@@ -174,9 +193,10 @@ const ValuationPage: React.FC = () => {
   const handleNotes = async () => {
     try {
       const response = await axios.get(
-        `${apiPath}/api/notesListByJobId?jobId=${jobId}`,
+        `${apiPath}/api/notesListByJobId?jobId=${OpenId}`,
       );
       const notes = response.data.notesListByJobId;
+
       methods.setValue('notes', notes || null);
     } catch (error) {
       console.error('Error fetching notes:', error);
@@ -184,11 +204,11 @@ const ValuationPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (jobId) {
+    if (OpenId && OpenType !== 'customer') {
       handleJob();
       handleNotes();
     }
-  }, [jobId]);
+  }, [OpenId, OpenType]);
 
   const sanitizeEstimateData = (data: Record<string, any>) => {
     return Object.fromEntries(
@@ -198,44 +218,11 @@ const ValuationPage: React.FC = () => {
       ]),
     );
   };
-
-  const onSubmit = (data: any) => {
-    const filteredData = selectedRoom.map(({ _id, ...item }: any) => ({
-      ...item,
-      furnitureType: item.furnitureType.filter(
-        (furniture: any) => furniture.quantity > 0,
-      ),
-    }));
-
-    const formattedMaterials = data.materials
-      .filter((material: any) => material.quantity > 0) // Filter materials with quantity > 0
-      .map((material: any) => ({
-        material: material._id, // Only include the _id of the material
-        quantity: material.quantity,
-        cubicMeter: material.cubicMeter,
-        name: material.name,
-      }));
-    postData({
-      notes: data.notes,
-      jobId: jobId,
-      package: data.package,
-      load: data.load,
-      unload: data.unload,
-      materials: formattedMaterials,
-      customer: data.customer,
-      rooms: filteredData,
-      offer: data.offer,
-      relocation: sanitizeEstimateData(data.estimateData),
-      knownAddress: data.knownAddress,
-      signWithCustomer: data.signWithCustomer,
-      sendImmediately: data.sendImmediately,
-    });
-  };
   const postData = async (data: any) => {
     setLoading(true);
     try {
       const response = await axios.post(`${apiPath}/api/valuation`, data);
-      console.log(response.data);
+
       if (response.status === 200) {
         notify('Valuation Success');
         navigate('/');
@@ -251,6 +238,40 @@ const ValuationPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+  const onSubmit = (data: any) => {
+    const filteredData = selectedRoom.map(({ _id, ...item }: any) => ({
+      ...item,
+      roomId: _id,
+      furnitureType: item.furnitureType.filter(
+        (furniture: any) => furniture.quantity > 0,
+      ),
+    }));
+
+    const formattedMaterials = data.materials
+      .filter((material: any) => material.quantity > 0) // Filter materials with quantity > 0
+      .map((material: any) => ({
+        material: material._id, // Only include the _id of the material
+        quantity: material.quantity,
+        cubicMeter: material.cubicMeter,
+        name: material.name,
+      }));
+    postData({
+      notes: data.notes,
+      jobId: OpenId,
+      package: data.package,
+      load: data.load,
+      unload: data.unload,
+      materials: formattedMaterials,
+      customer: data.customer,
+      rooms: filteredData,
+      offer: data.offer,
+      relocation: sanitizeEstimateData(data.estimateData),
+      knownAddress: data.knownAddress,
+      signWithCustomer: data.signWithCustomer,
+      sendImmediately: data.sendImmediately,
+      services: selectedServices.map((service: any) => service._id),
+    });
   };
 
   const SendInvoice = async (data: any) => {
@@ -344,7 +365,11 @@ const ValuationPage: React.FC = () => {
             >
               <div className="absolute flex justify-between items-center top-0 left-0 right-0 bg-white shadow z-4 p-4">
                 <div
-                  onClick={() => (window.location.href = '/')}
+                  onClick={() => {
+                    if (confirm('are you sure you want to go back') == true) {
+                      navigate('/');
+                    }
+                  }}
                   className="text-lg font-bold flex items-center gap-2 cursor-pointer"
                 >
                   <KeyboardBackspaceIcon
@@ -371,37 +396,47 @@ const ValuationPage: React.FC = () => {
               <form onSubmit={methods.handleSubmit(onSubmit)}>
                 <div className="absolute md:top-22 top-35 bottom-18 left-0 right-0 overflow-auto bg-gray">
                   {activeStep === 0 && (
+                    <CustomerForm
+                      type="customer"
+                      customerid={
+                        OpenType === 'customer'
+                          ? OpenId
+                          : methods.watch('customer._id')
+                      }
+                    />
+                  )}
+                  {activeStep === 1 && (
                     <AddressFrom
                       countries={countries}
                       type="load"
                       property={property}
                     />
                   )}
-                  {activeStep === 1 && (
+                  {activeStep === 2 && (
                     <AddressFrom
                       countries={countries}
                       type="unload"
                       property={property}
                     />
                   )}
-                  {activeStep === 2 && (
+                  {activeStep === 3 && (
                     <AddressVerification watch={methods.watch} type="load" />
                   )}
-                  {activeStep === 3 && (
+                  {activeStep === 4 && (
                     <ServiceSelector
                       services={services && services}
                       setItem={setSelectedServices}
                       item={selectedServices}
                     />
                   )}
-                  {activeStep === 4 && (
+                  {activeStep === 5 && (
                     <ServiceSelector
                       services={rooms}
                       setItem={setSelectedRoom}
                       item={selectedRoom}
                     />
                   )}
-                  {activeStep === 5 && (
+                  {activeStep === 6 && (
                     <SelectedRooms
                       rooms={rooms}
                       services={selectedServices}
@@ -410,10 +445,10 @@ const ValuationPage: React.FC = () => {
                       setSelectedRoom={setSelectedRoom}
                     />
                   )}
-                  {activeStep === 6 && (
+                  {activeStep === 7 && (
                     <MaterialNeeds useFieldArray={useFieldArray} />
                   )}
-                  {activeStep === 7 && <CustomerForm type="customer" />}
+
                   {activeStep === 8 && (
                     <AddressVerification
                       watch={methods.watch}
@@ -477,7 +512,7 @@ const ValuationPage: React.FC = () => {
                       color="primary"
                       type="button"
                       disabled={
-                        activeStep === 5 &&
+                        activeStep === 6 &&
                         !selectedRoom.every((room: any) => room.finished)
                       }
                       size="large"

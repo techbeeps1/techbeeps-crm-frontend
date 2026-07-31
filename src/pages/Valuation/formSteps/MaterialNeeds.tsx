@@ -8,7 +8,7 @@ const MaterialNeeds: React.FC<any> = ({ useFieldArray }) => {
 
     const { register, control, setValue, watch } = useFormContext() as any;
     const [loading,setLoading] = useState<boolean>(false);
-    const { fields ,append} = useFieldArray({
+    const { fields ,replace } = useFieldArray({
         control,
         name: "materials",
     });
@@ -18,10 +18,30 @@ const MaterialNeeds: React.FC<any> = ({ useFieldArray }) => {
         setLoading(true)
         try {
             const response = await axios.get(`${apiPath}/api/box?type=Material`);
-            const materials = watch("materials");
-            if (!materials || materials.length === 0) {
-                append(response.data.map((box: any) => ({ _id: box._id, name: box.name, quantity: 0,sellingPrice: box.sellingPrice, storageQuantity: 0, cubicMeter: box.cubicMeter })));
-            }
+             const existingMaterials = watch("materials") || [];
+
+    const merged = response.data.map((box: any) => {
+      const existing = existingMaterials.find(
+        (item: any) =>
+          item.material?._id === box._id || item._id === box._id
+      );
+
+      return {
+        _id: box._id,
+        material: {
+          _id: box._id,
+          name: box.name,
+        },
+        name: box.name,
+        quantity: existing?.quantity ?? 0,
+        sellingPrice: box.sellingPrice,
+        storageQuantity: existing?.storageQuantity ?? 0,
+        cubicMeter: box.cubicMeter,
+      };
+    });
+    
+    replace(merged);
+
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || "Something went wrong. Please try again.";
             console.error(errorMessage);
@@ -35,6 +55,7 @@ const MaterialNeeds: React.FC<any> = ({ useFieldArray }) => {
     }, []);
 
     const materials = watch("materials");
+   
 
     const incrementQuantity = (index: number) => {
         const currentQuantity = materials[index]?.quantity || 0;
@@ -52,7 +73,7 @@ const MaterialNeeds: React.FC<any> = ({ useFieldArray }) => {
         <div className="p-10">
             {loading && <Loader/>}
             {fields.map((field:any, index: number) => (
-                <div key={field._id} className="flex justify-between items-center py-2">
+                <div key={index} className="flex justify-between items-center py-2">
                     <label className="block text-xl font-bold">{field.name}</label>
                     <div className="flex items-center space-x-1">
                         <button

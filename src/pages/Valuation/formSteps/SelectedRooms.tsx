@@ -11,8 +11,9 @@ const SelectedRooms: React.FC<any> = ({
   const [selectItem, setSelectItem] = useState<any>(null);
   const [isModalOpen, setModalOpen] = useState(false);
 
+
   const updateSelectedRoom = (updatedItem: any) => {
-    
+
     setSelectedRoom((prevRooms: any[]) =>
       prevRooms.map((room, index) =>
         index === updatedItem.index ? updatedItem : room,
@@ -113,6 +114,7 @@ const SelectedRooms: React.FC<any> = ({
         services={services}
         selectItem={selectItem}
         setSelectItem={setSelectItem}
+        selectedRoom={selectedRoom}
       />
     </div>
   );

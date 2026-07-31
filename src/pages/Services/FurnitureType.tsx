@@ -81,14 +81,7 @@ const FurnitureType: React.FC = () => {
         }
     };
 
-    // const fetchIcons = async () => {
-    //     try {
-    //         const response = await axios.get(`${apiPath}/api/icons`);
-    //         setIcons(response.data);
-    //     } catch (err: any) {
-    //         notifyError(`Failed to fetch icons: ${err.message}`);
-    //     }
-    // };
+
 
     const onSubmit = async (formData: any) => {
 

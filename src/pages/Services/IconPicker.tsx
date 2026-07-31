@@ -7,7 +7,7 @@ import {
 interface IconPickerProps {
     control: any; // From React Hook Form
     errors: any;
-    icons: any; // From React Hook Form
+    
     register: any; // From React Hook Form
     setValue: any; // From React Hook Form
     selectedSalesGroup?: any;

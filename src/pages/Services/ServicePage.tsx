@@ -25,8 +25,7 @@ const ServicePage: React.FC = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedSalesGroup, setSelectedSalesGroup] = useState<any>(null);
-  const [icons, setIcons] = useState<any[]>([]);
-
+ 
   const openModal = (group: any) => {
     setSelectedSalesGroup(group);
     setremoveIcon(false);
@@ -82,14 +81,7 @@ const ServicePage: React.FC = () => {
     }
   };
 
-  const fetchIcons = async () => {
-    try {
-      const response = await axios.get(`${apiPath}/api/icons`);
-      setIcons(response.data);
-    } catch (err: any) {
-      notifyError(`Failed to fetch icons: ${err.message}`);
-    }
-  };
+
 
   const onSubmit = async (formData: any) => {
     setLoading(true);
@@ -133,7 +125,6 @@ const ServicePage: React.FC = () => {
 
   useEffect(() => {
     fetchSalesGroups();
-    fetchIcons();
   }, []);
 
   return (
@@ -347,7 +338,7 @@ const ServicePage: React.FC = () => {
                 <IconPicker
                   setValue={setValue}
                   register={register}
-                  icons={icons}
+                
                   control={control}
                   errors={errors}
                 />

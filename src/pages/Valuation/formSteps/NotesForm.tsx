@@ -3,8 +3,11 @@ import { useFormContext } from "react-hook-form";
 
 const NotesForm: React.FC<any> = ({
     type,
+    
 }) => {
-    const { register } = useFormContext() as any;
+const { register, } = useFormContext() as any;
+
+
 
     return (
         <div className="p-10 w-full">

@@ -12,12 +12,14 @@ export const DragDrawer: React.FC<any> = ({
   selectItem,
   setSelectItem,
   services,
+  selectedRoom
 }) => {
+
   const [activeStep, setActiveStep] = useState(0);
   const [data, setData] = useState<any>();
   const [roomName, setRoomName] = useState<string>('');
   const [furnitureItems, setFurnitureItems] = useState<[]>([]);
-  const [packingItems, setPackingItems] = useState<[]>([]);
+
   const { setValue, watch } = useFormContext() as any;
 
   const [steps, setSteps] = useState<any>([]);
@@ -26,23 +28,83 @@ export const DragDrawer: React.FC<any> = ({
     name: 'packingBoxes',
   });
 
+
   useEffect(() => {
     const itemsWithQuantity = furnitureItems.filter(
       (item: any) => item.quantity > 0,
     );
     setStorageItems(itemsWithQuantity);
+
     const filteredItems = furnitureItems.filter(
-      (item: any) => item.quantity > 0 && item.isDisassambled,
-    );
-    setDismantledItems(filteredItems);
-    setAssembledItems(filteredItems);
+  (item: any) => item.quantity > 0 && item.isDisassambled
+);
+
+const allDismantledItems = selectedRoom.flatMap(
+  (room: any) => room.dismantledItems || []
+);
+
+const allAssembledItems = selectedRoom.flatMap(
+  (room: any) => room.assembledItems || []
+);
+
+// Merge for Dismantled
+const mergedDismantled = [
+  ...allDismantledItems,
+  ...filteredItems
+    .filter(
+      (item: any) =>
+        !allDismantledItems.some(
+          (saved: any) => saved._id === item._id
+        )
+    )
+    .map((item: any) => ({
+      ...item,
+      checked: false,
+      isDisassambled: true, // custom key
+    })),
+];
+
+// Merge for Assembled
+const mergedAssembled = [
+  ...allAssembledItems,
+  ...filteredItems
+    .filter(
+      (item: any) =>
+        !allAssembledItems.some(
+          (saved: any) => saved._id === item._id
+        )
+    )
+    .map((item: any) => ({
+      ...item,
+      checked: false,
+      isDisassambled: true,
+    })),
+];
+
+
+    setDismantledItems(mergedDismantled );
+    setAssembledItems(mergedAssembled);
+
   }, [furnitureItems]);
 
   const [dismantledItems, setDismantledItems] = useState<any>([]);
   const [assembledItems, setAssembledItems] = useState<any>([]);
   const [storageItems, setStorageItems] = useState<any>([]);
 
-  (useEffect(() => {}), [dismantledItems, assembledItems, storageItems]);
+
+      useEffect(() => {
+
+        if(data && data.length > 0){
+
+
+        const filteredFurnitureItems = data.map(({ _id, quantity, cubicMeter,done, furnitureTypeName, isDisassambled,icon }: any) => ({ _id, quantity,done, cubicMeter, furnitureTypeName,isDisassambled, icon }));
+        setFurnitureItems(filteredFurnitureItems)
+
+        }
+    }, [data])
+
+
+
 
   const fetchRoomInner = async () => {
     try {
@@ -137,49 +199,47 @@ export const DragDrawer: React.FC<any> = ({
       setValue('packingBoxes', null);
     }, 1);
   };
+const boxes = watch("packingBoxes");
+
+useEffect(() => {
+  if (!boxes?.length || !selectItem) return;
+
+  boxes.forEach((box: any, index: number) => {
+    const selected = selectItem.inventoryItems?.find(
+      (item: any) => item._id === box._id
+    );
+
+    setValue(
+      `packingBoxes.${index}.quantity`,
+      selected?.quantity ?? 0
+    );
+  });
+}, [boxes, selectItem, setValue]);
 
   const handleAllData = async () => {
-    if (!selectItem) return;
-    try {
-      const response = await axios.get(`${apiPath}/api/box?type=Box`);
-      const packingBoxes = watch('packingBoxes');
-      if (!packingBoxes || packingBoxes.length === 0) {
-        append(
-          response.data.map((box: any) => ({
-            _id: box._id,
-            name: box.name,
-            quantity: 0, // Default quantity
-            storageQuantity: 0,
-            price: box.sellingPrice,
-            cubicMeter: box.cubicMeter,
-          })),
-        );
-      }
-      if (selectItem?.inventoryItems?.length > 0) {
-        selectItem.inventoryItems.forEach((item: any) => {
-          const boxIndex = packingBoxes.findIndex(
-            (box: any) => box._id === item._id,
-          );
-          if (boxIndex !== -1) {
-            setValue(
-              `packingBoxes.${boxIndex}.quantity`,
-              Number(item.quantity) || 0,
-            );
-          }
-        });
-      }
-      packingBoxes.forEach((box: any, index: number) => {
-        const isBoxInSelectItem = selectItem?.inventoryItems?.some(
-          (item: any) => item._id === box._id,
-        );
-        if (!isBoxInSelectItem) {
-          setValue(`packingBoxes.${index}.quantity`, 0); // Set quantity to 0 if not in selectItem
-        }
-      });
-    } catch (err: any) {
-      console.error('Failed to fetch packing boxes:');
+  if (!selectItem) return;
+
+  try {
+    const response = await axios.get(`${apiPath}/api/box?type=Box`);
+
+    const packingBoxes = watch("packingBoxes");
+
+    if (!packingBoxes?.length) {
+      append(
+        response.data.map((box: any) => ({
+          _id: box._id,
+          name: box.name,
+          quantity: 0,
+          storageQuantity: 0,
+          price: box.sellingPrice,
+          cubicMeter: box.cubicMeter,
+        }))
+      );
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   useEffect(() => {
     if (selectItem) {
@@ -235,7 +295,7 @@ export const DragDrawer: React.FC<any> = ({
           {activeStep === 1 && (
             <FurntureSelection
               roomId={selectItem?._id}
-              setFurnitures={setFurnitureItems}
+            
               data={data}
               setData={setData}
               handler={fetchRoomInner}
@@ -251,7 +311,7 @@ export const DragDrawer: React.FC<any> = ({
                   0,
                 )} {'m³'}
               </div>
-              <PackingBox selectItem={selectItem} setBoxes={setPackingItems} />
+              <PackingBox  />
             </>
           )}
           {services.find(

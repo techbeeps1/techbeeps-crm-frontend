@@ -20,7 +20,8 @@ import { apiPath } from '../../../apiPath';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
 
-const DocumentSelected = ({ id, isEmployee, email }) => {
+const DocumentSelected = ({ id, isEmployee="", email="" }) => {
+  const [dragActive, setDragActive] = useState(false);
   const [documentList, setDocumentList] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [file, setFile] = useState(null);
@@ -130,6 +131,37 @@ const handleDownload = async (fileUrl) => {
     }
   };
 
+
+  const handleDragOver = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setDragActive(true);
+};
+
+const handleDragLeave = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setDragActive(false);
+};
+
+const handleDrop = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  setDragActive(false);
+
+  const droppedFile = e.dataTransfer.files[0];
+
+  if (droppedFile) {
+    setFile(droppedFile);
+
+    setUploadFormData((prev) => ({
+      ...prev,
+      filename: droppedFile.name,
+      mimetype: droppedFile.type,
+    }));
+  }
+};
   const handleFileSelect = (event) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
@@ -276,19 +308,33 @@ const handleDownload = async (fileUrl) => {
         <DialogContent>
           <div className="space-y-6">
             <div
-              className="border-dashed border-2 border-gray-300 p-6 text-center cursor-pointer"
-              onClick={() => document.getElementById('fileInput').click()}
-            >
-              <input
-                type="file"
-                id="fileInput"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-              <p className="text-gray-500">
-                Drag & drop a file here, or click to select one
-              </p>
-            </div>
+  className={`border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+    dragActive
+      ? "border-blue-500 bg-blue-100"
+      : "border-gray-300 bg-white hover:border-blue-500 hover:bg-blue-50"
+  }`}
+  onClick={() => document.getElementById("fileInput").click()}
+  onDragOver={handleDragOver}
+  onDragLeave={handleDragLeave}
+  onDrop={handleDrop}
+>
+  <input
+    type="file"
+    id="fileInput"
+    className="hidden"
+    onChange={handleFileSelect}
+  />
+
+  <p className="text-gray-500">
+    Drag & Drop a file here or Click to Browse
+  </p>
+
+  {file && (
+    <p className="mt-2 text-green-600 font-medium">
+      {file.name}
+    </p>
+  )}
+</div>
 
             {file && (
               <Typography variant="body2" className="text-gray-600">

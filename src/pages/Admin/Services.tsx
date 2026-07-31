@@ -4,7 +4,6 @@ import Header from './Header';
 import ServicePage from '../Services/ServicePage';
 import FurnitureType from '../Services/FurnitureType';
 import RoomType from '../Services/RoomType';
-// import IconList from '../Services/IconList';
 
 const Services: React.FC = () => {
     const [activeTab, setActiveTab] = useState(0);
@@ -23,10 +22,7 @@ const Services: React.FC = () => {
                 return (
                     <FurnitureType />
                 );
-            // case 3:
-            //     return (
-            //         <IconList/>
-            //     );
+      
             default:
                 return null;
         }

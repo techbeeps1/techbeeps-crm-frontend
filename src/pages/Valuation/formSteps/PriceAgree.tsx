@@ -16,6 +16,9 @@ const PriceAgree: React.FC<any> = ({ setPackageData, setAppendedItems }) => {
     const selectedPackage = watch("package");
 
     useEffect(() => {
+
+        console.log("priceAgreement",priceAgreement)
+        console.log("selectedPackage",selectedPackage)
         const fetchPackages = async () => {
             if (priceAgreement) {
                 try {

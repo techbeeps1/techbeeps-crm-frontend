@@ -119,14 +119,15 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
   }
 
   return (
-    <div className="relative flex flex-col md:flex-row font-medium text-slate-600 w-full" style={{ justifyContent: "flex-start", height: 'calc(100vh - 84px)' }}>
+    <div className="relative  font-medium text-slate-600 w-full" style={{ justifyContent: "flex-start", height: 'calc(100vh - 84px)' }}>
       {loading && <Loader />}
+     {!selectedStaff?._id ? (
       <div className={`w-full ${customerId || offer || invoice ? 'w-full' : ''} bg-white overflow-y-auto pt-2 pl-1 h-full`}>
         <div className="rounded-sm dark:border-strokedark dark:bg-boxdark p-3">
           {!customerId && !offer && !invoice && <div className='mb-3'>
             <NewJob handler={handleAllJob} />
           </div>}
-          <table style={{ paddingTop: "20px", border: 'none' }} id="joblist" className="w-full">
+          <table style={{ paddingTop: "20px" }} id="joblist" className="w-full">
             <thead>
               <tr>
                 <th>Name</th>
@@ -180,9 +181,10 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
           </Modal>
         </div>
       </div>
+      ): (
       <div className={`${customerId || offer || invoice ? 'absolute z-10 transition-all delay-400 ease-in-out top-0 right-0 left-full bottom-0' : 'relative h-full shadow border-l border-gray'} ${selectedStaff && '!left-0'} bg-white h-full overflow-auto`}>
         <Jobslider handler={handleAllJob} Ondelete={openDeleteModal} job={selectedStaff} onClose={() => setSelectedStaff(null)} />
-      </div>
+      </div>)}
     </div>
   );
 };

@@ -37,19 +37,19 @@ function App() {
           <Route element={<DefaultLayout />}>
             <Route path="/*" element={<Navigate to="/" />} key="root-dashboard" />
             <Route path='/' element={<ECommerce />} />
-            {routes.map(({ path, component: Component }) => (
+            {routes.map(({ path, component: Component  }) => (
               <Route
                 path={path}
                 key={path}
                 element={
                   <Suspense fallback={<Loader />}>
-                    <Component />
+                    <Component   />
                   </Suspense>
                 }
               />
             ))}
           </Route>
-            <Route path='/intake/:jobId' element={< ValuationPage/>} />
+            <Route path='/intake/:type/:Id/' element={< ValuationPage/>} />
             <Route path='/intake' element={< ValuationPage/>} />
             </>
             : <>

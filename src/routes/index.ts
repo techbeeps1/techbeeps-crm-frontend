@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import Leads from '../pages/Leads';
+
 import Customers from '../pages/customers';
 import FinancePage from '../pages/FinancePage.jsx';
 import Communication from '../pages/communication';
@@ -25,6 +25,7 @@ import Settings from '../pages/Settings';
 import Services from '../pages/Admin/Services.js';
 import ResourcesPage from '../pages/Resources/ResourcesPage.js';
 import LeadsPage from '../pages/LeadsPage.js';
+import LeadDetail from '../pages/UserLeads/LeadDetail.js';
 
 const coreRoutes = [
   {
@@ -57,11 +58,7 @@ const coreRoutes = [
     title: 'newoffer',
     component: NewOffer,
   },
-  {
-    path: '/leadss',
-    title: 'Leads',
-    component: Leads,
-  },
+
   {
     path: '/jobs',
     title: 'jobs',
@@ -90,7 +87,7 @@ const coreRoutes = [
   {
     path: '/leads/:id',
     title: 'Detail',
-    component: CustomerDetail,
+    component: LeadDetail,
   },
   {
     path: '/finance',

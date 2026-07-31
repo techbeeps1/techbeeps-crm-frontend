@@ -91,6 +91,9 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
     }, [totalVolume, pricePerMeterCubic, travelTime, pricePerHour, distance, pricePerKilometer])
 
     async function getDistanceAndTime() {
+        if (!watch('load') || !watch('unload')) {
+            return;
+        }
         const load = watch('load');
         const unload = watch('unload');
         const apiKey = '5b3ce3597851110001cf6248495a99f209a54de397d7d927a4a3f00b';
@@ -122,7 +125,7 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
                 return boxesQuantity
             })
         }
-        let totalBoxes = boxesCount(rooms)[0]
+        let totalBoxes = boxesCount(rooms).reduce((a: number, b: number) => a + b, 0)
         setValue('packing.requiredHours', convertToTimeFormat(totalBoxes / settings.standardPrice?.packingBoxPerHour) || 0);
         setValue('unpacking.requiredHours', convertToTimeFormat(totalBoxes / settings.standardPrice?.unPackagingBoxPerHour) || 0);
 

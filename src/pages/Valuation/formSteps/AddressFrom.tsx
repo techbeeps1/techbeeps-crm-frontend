@@ -49,6 +49,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         {...register(`${type}.postcode`, { required: "Postcode is required." })}
                         type="text"
                         id="postcode"
+                        value={watch(`${type}.postcode`)}
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                     {errors[type]?.postcode && <p className="text-danger text-md mt-1">{errors[type]?.postcode.message}</p>}

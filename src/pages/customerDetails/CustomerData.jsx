@@ -11,7 +11,7 @@ import CustomerAddress from './CustomerAddress.tsx';
 import { toast } from 'react-toastify';
 
 const CustomerData = ({ customerData, handleCustomer }) => {
-    const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+
     const [originalCustomerId, setOriginalCustomerId] = useState('');
     const [customersList, setCustomersList] = useState([]);
     const { register, handleSubmit, reset } = useForm(); // Hook form methods
@@ -74,33 +74,8 @@ const CustomerData = ({ customerData, handleCustomer }) => {
         }
     };
 
-    const handleMerge = async () => {
-        try {
-            const response = await axios.post(`${apiPath}/customer/mergeCustomer`, {
-                originalCustomerId: originalCustomerId,
-                selectedCustomerId: customerData._id,
-            });
-            if(response.data.success) {
-toast.success('Customers merged successfully!');
-                closeMergeModal();
-                handleCustomer();
-            }else {
-                toast.error( response.data.message ?? 'Error merging customers');
-            }
-           
-        } catch (error) {
-            toast.error(error.response?.data.message ?? error.message ?? 'Error merging customers');
-            console.error('Error merging customers:', error.response?.data ?? error.message);
-        }
-    };
 
-    const openMergeModal = () => {
-        setIsMergeModalOpen(true);
-    };
-
-    const closeMergeModal = () => {
-        setIsMergeModalOpen(false);
-    };
+ 
     const handleClickOutside = (event) => {
         if (event.target.id === 'modalBackdrop') {
             closeRemoveModal();
@@ -111,13 +86,14 @@ toast.success('Customers merged successfully!');
         <>
             <div className='h-full overflow-auto p-4 max-w-screen-lg mx-auto'>
                 <div className="flex flex-wrap justify-center md:justify-end gap-2">
-                    <Button
+                   <Button
                         variant="contained"
-                        color="primary"
+                        color="secondary"
                         size='large'
-                        onClick={() => openMergeModal()}
+                        onClick={() => { navigateTo(`/intake/customer/${customerData._id}`); }}
+                        style={{ marginLeft: '10px' }}
                     >
-                        Merge {type}
+                        Start New Valuation
                     </Button>
                     <Button
                         variant="contained"
@@ -139,7 +115,7 @@ toast.success('Customers merged successfully!');
                 <div className="space-y-3 mt-4">
                     <h2 className='font-bold text-black text-xl pb-2 capitalize'>{type} Details :</h2>
                     {[
-                        { label: 'Name', value: `${customerData?.salutation} ${customerData?.firstName} ${customerData?.lastName}` },
+                        { label: 'Name', value: `${customerData?.salutation ?? ''} ${customerData?.firstName} ${customerData?.lastName}` },
                         { label: 'Gender', value: customerData?.gender },
                         { label: 'Contact', value: customerData?.contact },
                         { label: 'Language', value: customerData?.taal },
@@ -223,37 +199,7 @@ toast.success('Customers merged successfully!');
                     </div>
                 </div>
             )}
-            {/* Merge Modal */}
-            <Dialog
-                open={isMergeModalOpen}
-                onClose={closeMergeModal}
-                aria-labelledby="merge-dialog-title"
-                aria-describedby="merge-dialog-description"
-                
-            >
-                <DialogTitle>Merge Customers</DialogTitle>
-                <DialogContent >
-                    <form onSubmit={handleSubmit(handleMerge)}>
-                        <div>
-                            <input
-                                {...register("originalCustomerId")}
-                                type="text"
-                                className="border border-[#ccc] p-1 rounded w-full mb-4"
-                                placeholder="Enter Customer UUID"
-                                value={originalCustomerId}
-                                onChange={(e) => setOriginalCustomerId(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <DialogActions>
-                              <Button variant="contained" color="inherit" onClick={closeMergeModal}>Cancel</Button>
-                            <Button variant="contained" color="primary" type="submit">Merge</Button>
-                          
-                            
-                        </DialogActions>
-                    </form>
-                </DialogContent>
-            </Dialog>
+
         </>
     );
 };

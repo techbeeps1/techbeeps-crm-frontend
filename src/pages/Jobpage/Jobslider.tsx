@@ -216,10 +216,10 @@ const Jobslider: React.FC<JobsliderProps> = ({ job, onClose, Ondelete }) => {
             {tabIndex === 0 && (
                 <div className='px-4'>
                     <div className="flex flex-wrap gap-4 mb-6 font-medium">
-                        {job?.status !== 'execution' &&
-                            <Button onClick={() => navigate(`/intake/${job._id}`)} variant="contained" color="primary">
-                                Start valuation
-                            </Button>}
+                      
+                            <Button onClick={() => navigate(`/intake/job/${job._id}`)} variant="contained" color="primary">
+                                 {job?.status !== 'execution'   ? 'Start valuation' : 'Re-valuation'}
+                            </Button>
                         <AppointmentScheduler allAppointments={getAppointments} jobId={job && job._id} />
                         <Button onClick={() => setOpen(true)} variant="outlined" color="primary">
                             Send quote

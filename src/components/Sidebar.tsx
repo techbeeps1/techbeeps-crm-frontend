@@ -118,37 +118,30 @@ const { pathname, search } = location;
       icon: <Dashboard />,
     },
     {
-      label: 'Task',
-      path: '/tasks',
-      access: 'Tasks',
-      icon: <Task />,
-    },
-
-    {
-      label: 'Customers & Leads',
-      icon: <People />,
-      children: [
-        {
-          label: 'Customers List',
-          path: '/customers',
-          access: 'Customer',
-          icon: <FaUsersCog />,
-        },
-        {
-          label: 'Lead Manager',
+          label: 'Lead',
           path: '/leads',
           access: 'Leads',
           icon: <UserGroupIcon className="h-5 w-5" />,
         },
-      ],
-    },
-
     {
-      label: 'Planning',
-      path: '/calendar',
+          label: 'Customers',
+          path: '/customers',
+          access: 'Customer',
+          icon: <FaUsersCog />,
+        },
+          {
+      label: 'Valuation',
+      path: '/intake',
       access: 'Planning',
-      icon: <CalendarMonth />,
+      icon: <HiOutlineDocumentAdd />,
     },
+    {
+          label: 'Quotes',
+          path: '/finance',
+          access: 'Finance',
+          icon: <AttachMoney />,
+        },
+    
 
     {
       label: 'Jobs',
@@ -157,35 +150,26 @@ const { pathname, search } = location;
       icon: <ClipboardDocumentListIcon className="h-5 w-5" />,
     },
     {
-      label: 'Finance',
-      icon: <AttachMoney />,
-      children: [
-        {
-          label: 'Offers List',
-          path: '/finance',
-          access: 'Finance',
-          icon: <AttachMoney />,
-        },
-        {
-          label: 'Add Offers',
-          path: '/new_offer',
-          access: 'Finance',
-          icon: <HiOutlineDocumentAdd />,
-        },
-        {
-          label: 'Invoices List',
+      label: 'Planning',
+      path: '/calendar',
+      access: 'Planning',
+      icon: <CalendarMonth />,
+    },
+     {
+          label: 'Invoices',
           path: '/finance?tab=1',
           access: 'Finance',
           icon: <LiaFileInvoiceSolid  className="h-5 w-5"  />,
         },
-        {
-          label: 'Add Invoices',
-          path: '/newinvoice',
-          access: 'Finance',
-          icon: <HiOutlineDocumentAdd  />,
-        }
-      ],
+    {
+      label: 'Task',
+      path: '/tasks',
+      access: 'Tasks',
+      icon: <Task />,
     },
+
+  
+
 
     {
       label: 'Resources',

@@ -8,7 +8,7 @@ import {
 import CustomFurniture from './CustomFurniture';
 import Loader from '../../../common/Loader';
 
-const FurnitureSelection: React.FC<any> = ({ setFurnitures, data, setData }) => {
+const FurnitureSelection: React.FC<any> = ({  data, setData }) => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [isCustomOpen, setCustomOpen] = useState(false);
     const [furniture, setFurniture] = useState<any[]>([]);
@@ -107,10 +107,7 @@ const FurnitureSelection: React.FC<any> = ({ setFurnitures, data, setData }) => 
             )
         );
     };
-    useEffect(() => {
-        const filteredFurnitureItems = data.map(({ _id, quantity, cubicMeter,done, furnitureTypeName, isDisassambled,icon }: any) => ({ _id, quantity,done, cubicMeter, furnitureTypeName,isDisassambled, icon }));
-        setFurnitures(filteredFurnitureItems)
-    }, [data])
+
 
     return (
         <>

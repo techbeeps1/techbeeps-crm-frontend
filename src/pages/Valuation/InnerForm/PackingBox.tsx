@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 
 const PackingBox: React.FC<any> = ( ) => {
@@ -10,7 +10,7 @@ const PackingBox: React.FC<any> = ( ) => {
     });
 
     
-    const packingBoxes = watch("packingBoxes");
+    const packingBoxes = watch();
 
     const incrementQuantity = (index: number) => {
         const currentQuantity = packingBoxes[index]?.quantity || 0;
@@ -23,10 +23,7 @@ const PackingBox: React.FC<any> = ( ) => {
             setValue(`packingBoxes.${index}.quantity`, Number(currentQuantity) - 1);
         }
     };
-    useEffect(() => {
-        
-        console.log("Fields:", fields);
-    }, [fields]);
+  
     return (
         <>
 

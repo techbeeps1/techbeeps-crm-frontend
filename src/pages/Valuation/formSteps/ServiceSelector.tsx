@@ -1,7 +1,11 @@
 import React from "react";
 
 const ServiceSelector: React.FC<any> = ({ services, setItem, item }) => {
+
+
+
   const toggleService = (service: any) => {
+
     const isSelected = item.some((selectedService: any) => selectedService._id === service._id);
 
     if (isSelected) {

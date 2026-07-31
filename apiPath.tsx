@@ -6,11 +6,6 @@ export const chatApiPath = "https://techbeeps-crm-backend-9i4i.vercel.app/chatBa
 
 
 
-// export const apiPath = "http://localhost:8080";
-// export const chatApiPath = "http://localhost:4040/chatBackend";
-// export const imageUrl = "http://localhost:4040";
-
-
 
 
 // export const apiPath = "http://localhost:8080";
