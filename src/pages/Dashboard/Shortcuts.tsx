@@ -5,133 +5,109 @@ import ConstructionIcon from '@mui/icons-material/Construction';
 import ArchitectureIcon from '@mui/icons-material/Architecture';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import NewCustomer from '../customerDetails/NewCustomer';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Shortcuts: React.FC = () => {
-    const [open, setOpen] = useState(false);
-    return (
-        <div className="overflow-y-auto mt-5">
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-7">
+  const shortcutItems = [
+    {
+      title: 'New Valuation',
+      subtitle: 'Create property intake',
+      icon: <ArchitectureIcon style={{ fontSize: 28, color: '#ffffff' }} />,
+      bgStyle: { background: 'linear-gradient(135deg, #2563eb 0%, #06b6d4 100%)', color: '#ffffff' },
+      bgGlow: 'bg-blue-500/10',
+      action: () => navigate('/intake'),
+    },
+    {
+      title: 'New Customer',
+      subtitle: 'Add customer account',
+      icon: <PersonIcon style={{ fontSize: 28, color: '#ffffff' }} />,
+      bgStyle: { background: 'linear-gradient(135deg, #9333ea 0%, #ec4899 100%)', color: '#ffffff' },
+      bgGlow: 'bg-purple-500/10',
+      action: () => setOpen(true),
+    },
+    {
+      title: 'New Job',
+      subtitle: 'Schedule logistics job',
+      icon: <LocalShippingIcon style={{ fontSize: 28, color: '#ffffff' }} />,
+      bgStyle: { background: 'linear-gradient(135deg, #059669 0%, #14b8a6 100%)', color: '#ffffff' },
+      bgGlow: 'bg-emerald-500/10',
+      action: () => navigate('/jobs'),
+    },
+    {
+      title: 'Moving Lift Job',
+      subtitle: 'Lift equipment request',
+      icon: <ConstructionIcon style={{ fontSize: 28, color: '#ffffff' }} />,
+      bgStyle: { background: 'linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)', color: '#ffffff' },
+      bgGlow: 'bg-amber-500/10',
+      action: () => navigate('/jobs'),
+    },
+    {
+      title: 'New Offer',
+      subtitle: 'Generate client quote',
+      icon: <AddCircleIcon style={{ fontSize: 28, color: '#ffffff' }} />,
+      bgStyle: { background: 'linear-gradient(135deg, #e11d48 0%, #db2777 100%)', color: '#ffffff' },
+      bgGlow: 'bg-rose-500/10',
+      action: () => navigate('/new_offer'),
+    },
+  ];
 
-    <Link to="/intake">
-        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(59,130,246,0.15)] transition-all duration-500 hover:-translate-y-2">
-            
-            <div className="absolute top-0 right-0 w-40 h-40 bg-blue-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
-
-            <div className="relative z-10">
-                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-sky-500 to-green-400 text-white flex items-center justify-center text-5xl shadow-lg">
-                    <ArchitectureIcon fontSize="inherit" />
-                </div>
-
-                <div className="mt-5">
-                    <h2 className="text-xl font-bold text-gray-800 text-center">
-                        New Valuation
-                    </h2>
-                </div>
-
-
-            </div>
+  return (
+    <div className="w-full space-y-4 font-sans">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+            Quick Actions
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Launch main workflows and create CRM items instantly.
+          </p>
         </div>
-    </Link>
+      </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {shortcutItems.map((item, index) => (
+          <div
+            key={index}
+            onClick={item.action}
+            className="group relative overflow-hidden bg-white dark:bg-boxdark rounded-2xl p-5 border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 cursor-pointer"
+          >
+            {/* Ambient Background Glow */}
+            <div
+              className={`absolute -top-10 -right-10 w-32 h-32 ${item.bgGlow} rounded-full blur-2xl group-hover:scale-150 transition-all duration-500`}
+            />
 
-    <div
-        onClick={() => setOpen(true)}
-        className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(168,85,247,0.15)] transition-all duration-500 hover:-translate-y-2"
-    >
-        <div className="absolute top-0 right-0 w-40 h-40 bg-purple-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
+            <div className="relative z-10 flex flex-col items-center text-center space-y-3">
+              {/* Dynamic Gradient Icon Badge with Inline Guarantee */}
+              <div
+                style={item.bgStyle}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-md shadow-slate-900/10 group-hover:scale-110 transition-transform duration-300"
+              >
+                {item.icon}
+              </div>
 
-        <div className="relative z-10">
-            <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center text-5xl shadow-lg">
-                <PersonIcon fontSize="inherit" />
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-primary transition-colors">
+                  {item.title}
+                </h4>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  {item.subtitle}
+                </p>
+              </div>
             </div>
+          </div>
+        ))}
+      </div>
 
-            <div className="mt-5">
-                <h2 className="text-xl font-bold text-gray-800 text-center">
-                    New Customer
-                </h2>
-
-
-            </div>
-
-        </div>
+      {/* Hidden New Customer Modal Handler */}
+      <NewCustomer setOpen={setOpen} open={open} handler={() => {}} type="Customer" />
     </div>
-
-
-    <Link to="/jobs">
-        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(34,197,94,0.15)] transition-all duration-500 hover:-translate-y-2">
-
-            <div className="absolute top-0 right-0 w-40 h-40 bg-green-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
-
-            <div className="relative z-10">
-                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-green-500 to-emerald-400 text-white flex items-center justify-center text-5xl shadow-lg">
-                    <LocalShippingIcon fontSize="inherit" />
-                </div>
-
-                <div className="mt-5">
-                    <h2 className="text-xl font-bold text-gray-800 text-center">
-                        New Job
-                    </h2>
-
-                </div>
-            </div>
-        </div>
-    </Link>
-
-
-    <Link to="/jobs">
-        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(249,115,22,0.15)] transition-all duration-500 hover:-translate-y-2">
-
-            <div className="absolute top-0 right-0 w-40 h-40 bg-orange-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
-
-            <div className="relative z-10">
-                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-orange-500 to-red-400 text-white flex items-center justify-center text-5xl shadow-lg">
-                    <ConstructionIcon fontSize="inherit" />
-                </div>
-
-                <div className="mt-5">
-                    <h2 className="text-xl font-bold text-gray-800 text-center">
-                        Moving Lift Job
-                    </h2>
-
-           
-                </div>
-
-            </div>
-        </div>
-    </Link>
-
-
-    <Link to="/new_offer">
-        <div className="group relative overflow-hidden bg-white rounded-[16px] p-5  cursor-pointer shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_20px_60px_rgba(236,72,153,0.15)] transition-all duration-500 hover:-translate-y-2">
-
-            <div className="absolute top-0 right-0 w-40 h-40 bg-pink-100 rounded-full blur-[80px] opacity-40 group-hover:scale-125 transition duration-700" />
-
-            <div className="relative z-10">
-                <div className="w-20 h-20 rounded-[24px] mx-auto bg-gradient-to-br from-pink-500 to-rose-400 text-white flex items-center justify-center text-5xl shadow-lg">
-                    <AddCircleIcon fontSize="inherit" />
-                </div>
-
-                <div className="mt-5">
-                    <h2 className="text-xl font-bold text-gray-800 text-center">
-                        New Offer
-                    </h2>
-
-             
-                </div>
-
-            </div>
-        </div>
-    </Link>
-
-</div>
-            
-            <div className='hidden'>
-                <NewCustomer setOpen={setOpen} open={open} handler={console.log('customer Created')} type='Customer' />
-            </div>
-        </div>
-    );
+  );
 };
 
 export default Shortcuts;
+
+
+

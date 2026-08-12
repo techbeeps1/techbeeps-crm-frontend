@@ -32,16 +32,15 @@ const LeadsPage = () => {
   }
 
   return (
-    <>
-      <div className="flex bg-white overflowY-auto" style={{ height: 'calc(100vh - 84px)' }}>
-        <div style={{ width: '100%' }}>
-          {loading ? <Loader /> :
-            <UserLeadList data={customersList} fetchCustomer={fetchCustomers} />
-          }
-        </div>
-      </div>
-    </>
+    <div className="w-full min-h-[calc(100vh-84px)] bg-slate-50/50 dark:bg-boxdark-2 overflow-y-auto">
+      {loading ? (
+        <Loader />
+      ) : (
+        <UserLeadList data={customersList} fetchCustomer={fetchCustomers} />
+      )}
+    </div>
   );
 };
 
 export default LeadsPage;
+

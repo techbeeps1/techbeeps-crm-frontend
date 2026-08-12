@@ -4,7 +4,6 @@ import { apiPath } from '../../apiPath';
 import CustomerList from './customerDetails/CustomerList';
 import Loader from '../common/Loader';
 
-
 const Customers = () => {
   const [customersList, setCustomersList] = useState([] as any);
   const [loading, setLoading] = useState(false);
@@ -15,7 +14,7 @@ const Customers = () => {
       const response = await axios.get(
         `${apiPath}/customer/customerList?type=Customer`,
       );
-      setCustomersList(response.data.customers);
+      setCustomersList(response.data.customers || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
     } finally {
@@ -24,21 +23,19 @@ const Customers = () => {
   }
 
   useEffect(() => {
-    fetchCustomers()
+    fetchCustomers();
   }, []);
 
   return (
-    <>
-      <div className="flex bg-white overflowY-auto" style={{ height: 'calc(100vh - 84px)' }}>
-        <div style={{ width: '100%' }}>
-          {loading ? <Loader /> :
-            <CustomerList data={customersList} fetchCustomer={fetchCustomers} type='Customer' />
-          }
-        </div>
-      </div>
-
-    </>
+    <div className="w-full min-h-[calc(100vh-84px)] bg-slate-50/50 dark:bg-boxdark-2">
+      {loading ? (
+        <Loader />
+      ) : (
+        <CustomerList data={customersList} fetchCustomer={fetchCustomers} type="Customer" />
+      )}
+    </div>
   );
 };
 
 export default Customers;
+
