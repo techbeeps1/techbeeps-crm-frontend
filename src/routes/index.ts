@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 
 import Customers from '../pages/customers';
-import FinancePage from '../pages/FinancePage.jsx';
+
 import Communication from '../pages/communication';
 // import Resources from '../pages/resources';
 import CustomerDetail from '../pages/customerDetails/CustomerDetail.jsx';
@@ -26,6 +26,9 @@ import Services from '../pages/Admin/Services.js';
 import ResourcesPage from '../pages/Resources/ResourcesPage.js';
 import LeadsPage from '../pages/LeadsPage.js';
 import LeadDetail from '../pages/UserLeads/LeadDetail.js';
+import OffersPage from '../pages/OffersPage.jsx';
+import InvoiceListPage from '../pages/InvoiceListPage.jsx';
+import Jobslider from '../pages/Jobpage/Jobslider.js';
 
 const coreRoutes = [
   {
@@ -64,6 +67,11 @@ const coreRoutes = [
     title: 'jobs',
     component: JobDetailPage,
   },
+    {
+    path: '/jobs/:id',
+    title: 'jobs details',
+    component: Jobslider,
+  },
   {
     path: '/data',
     title: 'data',
@@ -90,9 +98,14 @@ const coreRoutes = [
     component: LeadDetail,
   },
   {
-    path: '/finance',
-    title: 'finance',
-    component: FinancePage,
+    path: '/quotes',
+    title: 'Quotes',
+    component: OffersPage,
+  },
+    {
+    path: '/invoices',
+    title: 'Invoices',
+    component: InvoiceListPage,
   },
   {
     path: '/newinvoice',

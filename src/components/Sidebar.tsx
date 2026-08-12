@@ -137,7 +137,7 @@ const { pathname, search } = location;
     },
     {
           label: 'Quotes',
-          path: '/finance',
+          path: '/quotes',
           access: 'Finance',
           icon: <AttachMoney />,
         },
@@ -157,7 +157,7 @@ const { pathname, search } = location;
     },
      {
           label: 'Invoices',
-          path: '/finance?tab=1',
+          path: '/invoices',
           access: 'Finance',
           icon: <LiaFileInvoiceSolid  className="h-5 w-5"  />,
         },

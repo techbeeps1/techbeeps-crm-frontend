@@ -67,7 +67,7 @@ const CustomerDetail = () => {
                         <Tab sx={{ fontSize: '15px', fontWeight: 'bold' }} label="Email" />
                         <Tab sx={{ fontSize: '15px', fontWeight: 'bold' }} label="Offered" />
                         <Tab sx={{ fontSize: '15px', fontWeight: 'bold' }} label="Invoices" />
-                        <Tab sx={{ fontSize: '15px', fontWeight: 'bold' }} label="To Do" />
+                        <Tab sx={{ fontSize: '15px', fontWeight: 'bold' }} label="Job" />
                         <Tab sx={{ fontSize: '15px', fontWeight: 'bold' }} label="storage" />
                     </Tabs>
                 </div>
