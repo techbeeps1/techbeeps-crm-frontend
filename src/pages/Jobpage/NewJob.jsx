@@ -23,6 +23,7 @@ import {
 import { LocalizationProvider, StaticDatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
 import { useForm, Controller } from 'react-hook-form';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
@@ -277,17 +278,16 @@ const NewJob = ({ handler }) => {
   return (
     <>
       {loading && <Loader />}
-      <div className="mt-1">
-        <div className="">
-          <Button
-            variant="contained"
-            size="large"
-            className="shadow-md"
-            onClick={() => setOpen(true)}
-          >
-            New Job
-          </Button>
-        </div>
+      <div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer text-sm"
+        >
+          <AddIcon fontSize="small" />
+          <span>New Job</span>
+        </button>
+      </div>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <Modal open={open} onClose={handleClose}>
             <Box
@@ -842,7 +842,6 @@ const NewJob = ({ handler }) => {
             </Box>
           </Modal>
         </LocalizationProvider>
-      </div>
     </>
   );
 };

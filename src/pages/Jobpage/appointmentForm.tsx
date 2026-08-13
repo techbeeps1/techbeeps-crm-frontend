@@ -20,6 +20,12 @@ import { LocalizationProvider, StaticDatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import CloseIcon from '@mui/icons-material/Close';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PeopleIcon from '@mui/icons-material/People';
+import EventNoteIcon from '@mui/icons-material/EventNote';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
 import { toast } from 'react-toastify';
@@ -143,7 +149,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         const response = await fetch(`${apiPath}/api/company-details`);
         const data = await response.json();
         setCompanyDetail(data);
-       
+
       } catch (error) {
         console.error('Error fetching company details:', error);
       }
@@ -226,11 +232,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       freeSlots:
         employee.startTime && employee.endTime
           ? [
-              {
-                start: employee.startTime.slice(11, 16),
-                end: employee.endTime.slice(11, 16),
-              },
-            ]
+            {
+              start: employee.startTime.slice(11, 16),
+              end: employee.endTime.slice(11, 16),
+            },
+          ]
           : [],
       available: true,
     }));
@@ -315,7 +321,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       setPlanningType(appointmentToEdit.appointmentType || 'Move');
       setDepartureLocation(appointmentToEdit.departureLocation || '');
       setNotes(appointmentToEdit.notes || '');
-    
+
       setOriginalAppointmentDate(
         appointmentToEdit.date
           ? getFormattedDateFromString(appointmentToEdit.date)
@@ -441,9 +447,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             startTime: value,
             endTime:
               validSlot &&
-              assignment.endTime &&
-              assignment.endTime > value &&
-              assignment.endTime <= validSlot.end
+                assignment.endTime &&
+                assignment.endTime > value &&
+                assignment.endTime <= validSlot.end
                 ? assignment.endTime
                 : '',
           };
@@ -588,7 +594,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         notes,
         participants: employeeAssignments.length,
         assignedEmployees: employeeAssignmentsWithTimes,
-       
+
       };
 
       let response;
@@ -606,7 +612,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       await SendEmail(
         response.data,
         settings?.emailTemplates?.appointment ||
-          settings?.emailTemplates?.rescheduleAppointment,
+        settings?.emailTemplates?.rescheduleAppointment,
       );
       notify(
         isEditMode
@@ -700,14 +706,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const filteredEmployeeOptions = selectedRoles.length
     ? data.filter(
-        (employee: any) =>
-          employee?.skills?.some((role: string) =>
-            selectedRoles.includes(role),
-          ) ||
-          selectedEmployees.some(
-            (selected) => selected.value === employee.value,
-          ),
-      )
+      (employee: any) =>
+        employee?.skills?.some((role: string) =>
+          selectedRoles.includes(role),
+        ) ||
+        selectedEmployees.some(
+          (selected) => selected.value === employee.value,
+        ),
+    )
     : data;
 
   const handleNextStep = () => {
@@ -767,616 +773,676 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     <div>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         {showTrigger && (
-          <Button variant="outlined" className="shadow-md" onClick={handleOpen}>
-           New Appointment
-          </Button>
+          <button
+            type="button"
+            onClick={handleOpen}
+            className="px-4 py-2 rounded-xl border border-primary text-primary hover:bg-primary/10 font-bold text-xs transition-all cursor-pointer"
+          >
+            + New Appointment
+          </button>
         )}
         <Modal open={modalOpen} onClose={handleClose}>
-          <Box className="bg-[#ecf0ff] px-4 py-3 mt-4 shadow-2xl absolute top-4 left-1/2 transform -translate-x-1/2 max-w-6xl w-[95vw] max-h-[92vh] overflow-auto">
+          <Box className={`bg-white dark:bg-boxdark rounded-2xl border border-slate-200 dark:border-strokedark p-6 shadow-2xl absolute top-6 left-1/2 transform -translate-x-1/2 ${viewOnly ? 'max-w-3xl' : 'max-w-6xl'} w-[95vw] max-h-[90vh] overflow-auto text-slate-800 dark:text-white font-sans`}>
             {/* If viewOnly and appointmentToEdit, render a dedicated read-only view */}
             {viewOnly && appointmentToEdit && (
-              <Box className="space-y-4">
-                <div className="relative flex items-center justify-between ">
-                <Typography variant="h6" className="mb-2 text-slate-700">
-                  Appointment details
-                </Typography>
-                <IconButton
-                onClick={handleClose}
-                className="absolute top-2 right-2 text-gray-600 hover:text-black"
-              >
-                <CloseIcon />
-              </IconButton>
-              </div>
-                <Paper className="p-4 rounded-lg">
-                  <Typography>
-                    <strong>Type:</strong> {appointmentToEdit.appointmentType}
-                  </Typography>
-                  <Typography>
-                    <strong>Date:</strong>{' '}
-                    {appointmentToEdit.date
-                      ? new Date(appointmentToEdit.date).toDateString()
-                      : 'N/A'}
-                  </Typography>
-                  <Typography>
-                    <strong>Start:</strong>{' '}
-                    {appointmentToEdit.startTime
-                      ? new Date(
-                          appointmentToEdit.startTime,
-                        ).toLocaleTimeString('en-GB', {
+              <div className="space-y-6">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-strokedark">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2.5">
+                      <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                        Appointment Details
+                      </h3>
+                      <span className="px-3 py-1 text-xs font-extrabold rounded-full bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">
+                        {appointmentToEdit.appointmentType || 'Appointment'}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-500">
+                      Scheduled appointment overview & assigned team members
+                    </p>
+                  </div>
+
+                  <IconButton
+                    onClick={handleClose}
+                    className="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                  >
+                    <CloseIcon />
+                  </IconButton>
+                </div>
+
+                {/* Key Overview Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div className="bg-slate-50/70 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <CalendarTodayIcon style={{ fontSize: 14 }} className="text-primary" />
+                      <span>Date</span>
+                    </div>
+                    <p className="font-extrabold text-slate-900 dark:text-white text-sm">
+                      {appointmentToEdit.date
+                        ? new Date(appointmentToEdit.date).toLocaleDateString('en-GB', {
+                          weekday: 'short',
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                        : 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50/70 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <AccessTimeIcon style={{ fontSize: 14 }} className="text-primary" />
+                      <span>Time Window</span>
+                    </div>
+                    <p className="font-extrabold text-slate-900 dark:text-white text-sm">
+                      {appointmentToEdit.startTime
+                        ? new Date(appointmentToEdit.startTime).toLocaleTimeString('en-GB', {
                           hour: '2-digit',
                           minute: '2-digit',
                         })
-                      : 'N/A'}
-                  </Typography>
-                  <Typography>
-                    <strong>End:</strong>{' '}
-                    {appointmentToEdit.endTime
-                      ? new Date(appointmentToEdit.endTime).toLocaleTimeString(
-                          'en-GB',
-                          { hour: '2-digit', minute: '2-digit' },
-                        )
-                      : 'N/A'}
-                  </Typography>
-                  <Typography>
-                    <strong>Departure:</strong>{' '}
-                    {appointmentToEdit.departureLocation || 'N/A'}
-                  </Typography>
+                        : 'N/A'}{' '}
+                      -{' '}
+                      {appointmentToEdit.endTime
+                        ? new Date(appointmentToEdit.endTime).toLocaleTimeString('en-GB', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                        : 'N/A'}
+                    </p>
+                  </div>
 
-                  <Typography className="mt-2">
-                    <strong>Notes:</strong> {appointmentToEdit.notes || '—'}
-                  </Typography>
-                  <Typography className="mt-2">
-                    <strong>Participants:</strong>{' '}
-                    {appointmentToEdit.assignedEmployees?.length || 0}
-                  </Typography>
-                </Paper>
+                  <div className="bg-slate-50/70 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1 sm:col-span-2 md:col-span-1">
+                    <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <PeopleIcon style={{ fontSize: 14 }} className="text-primary" />
+                      <span>Assigned Team</span>
+                    </div>
+                    <p className="font-extrabold text-slate-900 dark:text-white text-sm">
+                      {appointmentToEdit.assignedEmployees?.length || 0} Employees
+                    </p>
+                  </div>
 
-                <Paper className="p-4 rounded-lg">
-                  <Typography variant="subtitle1" className="mb-2">
-                    Assigned employees
-                  </Typography>
-                  {(appointmentToEdit.assignedEmployees || []).map((a: any) => {
-                     
-                    console.log("f",a)
-            return        (
+                  <div className="bg-slate-50/70 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1 sm:col-span-2 md:col-span-1">
+                    <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <LocationOnIcon style={{ fontSize: 14 }} className="text-primary" />
+                      <span>Departure</span>
+                    </div>
+                    <p className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                      {appointmentToEdit.departureLocation || 'N/A'}
+                    </p>
+                  </div>
+                </div>
 
-                    
-                    <Box
-                      key={a._id || a.employeeId}
-                      className="mb-3 border-b pb-2"
-                    >
-                      <Typography>
-                        <strong>Name:</strong> {a.employeeName}
-                      </Typography>
-                      <Typography>
-                        <strong>Role:</strong> {a.workType}
-                      </Typography>
-                      <Typography>
-                        <strong>Start:</strong>{' '}
-                        {a.startTime
-                          ? new Date(a.startTime).toLocaleTimeString('en-GB', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : 'N/A'}
-                      </Typography>
-                      <Typography>
-                        <strong>End:</strong>{' '}
-                        {a.endTime
-                          ? new Date(a.endTime).toLocaleTimeString('en-GB', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : 'N/A'}
-                      </Typography>
-                      {/* {a.vehicle && (
-                      <Typography>
-                        <strong>Vehicle:</strong>{' '}
-                        {(() => {
-                          const v = vehicleOptions.find(
-                            (vv) => vv._id === a.vehicle,
-                          );
-                          return v
-                            ? `${v.name}${v.licensePlate ? ' (' + v.licensePlate + ')' : ''}`
-                            : a.vehicle || 'N/A';
-                        })()}
-                      </Typography>
-                      )} */}
-                    </Box>
-                  )
-                }
-                
+                {/* Notes if available */}
+                {appointmentToEdit.notes && (
+                  <div className="bg-amber-50/60 dark:bg-amber-950/20 p-4 rounded-2xl border border-amber-200/80 dark:border-amber-900/40 space-y-1.5 text-xs">
+                    <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-extrabold uppercase tracking-wider text-[11px]">
+                      <EventNoteIcon style={{ fontSize: 16 }} />
+                      <span>Appointment Notes</span>
+                    </div>
+                    <p className="font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                      {appointmentToEdit.notes}
+                    </p>
+                  </div>
                 )}
 
-                </Paper>
-              </Box>
+                {/* Assigned Employees List Container */}
+                <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 space-y-3">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <PeopleIcon fontSize="small" className="text-primary" />
+                    <span>Assigned Employees ({appointmentToEdit.assignedEmployees?.length || 0})</span>
+                  </h4>
+
+                  {appointmentToEdit.assignedEmployees && appointmentToEdit.assignedEmployees.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {appointmentToEdit.assignedEmployees.map((emp: any, idx: number) => {
+                        const empStartTime = emp.startTime
+                          ? new Date(emp.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          : 'N/A';
+                        const empEndTime = emp.endTime
+                          ? new Date(emp.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          : 'N/A';
+
+                        return (
+                          <div
+                            key={emp._id || emp.employeeId || idx}
+                            className="bg-slate-50/80 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2 text-xs"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-xs">
+                                  {emp.employeeName?.charAt(0) || 'E'}
+                                </div>
+                                <div>
+                                  <span className="font-extrabold text-slate-900 dark:text-white text-sm block">
+                                    {emp.employeeName}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="px-2.5 py-0.5 rounded-md bg-white dark:bg-boxdark font-bold text-primary border border-slate-200/80 dark:border-strokedark text-[11px]">
+                                {emp.workType || 'Member'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1 text-slate-500 font-medium">
+                              <span>Shift: <strong className="text-slate-800 dark:text-slate-200">{empStartTime} - {empEndTime}</strong></span>
+                              {emp.vehicle && (
+                                <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+                                  <DirectionsCarIcon style={{ fontSize: 14 }} />
+                                  <span>
+                                    {(() => {
+                                      const v = vehicleOptions.find((vv) => vv._id === emp.vehicle);
+                                      return v ? v.name : 'Vehicle';
+                                    })()}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 text-xs font-medium py-4 text-center">No employees assigned to this appointment.</p>
+                  )}
+                </div>
+
+                {/* Modal Action Footer */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-strokedark">
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-strokedark text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             )}
 
             {!viewOnly && (
               <>
-            <div className="relative flex items-center justify-between ">
-              <Box>
-                <Typography
-                  variant="h5"
-                  className="font-semibold text-slate-800"
-                >
-                  {appointmentToEdit ? 'Edit' : 'New'} Appointment
-                </Typography>
-              </Box>
-              <IconButton
-                onClick={handleClose}
-                className="absolute top-2 right-2 text-gray-600 hover:text-black"
-              >
-                <CloseIcon />
-              </IconButton>
-            </div>
-            {loading && <Loader />}
-
-            <Box className="mb-4 flex flex-wrap justify-evenly items-center gap-2">
-              {[1, 2, 3].map((step) => (
-                <Box
-                  key={step}
-                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium ${
-                    activeStep === step
-                      ? 'border-blue bg-blue text-white shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-600'
-                  }`}
-                >
-                  <Box
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${activeStep === step ? 'bg-white text-blue' : 'bg-slate-100 text-slate-600'}`}
-                  >
-                    {step}
+                <div className="relative flex items-center justify-between ">
+                  <Box>
+                    <Typography
+                      variant="h5"
+                      className="font-semibold text-slate-800"
+                    >
+                      {appointmentToEdit ? 'Edit' : 'New'} Appointment
+                    </Typography>
                   </Box>
-                  Step {step}
-                </Box>
-              ))}
-            </Box>
-
-            <Box className=" gap-4">
-              <Box className="space-y-4">
-                {activeStep === 1 && (
-                  <Paper
-                    elevation={0}
-                    className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm"
+                  <IconButton
+                    onClick={handleClose}
+                    className="absolute top-2 right-2 text-gray-600 hover:text-black"
                   >
-                    <Typography variant="h6" className="mb-3 text-slate-700">
-                      1. Pick the date and planning details
-                    </Typography>
-                    <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Box>
-                        <StaticDatePicker
-                          value={selectedDate}
-                          onChange={(date) => setSelectedDate(date)}
-                          disablePast
-                          slots={{
-                            actionBar: () => null,
-                          }}
-                        />
-                      </Box>
-                      <Box className="space-y-3">
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Planning type</InputLabel>
-                          <Select
-                            value={planningType}
-                            label="Planning type"
-                            onChange={(event) =>
-                              setPlanningType(event.target.value)
-                            }
-                          >
-                            {planningTypes.map((type) => (
-                              <MenuItem key={type} value={type}>
-                                {type}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                    <CloseIcon />
+                  </IconButton>
+                </div>
+                {loading && <Loader />}
 
-                        <Autocomplete
-                          freeSolo
-                          options={locations}
-                          value={departureLocation}
-                          onInputChange={(_, newValue) =>
-                            setDepartureLocation(newValue)
-                          }
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Departure location"
-                              fullWidth
-                            />
-                          )}
-                        />
-                   
-
-                        <TextField
-                          fullWidth
-                          multiline
-                          minRows={3}
-                          label="Notes"
-                          value={notes}
-                          onChange={(event) => setNotes(event.target.value)}
-                          placeholder="Add instructions, access notes, or customer preferences"
-                        />
-                      </Box>
-                    </Box>
-                  </Paper>
-                )}
-
-                {activeStep === 2 && (
-                  <Paper
-                    elevation={0}
-                    className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm"
-                  >
-                    <Typography variant="h6" className="mb-3 text-slate-700">
-                      2. Assign employees and resources
-                    </Typography>
-                    <Box className="space-y-3">
-                      <Box className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                        <Box className="mb-2 flex items-center justify-between gap-2">
-                          <Autocomplete
-                            className="w-full"
-                            multiple
-                            selectOnFocus
-                            options={filteredEmployeeOptions}
-                            value={selectedEmployees}
-                            onChange={(_, newValue) =>
-                              handleEmployeeSelection(newValue)
-                            }
-                            getOptionLabel={(option) => option.label}
-                            isOptionEqualToValue={(option, value) =>
-                              option.value === value.value
-                            }
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
-                                label="Select employees"
-                                placeholder="Search employees"
-                              />
-                            )}
-                          />
-                          <Box className="flex items-center gap-2">
-                            <IconButton
-                              size="small"
-                              onClick={handleRoleFilterOpen}
-                              className="border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                            >
-                              <FilterListIcon fontSize="small" />
-                            </IconButton>
-                            {selectedRoles.length > 0 && (
-                              <Box className="w-[100px] rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                {selectedRoles.length} selected
-                              </Box>
-                            )}
-                          </Box>
-                        </Box>
-                      </Box>
-                      <Popover
-                        open={roleFilterOpen}
-                        anchorEl={roleFilterAnchor}
-                        onClose={handleRoleFilterClose}
-                        anchorOrigin={{
-                          vertical: 'bottom',
-                          horizontal: 'right',
-                        }}
-                        transformOrigin={{
-                          vertical: 'top',
-                          horizontal: 'right',
-                        }}
-                        disableRestoreFocus
+                <Box className="mb-4 flex flex-wrap justify-evenly items-center gap-2">
+                  {[1, 2, 3].map((step) => (
+                    <Box
+                      key={step}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium ${activeStep === step
+                          ? 'border-blue bg-blue text-white shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-600'
+                        }`}
+                    >
+                      <Box
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${activeStep === step ? 'bg-white text-blue' : 'bg-slate-100 text-slate-600'}`}
                       >
-                        <Box className="max-w-xs p-4">
-                          <Typography
-                            variant="subtitle2"
-                            className="mb-3 text-slate-700"
-                          >
-                            Filter roles
-                          </Typography>
-                          {employeeRoleOptions.map((role) => (
-                            <FormControlLabel
-                              key={role}
-                              control={
-                                <Checkbox
-                                  checked={selectedRoles.includes(role)}
-                                  onChange={() => toggleRole(role)}
-                                  size="small"
-                                />
-                              }
-                              label={role}
+                        {step}
+                      </Box>
+                      Step {step}
+                    </Box>
+                  ))}
+                </Box>
+
+                <Box className=" gap-4">
+                  <Box className="space-y-4">
+                    {activeStep === 1 && (
+                      <Paper
+                        elevation={0}
+                        className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm"
+                      >
+                        <Typography variant="h6" className="mb-3 text-slate-700">
+                          1. Pick the date and planning details
+                        </Typography>
+                        <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Box>
+                            <StaticDatePicker
+                              value={selectedDate}
+                              onChange={(date) => setSelectedDate(date)}
+                              disablePast
+                              slots={{
+                                actionBar: () => null,
+                              }}
                             />
-                          ))}
-                          <Box className="mt-3 flex justify-end gap-2">
-                            <Button
-                              size="small"
-                              onClick={() => setSelectedRoles([])}
-                            >
-                              Clear
-                            </Button>
-                            <Button
-                              variant="contained"
-                              size="small"
-                              onClick={handleRoleFilterClose}
-                            >
-                              Done
-                            </Button>
                           </Box>
-                        </Box>
-                      </Popover>
-
-                      {employeeAssignments.map((assignment) => (
-                        <Box
-                          key={assignment.employeeId}
-                          className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3"
-                        >
-                          <Box className="flex flex-wrap items-center justify-between gap-2">
-                            <Typography
-                              variant="subtitle2"
-                              className="text-slate-700"
-                            >
-                              {assignment.employeeName}
-                            </Typography>
-                            <Box className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                              {assignment.workType === 'Driver'
-                                ? 'Driver'
-                                : 'Support'}
-                            </Box>
-                          </Box>
-
-                          <Box className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <Box className="space-y-3">
                             <FormControl fullWidth size="small">
-                              <InputLabel>Work</InputLabel>
+                              <InputLabel>Planning type</InputLabel>
                               <Select
-                                value={assignment.workType}
-                                label="Work"
+                                value={planningType}
+                                label="Planning type"
                                 onChange={(event) =>
-                                  handleAssignmentChange(
-                                    assignment.employeeId,
-                                    'workType',
-                                    event.target.value,
-                                  )
+                                  setPlanningType(event.target.value)
                                 }
                               >
-                                {workOptions.map((option) => (
-                                  <MenuItem key={option} value={option}>
-                                    {option}
+                                {planningTypes.map((type) => (
+                                  <MenuItem key={type} value={type}>
+                                    {type}
                                   </MenuItem>
                                 ))}
                               </Select>
                             </FormControl>
 
-                            <TextField
-                              select
-                              label="Start time"
-                              value={assignment.startTime}
-                              onChange={(event) =>
-                                handleAssignmentChange(
-                                  assignment.employeeId,
-                                  'startTime',
-                                  event.target.value,
-                                )
+                            <Autocomplete
+                              freeSolo
+                              options={locations}
+                              value={departureLocation}
+                              onInputChange={(_, newValue) =>
+                                setDepartureLocation(newValue)
                               }
-                              InputLabelProps={{ shrink: true }}
-                              fullWidth
-                            >
-                              {(() => {
-                                const slots = getEmployeeFreeSlots(
-                                  assignment.employeeId,
-                                );
-                                const slotsEdit = [
-                                  {
-                                    start: assignment.startTime,
-                                    end: assignment.endTime,
-                                  },
-                                ];
-                                const effectiveSlots =
-                                  isEditMode && assignment.startTime && assignment.endTime
-                                    ? slotsEdit
-                                    : slots;
-                                const options = timeOptions.filter((time) =>
-                                  isStartTimeValid(time, effectiveSlots),
-                                );
-                                return options.length ? (
-                                  options.map((time) => (
-                                    <MenuItem key={time} value={time}>
-                                      {time}
-                                    </MenuItem>
-                                  ))
-                                ) : (
-                                  <MenuItem value="" disabled>
-                                    No start times available
-                                  </MenuItem>
-                                );
-                              })()}
-                            </TextField>
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  label="Departure location"
+                                  fullWidth
+                                />
+                              )}
+                            />
+
+
                             <TextField
-                              select
-                              label="End time"
-                              value={assignment.endTime}
-                              onChange={(event) =>
-                                handleAssignmentChange(
-                                  assignment.employeeId,
-                                  'endTime',
-                                  event.target.value,
-                                )
-                              }
-                              InputLabelProps={{ shrink: true }}
                               fullWidth
-                              disabled={!assignment.startTime}
-                            >
-                              {(() => {
-                                if (!assignment.startTime) {
-                                  return [
-                                    <MenuItem key="no-start" value="" disabled>
-                                      Select a start time first
-                                    </MenuItem>,
-                                  ];
+                              multiline
+                              minRows={3}
+                              label="Notes"
+                              value={notes}
+                              onChange={(event) => setNotes(event.target.value)}
+                              placeholder="Add instructions, access notes, or customer preferences"
+                            />
+                          </Box>
+                        </Box>
+                      </Paper>
+                    )}
+
+                    {activeStep === 2 && (
+                      <Paper
+                        elevation={0}
+                        className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm"
+                      >
+                        <Typography variant="h6" className="mb-3 text-slate-700">
+                          2. Assign employees and resources
+                        </Typography>
+                        <Box className="space-y-3">
+                          <Box className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                            <Box className="mb-2 flex items-center justify-between gap-2">
+                              <Autocomplete
+                                className="w-full"
+                                multiple
+                                selectOnFocus
+                                options={filteredEmployeeOptions}
+                                value={selectedEmployees}
+                                onChange={(_, newValue) =>
+                                  handleEmployeeSelection(newValue)
                                 }
-                                const validSlot = getSlotForStartTime(
-                                  assignment.employeeId,
-                                  assignment.startTime,
-                                );
-                                const effectiveSlot =
-                                  isEditMode && assignment.startTime && assignment.endTime
-                                    ? {
+                                getOptionLabel={(option) => option.label}
+                                isOptionEqualToValue={(option, value) =>
+                                  option.value === value.value
+                                }
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    label="Select employees"
+                                    placeholder="Search employees"
+                                  />
+                                )}
+                              />
+                              <Box className="flex items-center gap-2">
+                                <IconButton
+                                  size="small"
+                                  onClick={handleRoleFilterOpen}
+                                  className="border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                                >
+                                  <FilterListIcon fontSize="small" />
+                                </IconButton>
+                                {selectedRoles.length > 0 && (
+                                  <Box className="w-[100px] rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                                    {selectedRoles.length} selected
+                                  </Box>
+                                )}
+                              </Box>
+                            </Box>
+                          </Box>
+                          <Popover
+                            open={roleFilterOpen}
+                            anchorEl={roleFilterAnchor}
+                            onClose={handleRoleFilterClose}
+                            anchorOrigin={{
+                              vertical: 'bottom',
+                              horizontal: 'right',
+                            }}
+                            transformOrigin={{
+                              vertical: 'top',
+                              horizontal: 'right',
+                            }}
+                            disableRestoreFocus
+                          >
+                            <Box className="max-w-xs p-4">
+                              <Typography
+                                variant="subtitle2"
+                                className="mb-3 text-slate-700"
+                              >
+                                Filter roles
+                              </Typography>
+                              {employeeRoleOptions.map((role) => (
+                                <FormControlLabel
+                                  key={role}
+                                  control={
+                                    <Checkbox
+                                      checked={selectedRoles.includes(role)}
+                                      onChange={() => toggleRole(role)}
+                                      size="small"
+                                    />
+                                  }
+                                  label={role}
+                                />
+                              ))}
+                              <Box className="mt-3 flex justify-end gap-2">
+                                <Button
+                                  size="small"
+                                  onClick={() => setSelectedRoles([])}
+                                >
+                                  Clear
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  onClick={handleRoleFilterClose}
+                                >
+                                  Done
+                                </Button>
+                              </Box>
+                            </Box>
+                          </Popover>
+
+                          {employeeAssignments.map((assignment) => (
+                            <Box
+                              key={assignment.employeeId}
+                              className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3"
+                            >
+                              <Box className="flex flex-wrap items-center justify-between gap-2">
+                                <Typography
+                                  variant="subtitle2"
+                                  className="text-slate-700"
+                                >
+                                  {assignment.employeeName}
+                                </Typography>
+                                <Box className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                                  {assignment.workType === 'Driver'
+                                    ? 'Driver'
+                                    : 'Support'}
+                                </Box>
+                              </Box>
+
+                              <Box className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <FormControl fullWidth size="small">
+                                  <InputLabel>Work</InputLabel>
+                                  <Select
+                                    value={assignment.workType}
+                                    label="Work"
+                                    onChange={(event) =>
+                                      handleAssignmentChange(
+                                        assignment.employeeId,
+                                        'workType',
+                                        event.target.value,
+                                      )
+                                    }
+                                  >
+                                    {workOptions.map((option) => (
+                                      <MenuItem key={option} value={option}>
+                                        {option}
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+
+                                <TextField
+                                  select
+                                  label="Start time"
+                                  value={assignment.startTime}
+                                  onChange={(event) =>
+                                    handleAssignmentChange(
+                                      assignment.employeeId,
+                                      'startTime',
+                                      event.target.value,
+                                    )
+                                  }
+                                  InputLabelProps={{ shrink: true }}
+                                  fullWidth
+                                >
+                                  {(() => {
+                                    const slots = getEmployeeFreeSlots(
+                                      assignment.employeeId,
+                                    );
+                                    const slotsEdit = [
+                                      {
                                         start: assignment.startTime,
                                         end: assignment.endTime,
-                                      }
-                                    : validSlot;
-
-                                const options = timeOptions.filter((time) => {
-                                  return (
-                                    !!effectiveSlot &&
-                                    time > assignment.startTime &&
-                                    time <= effectiveSlot.end
-                                  );
-                                });
-                                return options.length ? (
-                                  options.map((time) => (
-                                    <MenuItem key={time} value={time}>
-                                      {time}
-                                    </MenuItem>
-                                  ))
-                                ) : (
-                                  <MenuItem value="" disabled>
-                                    No end times available
-                                  </MenuItem>
-                                );
-                              })()}
-                            </TextField>
-                          </Box>
-
-                          {assignment.workType === 'Driver' && (
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Vehicle</InputLabel>
-                              <Select
-                                value={assignment.vehicle}
-                                label="Vehicle"
-                                onChange={(event) =>
-                                  handleAssignmentChange(
-                                    assignment.employeeId,
-                                    'vehicle',
-                                    event.target.value,
-                                  )
-                                }
-                              >
-                                {(() => {
-                                  const availableVehicles =
-                                    vehicleOptions.filter(
-                                      (option) =>
-                                        !getAssignedVehicleNames(
-                                          assignment.employeeId,
-                                        ).includes(option.name),
+                                      },
+                                    ];
+                                    const effectiveSlots =
+                                      isEditMode && assignment.startTime && assignment.endTime
+                                        ? slotsEdit
+                                        : slots;
+                                    const options = timeOptions.filter((time) =>
+                                      isStartTimeValid(time, effectiveSlots),
                                     );
-                                  return availableVehicles.length ? (
-                                    availableVehicles.map((option) => (
-                                      <MenuItem
-                                        key={option._id}
-                                        value={option._id}
-                                      >
-                                        {option.name}{' '}
-                                        {option.licensePlate
-                                          ? `(${option.licensePlate})`
-                                          : ''}
+                                    return options.length ? (
+                                      options.map((time) => (
+                                        <MenuItem key={time} value={time}>
+                                          {time}
+                                        </MenuItem>
+                                      ))
+                                    ) : (
+                                      <MenuItem value="" disabled>
+                                        No start times available
                                       </MenuItem>
-                                    ))
-                                  ) : (
-                                    <MenuItem value="" disabled>
-                                      No vehicles available
-                                    </MenuItem>
-                                  );
-                                })()}
-                              </Select>
-                            </FormControl>
-                          )}
+                                    );
+                                  })()}
+                                </TextField>
+                                <TextField
+                                  select
+                                  label="End time"
+                                  value={assignment.endTime}
+                                  onChange={(event) =>
+                                    handleAssignmentChange(
+                                      assignment.employeeId,
+                                      'endTime',
+                                      event.target.value,
+                                    )
+                                  }
+                                  InputLabelProps={{ shrink: true }}
+                                  fullWidth
+                                  disabled={!assignment.startTime}
+                                >
+                                  {(() => {
+                                    if (!assignment.startTime) {
+                                      return [
+                                        <MenuItem key="no-start" value="" disabled>
+                                          Select a start time first
+                                        </MenuItem>,
+                                      ];
+                                    }
+                                    const validSlot = getSlotForStartTime(
+                                      assignment.employeeId,
+                                      assignment.startTime,
+                                    );
+                                    const effectiveSlot =
+                                      isEditMode && assignment.startTime && assignment.endTime
+                                        ? {
+                                          start: assignment.startTime,
+                                          end: assignment.endTime,
+                                        }
+                                        : validSlot;
+
+                                    const options = timeOptions.filter((time) => {
+                                      return (
+                                        !!effectiveSlot &&
+                                        time > assignment.startTime &&
+                                        time <= effectiveSlot.end
+                                      );
+                                    });
+                                    return options.length ? (
+                                      options.map((time) => (
+                                        <MenuItem key={time} value={time}>
+                                          {time}
+                                        </MenuItem>
+                                      ))
+                                    ) : (
+                                      <MenuItem value="" disabled>
+                                        No end times available
+                                      </MenuItem>
+                                    );
+                                  })()}
+                                </TextField>
+                              </Box>
+
+                              {assignment.workType === 'Driver' && (
+                                <FormControl fullWidth size="small">
+                                  <InputLabel>Vehicle</InputLabel>
+                                  <Select
+                                    value={assignment.vehicle}
+                                    label="Vehicle"
+                                    onChange={(event) =>
+                                      handleAssignmentChange(
+                                        assignment.employeeId,
+                                        'vehicle',
+                                        event.target.value,
+                                      )
+                                    }
+                                  >
+                                    {(() => {
+                                      const availableVehicles =
+                                        vehicleOptions.filter(
+                                          (option) =>
+                                            !getAssignedVehicleNames(
+                                              assignment.employeeId,
+                                            ).includes(option.name),
+                                        );
+                                      return availableVehicles.length ? (
+                                        availableVehicles.map((option) => (
+                                          <MenuItem
+                                            key={option._id}
+                                            value={option._id}
+                                          >
+                                            {option.name}{' '}
+                                            {option.licensePlate
+                                              ? `(${option.licensePlate})`
+                                              : ''}
+                                          </MenuItem>
+                                        ))
+                                      ) : (
+                                        <MenuItem value="" disabled>
+                                          No vehicles available
+                                        </MenuItem>
+                                      );
+                                    })()}
+                                  </Select>
+                                </FormControl>
+                              )}
+                            </Box>
+                          ))}
                         </Box>
-                      ))}
-                    </Box>
-                  </Paper>
-                )}
-              </Box>
+                      </Paper>
+                    )}
+                  </Box>
 
-              <Box className="space-y-4">
-                {activeStep === 3 && (
-                  <Paper
-                    elevation={0}
-                    className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm"
-                  >
-                    <Typography variant="h6" className="mb-3 text-slate-700">
-                      3. Review the assignment plan
-                    </Typography>
-                    <Box className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-                      <Typography
-                        variant="subtitle2"
-                        className="text-slate-700"
+                  <Box className="space-y-4">
+                    {activeStep === 3 && (
+                      <Paper
+                        elevation={0}
+                        className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm"
                       >
-                        Plan summary
-                      </Typography>
-                      <Typography variant="body2" className="text-slate-600">
-                        Date:{' '}
-                        {selectedDate
-                          ? selectedDate.toDateString()
-                          : 'Not selected'}
-                      </Typography>
-                      <Typography variant="body2" className="text-slate-600">
-                        Planning type: {planningType}
-                      </Typography>
-                      <Typography variant="body2" className="text-slate-600">
-                        Departure location: {departureLocation || 'Not entered'}
-                      </Typography>
-                      {roleSummary.packers > 0 && (
-                        <Typography variant="body2" className="text-slate-600">
-                          Packers: {roleSummary.packers}
+                        <Typography variant="h6" className="mb-3 text-slate-700">
+                          3. Review the assignment plan
                         </Typography>
-                      )}
-                      {roleSummary.movers > 0 && (
-                        <Typography variant="body2" className="text-slate-600">
-                          Movers: {roleSummary.movers}
-                        </Typography>
-                      )}
-                      {roleSummary.helpers > 0 && (
-                        <Typography variant="body2" className="text-slate-600">
-                          Helpers: {roleSummary.helpers}
-                        </Typography>
-                      )}
-                      {roleSummary.drivers > 0 && (
-                        <Typography variant="body2" className="text-slate-600">
-                          Drivers: {roleSummary.drivers}
-                        </Typography>
-                      )}
-                      <Typography variant="body2" className="text-slate-600">
-                        Total employees: {employeeAssignments.length}
-                      </Typography>
-                      <Typography variant="body2" className="text-slate-600">
-                        Assigned employees:{' '}
-                        {employeeAssignments.length > 0
-                          ? employeeAssignments
-                              .map((item) => item.employeeName)
-                              .join(', ')
-                          : 'None selected'}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                )}
-              </Box>
-            </Box>
+                        <Box className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                          <Typography
+                            variant="subtitle2"
+                            className="text-slate-700"
+                          >
+                            Plan summary
+                          </Typography>
+                          <Typography variant="body2" className="text-slate-600">
+                            Date:{' '}
+                            {selectedDate
+                              ? selectedDate.toDateString()
+                              : 'Not selected'}
+                          </Typography>
+                          <Typography variant="body2" className="text-slate-600">
+                            Planning type: {planningType}
+                          </Typography>
+                          <Typography variant="body2" className="text-slate-600">
+                            Departure location: {departureLocation || 'Not entered'}
+                          </Typography>
+                          {roleSummary.packers > 0 && (
+                            <Typography variant="body2" className="text-slate-600">
+                              Packers: {roleSummary.packers}
+                            </Typography>
+                          )}
+                          {roleSummary.movers > 0 && (
+                            <Typography variant="body2" className="text-slate-600">
+                              Movers: {roleSummary.movers}
+                            </Typography>
+                          )}
+                          {roleSummary.helpers > 0 && (
+                            <Typography variant="body2" className="text-slate-600">
+                              Helpers: {roleSummary.helpers}
+                            </Typography>
+                          )}
+                          {roleSummary.drivers > 0 && (
+                            <Typography variant="body2" className="text-slate-600">
+                              Drivers: {roleSummary.drivers}
+                            </Typography>
+                          )}
+                          <Typography variant="body2" className="text-slate-600">
+                            Total employees: {employeeAssignments.length}
+                          </Typography>
+                          <Typography variant="body2" className="text-slate-600">
+                            Assigned employees:{' '}
+                            {employeeAssignments.length > 0
+                              ? employeeAssignments
+                                .map((item) => item.employeeName)
+                                .join(', ')
+                              : 'None selected'}
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    )}
+                  </Box>
+                </Box>
 
-            <Box className="flex justify-end mt-6 gap-2">
-              {activeStep > 1 && (
-                <Button variant="outlined" onClick={handlePrevStep}>
-                  Back
-                </Button>
-              )}
-              {activeStep < 3 ? (
-                <Button variant="contained" onClick={handleNextStep}>
-                  Next
-                </Button>
-              ) : (
-                <Button variant="contained" onClick={createAppointment}>
-                  {isEditMode ? 'Save changes' : 'Submit appointment'}
-                </Button>
-              )}
-            </Box>
+                <Box className="flex justify-end mt-6 gap-2">
+                  {activeStep > 1 && (
+                    <Button variant="outlined" onClick={handlePrevStep}>
+                      Back
+                    </Button>
+                  )}
+                  {activeStep < 3 ? (
+                    <Button variant="contained" onClick={handleNextStep}>
+                      Next
+                    </Button>
+                  ) : (
+                    <Button variant="contained" onClick={createAppointment}>
+                      {isEditMode ? 'Save changes' : 'Submit appointment'}
+                    </Button>
+                  )}
+                </Box>
 
-            </>)}
+              </>)}
           </Box>
         </Modal>
       </LocalizationProvider>

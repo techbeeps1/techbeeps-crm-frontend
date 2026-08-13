@@ -137,9 +137,6 @@ const ECommerce = () => {
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               Universel CRM Dashboard
             </h1>
-            <p className="text-sm text-slate-300 mt-1 max-w-xl">
-              Monitor active leads, client databases, logistics jobs, and staff tasks in real time.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -155,7 +152,13 @@ const ECommerce = () => {
         </div>
       </div>
 
-      {/* Dynamic KPI Overview Stat Cards */}
+   
+
+      {/* Quick Actions Shortcuts Container */}
+      <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 md:p-6 shadow-xs">
+        <Shortcuts />
+      </div>
+   {/* Dynamic KPI Overview Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Customers */}
         <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all">
@@ -238,12 +241,6 @@ const ECommerce = () => {
           </div>
         </div>
       </div>
-
-      {/* Quick Actions Shortcuts Container */}
-      <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 md:p-6 shadow-xs">
-        <Shortcuts />
-      </div>
-
       {/* Main Content: Jobs & Tasks Section Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Jobs Widget */}

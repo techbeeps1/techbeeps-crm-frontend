@@ -61,9 +61,7 @@ const Shortcuts: React.FC = () => {
           <h3 className="text-lg font-bold text-slate-800 dark:text-white">
             Quick Actions
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Launch main workflows and create CRM items instantly.
-          </p>
+
         </div>
       </div>
 
@@ -102,7 +100,7 @@ const Shortcuts: React.FC = () => {
       </div>
 
       {/* Hidden New Customer Modal Handler */}
-      <NewCustomer setOpen={setOpen} open={open} handler={() => {}} type="Customer" />
+      <NewCustomer setOpen={setOpen} open={open} handler={() => { }} type="Customer" />
     </div>
   );
 };

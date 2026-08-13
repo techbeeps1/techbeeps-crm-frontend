@@ -13,19 +13,27 @@ interface SendQuotationProps {
 const SendQuotation: React.FC<SendQuotationProps> = ({ open, onClose, job }) => {
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <div className="flex justify-between items-center p-4">
-        <DialogTitle className="text-blue-600 text-lg font-semibold">Quotation</DialogTitle>
-        <IconButton onClick={onClose} className="text-gray-500">
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      fullWidth 
+      maxWidth="xl"
+      PaperProps={{
+        className: 'rounded-2xl max-w-7xl w-full text-slate-800 dark:text-white dark:bg-boxdark'
+      }}
+    >
+      <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-strokedark">
+        <DialogTitle className="text-primary text-xl font-bold p-0">New Quotation Proposal</DialogTitle>
+        <IconButton onClick={onClose} className="text-slate-400 hover:text-slate-600">
           <CloseIcon />
         </IconButton>
       </div>
-      <DialogContent className="p-6">
-        {job.offer.length > 0 ?
+      <DialogContent className="p-4 sm:p-6">
+        {job?.offer && job.offer.length > 0 ? (
           <Editoffer display={"none"} offer={job.offer[job.offer.length - 1]} onclose={onClose} />
-        :
+        ) : (
           <NewOffer display={"none"} job={job} onclose={onClose} />
-        }
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -62,35 +62,6 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
   }, []);
 
   const createCustomer = async (e) => {
-    if (!e.head?.postcode || e.head?.postcode?.trim() === '') {
-      notifyError('Postcode is required');
-      return;
-    } else if (e.head?.postcode?.trim().length < 3 || e.head?.postcode?.trim().length > 12) {
-      notifyError('Postcode must be between 3 and 12 characters');
-      return;
-    }
-
-    if (!e.head?.houseNumber || e.head?.houseNumber?.toString().trim() === '') {
-      notifyError('House number is required');
-      return;
-    }
-
-    if (!e.head?.street || e.head?.street?.trim() === '') {
-      notifyError('Street is required');
-      return;
-    } else if (e.head?.street?.trim().length < 2 || e.head?.street?.trim().length > 55) {
-      notifyError('Street must be between 2 and 55 characters');
-      return;
-    }
-
-    if (!e.head?.city || e.head?.city?.trim() === '') {
-      notifyError('City is required');
-      return;
-    } else if (e.head?.city?.trim().length < 2 || e.head?.city?.trim().length > 55) {
-      notifyError('City must be between 2 and 55 characters');
-      return;
-    }
-
     if (loading) return;
     setLoading(true);
 
@@ -127,45 +98,15 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
 
   const goToNextStep = async (e) => {
     e.preventDefault();
-
-    if (!allValues.firstName || allValues.firstName?.trim() === '') {
-      notifyError('First name is required');
-      return;
-    } else if (allValues.firstName?.trim().length < 3 || allValues.firstName?.trim().length > 30) {
-      notifyError('First name must be between 3 and 30 characters');
-      return;
-    }
-
-    if (!allValues.lastName || allValues.lastName?.trim() === '') {
-      notifyError('Last name is required');
-      return;
-    } else if (allValues.lastName?.trim().length < 3 || allValues.lastName?.trim().length > 30) {
-      notifyError('Last name must be between 3 and 30 characters');
-      return;
-    }
-
-    if (!allValues.gender || allValues.gender?.trim() === '') {
-      notifyError('Gender is required');
-      return;
-    }
-
-    if (!allValues.email || allValues.email?.trim() === '') {
-      notifyError('Email is required');
-      return;
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(allValues.email?.trim())) {
-      notifyError('Invalid email address');
-      return;
-    }
-
-    if (!allValues.mobile || allValues.mobile?.trim() === '') {
-      notifyError('Mobile number is required');
-      return;
-    } else if (allValues.mobile?.trim().length < 10 || allValues.mobile?.trim().length > 13) {
-      notifyError('Mobile number must be between 10 and 13 digits');
-      return;
-    }
-
-    const isValid = await trigger();
+    const isValid = await trigger([
+      'typeOfCustomer',
+      'firstName',
+      'lastName',
+      'gender',
+      'email',
+      'contact',
+      'mobile',
+    ]);
     if (isValid) setStep(2);
   };
 
@@ -243,14 +184,18 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                 {/* First Name & Last Name */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${errors.firstName ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
                       First Name <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. Gurjeet"
                       {...register('firstName', { required: 'First name is required' })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
+                      className={`w-full px-4 py-2.5 rounded-xl border ${
+                        errors.firstName
+                          ? 'border-rose-500 ring-2 ring-rose-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
                     />
                     {errors.firstName && (
                       <span className="text-xs text-rose-500 font-medium mt-1 block">
@@ -260,14 +205,18 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${errors.lastName ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
                       Last Name <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. Singh"
                       {...register('lastName', { required: 'Last name is required' })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
+                      className={`w-full px-4 py-2.5 rounded-xl border ${
+                        errors.lastName
+                          ? 'border-rose-500 ring-2 ring-rose-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
                     />
                     {errors.lastName && (
                       <span className="text-xs text-rose-500 font-medium mt-1 block">
@@ -303,7 +252,7 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${errors.gender ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
                       Gender <span className="text-rose-500">*</span>
                     </label>
                     <Controller
@@ -313,7 +262,11 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                       render={({ field }) => (
                         <select
                           {...field}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer"
+                          className={`w-full px-4 py-2.5 rounded-xl border ${
+                            errors.gender
+                              ? 'border-rose-500 ring-2 ring-rose-500/10'
+                              : 'border-slate-200 dark:border-slate-700'
+                          } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer`}
                         >
                           <option value="" disabled>Select Gender</option>
                           <option value="male">Male</option>
@@ -332,14 +285,24 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
 
                 {/* Email */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                  <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${errors.email ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
                     Email Address <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="email"
                     placeholder="e.g. guri7756@gmail.com"
-                    {...register('email', { required: 'Email is required' })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
+                    {...register('email', {
+                      required: 'Email is required',
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Invalid email address',
+                      },
+                    })}
+                    className={`w-full px-4 py-2.5 rounded-xl border ${
+                      errors.email
+                        ? 'border-rose-500 ring-2 ring-rose-500/10'
+                        : 'border-slate-200 dark:border-slate-700'
+                    } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
                   />
                   {errors.email && (
                     <span className="text-xs text-rose-500 font-medium mt-1 block">
@@ -351,31 +314,50 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                 {/* Contact Phone & Mobile */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${errors.contact ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
                       Contact Phone
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. 8696671521"
                       {...register('contact', {
-                        maxLength: {
-                          value: 10,
-                          message: 'Contact number must be at most 10 digits',
+                        pattern: {
+                          value: /^\d{10}$/,
+                          message: 'Contact phone must be exactly 10 digits',
                         },
                       })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
+                      className={`w-full px-4 py-2.5 rounded-xl border ${
+                        errors.contact
+                          ? 'border-rose-500 ring-2 ring-rose-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
                     />
+                    {errors.contact && (
+                      <span className="text-xs text-rose-500 font-medium mt-1 block">
+                        {errors.contact.message}
+                      </span>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider mb-1.5 ${errors.mobile ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
                       Mobile Number <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. 9876543210"
-                      {...register('mobile', { required: 'Mobile number is required' })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
+                      {...register('mobile', {
+                        required: 'Mobile number is required',
+                        pattern: {
+                          value: /^\d{10}$/,
+                          message: 'Mobile number must be exactly 10 digits',
+                        },
+                      })}
+                      className={`w-full px-4 py-2.5 rounded-xl border ${
+                        errors.mobile
+                          ? 'border-rose-500 ring-2 ring-rose-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
                     />
                     {errors.mobile && (
                       <span className="text-xs text-rose-500 font-medium mt-1 block">

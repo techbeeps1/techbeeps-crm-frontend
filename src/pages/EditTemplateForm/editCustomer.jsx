@@ -297,21 +297,50 @@ const EditCustomer = ({
                     <input
                       type="text"
                       placeholder="e.g. 8696671521"
-                      {...register('contact')}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
+                      {...register('contact', {
+                        pattern: {
+                          value: /^\d{10}$/,
+                          message: 'Contact phone must be exactly 10 digits',
+                        },
+                      })}
+                      className={`w-full px-4 py-2.5 rounded-xl border ${
+                        errors.contact
+                          ? 'border-rose-500 ring-2 ring-rose-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
                     />
+                    {errors.contact && (
+                      <span className="text-xs text-rose-500 font-medium mt-1 block">
+                        {errors.contact.message}
+                      </span>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                      Mobile Number
+                      Mobile Number <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. 9876543210"
-                      {...register('mobile')}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
+                      {...register('mobile', {
+                        required: 'Mobile number is required',
+                        pattern: {
+                          value: /^\d{10}$/,
+                          message: 'Mobile number must be exactly 10 digits',
+                        },
+                      })}
+                      className={`w-full px-4 py-2.5 rounded-xl border ${
+                        errors.mobile
+                          ? 'border-rose-500 ring-2 ring-rose-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
                     />
+                    {errors.mobile && (
+                      <span className="text-xs text-rose-500 font-medium mt-1 block">
+                        {errors.mobile.message}
+                      </span>
+                    )}
                   </div>
                 </div>
 
