@@ -283,7 +283,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
       </div>
 
       {/* Executive Financial Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-white dark:bg-boxdark p-4 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs text-center">
           <p className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
             Expected Profit
@@ -308,7 +308,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
             € 0,00
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Segmented Navigation Tabs */}
       <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-1.5 shadow-xs">
