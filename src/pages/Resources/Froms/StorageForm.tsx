@@ -2,10 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
   IconButton,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -13,6 +9,7 @@ import { apiPath } from '../../../../apiPath';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Loader from '../../../common/Loader';
+import { MdWarehouse, MdEdit, MdAdd, MdClose } from 'react-icons/md';
 
 const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
   const [open, setOpen] = useState(false);
@@ -28,7 +25,6 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
     reset,
   } = useForm();
 
-
   const notify = (message: string) => toast.success(message);
   const notifyError = (message: string) =>
     toast.error(message, {
@@ -38,6 +34,7 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
   const onSubmit = (Formdata: any) => {
     storageHandlers(Formdata);
   };
+
   useEffect(() => {
     if (data) {
       reset(data);
@@ -45,30 +42,30 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
     }
   }, [reset, data, setValue]);
 
-  const storageHandlers = async (data: any) => {
+  const storageHandlers = async (formData: any) => {
     setLoading(true);
     let path = `${apiPath}/api/storages`;
-    if (data._id) {
-      path = `${path}/${data?._id}`;
+    if (formData._id) {
+      path = `${path}/${formData?._id}`;
     }
-    if (data.storageCode.trim() === '') {
+    if (!formData.storageCode || formData.storageCode.trim() === '') {
       notifyError('Storage number is required');
       setLoading(false);
       return;
-    } else if (data.storageCode.length > 50 || data.storageCode.length < 2) {
+    } else if (formData.storageCode.length > 50 || formData.storageCode.length < 2) {
       notifyError('Storage number must be between 2 and 50 characters');
       setLoading(false);
       return;
     }
 
     try {
-      const response = await axios.post(path, data, {
+      const response = await axios.post(path, formData, {
         headers: {
           'Content-Type': 'application/json',
         },
       });
       if (response.status === 201 || response.status === 200) {
-        notify('Request successfully!');
+        notify('Storage saved successfully!');
         handler();
         setOpen(false);
         reset();
@@ -84,19 +81,18 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
       setLoading(false);
     }
   };
+
   let warehouseId = watch('warehouse');
 
   const handleAllData = async () => {
     setLoading(true);
     try {
-     
-warehouseId = warehouseId && typeof warehouseId === 'object'
-  ? warehouseId._id
-  : warehouseId;
+      warehouseId = warehouseId && typeof warehouseId === 'object'
+        ? warehouseId._id
+        : warehouseId;
       const response = await axios.get(
         `${apiPath}/api/storage_loaction?warehouseId=${(warehouseId && warehouseId) || ''}`,
       );
-      console.log(response.data, 'storage location');
       setStorageLocation(response.data?.filter((item: any) => item.status === 'Enable') || []);
       if (data) {
         setValue('storageLocation', (data && data.storageLocation?._id) || '');
@@ -110,6 +106,7 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
       setLoading(false);
     }
   };
+
   useEffect(() => {
     if (warehouseId) handleAllData();
   }, [warehouseId]);
@@ -125,68 +122,105 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
 
   return (
     <>
-      <Button
+      <button
         onClick={handleOpen}
-        variant="contained"
-        size={`${data ? 'small' : 'large'}`}
+        type="button"
+        className={data ? "inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors" : "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"}
       >
-        {data ? 'Edit' : 'New Storage'}
-      </Button>
-      <Dialog open={open} onClose={handleCancel} fullWidth maxWidth="md">
+        {data ? (
+          <>
+            <MdEdit className="w-3.5 h-3.5" />
+            <span>Edit</span>
+          </>
+        ) : (
+          <>
+            <MdAdd className="w-5 h-5" />
+            <span>Add Storage</span>
+          </>
+        )}
+      </button>
+
+      <Dialog
+        open={open}
+        onClose={handleCancel}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          }
+        }}
+      >
         {loading && <Loader />}
-        <DialogTitle className="flex justify-between items-center">
-          <span
-            className="font-semibold text-primary mb-1 mt-4"
-            style={{ fontSize: '28px' }}
+        
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+              <MdWarehouse className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">
+                {data ? 'Update Storage Unit' : 'Add New Storage Unit'}
+              </h3>
+              <p className="text-xs text-slate-500">Configure storage dimensions and location</p>
+            </div>
+          </div>
+          <button
+            onClick={handleCancel}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
-            {data ? 'Update' : 'Add New'} Storage
-          </span>
-          <IconButton onClick={handleCancel}>
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ padding: '16px' }}>
-          <p className="mb-8">
-            You can add storage here, it is also possible to fill in the form
-            below.
-          </p>
-          {loading && <Loader />}
-          <div className="w-full">
-            <div className="mb-3">
-              <label className="block text-md font-medium pb-2">
-                Storage Number*
+            <MdClose className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Storage Number / Code <span className="text-red-500">*</span>
               </label>
               <Controller
                 name="storageCode"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'field is a required field' }}
+                rules={{ required: 'Storage number is required' }}
                 render={({ field }) => (
                   <input
                     {...field}
                     type="text"
-                    placeholder="Storage Number"
-                    className="w-full p-3 shadow border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. ST-101"
+                    className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
+                      errors.storageCode ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
                   />
                 )}
               />
               {errors.storageCode && (
-                <p className="text-red-500 text-sm">
+                <p className="text-red-500 text-xs mt-1">
                   {errors.storageCode.message}
                 </p>
               )}
             </div>
-            <div className="mb-3">
-              <label className="block text-md font-medium pb-2">Type*</label>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Storage Type <span className="text-red-500">*</span>
+              </label>
               <Controller
                 name="storageType"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'field is a required field' }}
+                rules={{ required: 'Storage type is required' }}
                 render={({ field }) => (
                   <select
                     {...field}
-                    className="w-full p-3 shadow border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
+                      errors.storageType ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
                   >
                     <option value="">Select Type</option>
                     <option value="Container">Container</option>
@@ -202,20 +236,23 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
                 )}
               />
               {errors.storageType && (
-                <p className="text-red-500 text-sm">
+                <p className="text-red-500 text-xs mt-1">
                   {errors.storageType.message}
                 </p>
               )}
             </div>
-            <div className="mb-3">
-              <label className="block text-md font-medium pb-2">
-                Contents*
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Volume Capacity (m³) <span className="text-red-500">*</span>
               </label>
               <Controller
                 name="cubicMeter"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'contents is a required field' }}
+                rules={{ required: 'Capacity is required' }}
                 render={({ field }) => (
                   <input
                     {...field}
@@ -226,33 +263,39 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
                         e.preventDefault();
                       }
                     }}
-                    placeholder="Contents"
-                    className="w-full p-3 shadow border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 25"
+                    className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
+                      errors.cubicMeter ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
                   />
                 )}
               />
               {errors.cubicMeter && (
-                <p className="text-red-500 text-sm">
+                <p className="text-red-500 text-xs mt-1">
                   {errors.cubicMeter.message}
                 </p>
               )}
             </div>
-            <div className="mb-3">
-              <label className="block text-md font-medium pb-1">
-                Is the Storage is Your own possession?
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Ownership
               </label>
-              <div className="flex gap-4">
+              <div className="flex gap-2">
                 <Controller
                   name="selfOwned"
                   control={control}
                   render={({ field }) => (
                     <button
                       type="button"
-                      {...field}
-                      onClick={() => field.onChange(true)} // Set elevator to true
-                      className={`px-10 shadow py-3 w-full border border-gray rounded ${field.value ? 'bg-blue text-white' : 'bg-white'}`}
+                      onClick={() => field.onChange(true)}
+                      className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${
+                        field.value 
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
                     >
-                      In Own Possession
+                      Self Owned
                     </button>
                   )}
                 />
@@ -262,9 +305,12 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
                   render={({ field }) => (
                     <button
                       type="button"
-                      {...field}
-                      onClick={() => field.onChange(false)} // Set elevator to false
-                      className={`px-10 py-3 shadow border border-gray rounded w-full ${!field.value ? 'bg-blue text-white' : 'bg-white'}`}
+                      onClick={() => field.onChange(false)}
+                      className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${
+                        !field.value 
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
                     >
                       Rented
                     </button>
@@ -272,19 +318,24 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
                 />
               </div>
             </div>
-            <div className="mb-3">
-              <label className="block text-md font-medium pb-2">
-                Warehouse*
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Warehouse <span className="text-red-500">*</span>
               </label>
               <Controller
                 name="warehouse"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'warehouse is a required field' }}
+                rules={{ required: 'Warehouse is required' }}
                 render={({ field }) => (
                   <select
                     {...field}
-                    className="w-full p-3 shadow border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
+                      errors.warehouse ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
                   >
                     <option value="">Select Warehouse</option>
                     {warehousefilter &&
@@ -296,27 +347,30 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
                   </select>
                 )}
               />
-              {errors.warehousefilter && (
-                <p className="text-red-500 text-sm">
-                  {errors.warehousefilter.message}
+              {errors.warehouse && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.warehouse.message}
                 </p>
               )}
             </div>
-            <div className="mb-3">
-              <label className="block text-md font-medium pb-2">
-                Storage Location*
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                Storage Location <span className="text-red-500">*</span>
               </label>
               <Controller
                 name="storageLocation"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'storage location is a required field' }}
+                rules={{ required: 'Location is required' }}
                 render={({ field }) => (
                   <select
                     {...field}
-                    className="w-full p-3 shadow border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
+                      errors.storageLocation ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
                   >
-                    <option value="">Select storage Location</option>
+                    <option value="">Select Storage Location</option>
                     {storageLocation &&
                       storageLocation.map((item: any) => (
                         <option key={item._id} value={item._id}>
@@ -327,29 +381,33 @@ warehouseId = warehouseId && typeof warehouseId === 'object'
                 )}
               />
               {errors.storageLocation && (
-                <p className="text-red-500 text-sm">
+                <p className="text-red-500 text-xs mt-1">
                   {errors.storageLocation.message}
                 </p>
               )}
             </div>
           </div>
-        </DialogContent>
-        <DialogActions>
-          <div className="flex gap-3 p-4 pe-6">
-            <Button onClick={handleCancel} variant="outlined">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit(onSubmit)}
-              variant="contained"
-              color="primary"
+
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
             >
-              {data ? 'Submit' : 'Submit'}
-            </Button>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+            >
+              {data ? 'Update Storage' : 'Create Storage'}
+            </button>
           </div>
-        </DialogActions>
+        </form>
       </Dialog>
     </>
   );
 };
+
 export default StorageForm;

@@ -1,34 +1,52 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
 import {
-  Button,
   Autocomplete,
-  Chip,
   Modal,
   TextField,
-  Typography,
   Box,
-  Badge,
   IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  OutlinedInput,
 } from '@mui/material';
-import { Flag, Search, Add, FilterList, OpenInNew } from '@mui/icons-material';
-import CloseIcon from '@mui/icons-material/Close';
-import EditIcon from '@mui/icons-material/Edit';
-import { useForm } from 'react-hook-form';
+import {
+  Add as AddIcon,
+  Search as SearchIcon,
+  Assignment as AssignmentIcon,
+  CalendarToday as CalendarTodayIcon,
+  Person as PersonIcon,
+  Close as CloseIcon,
+  WarningAmber as WarningAmberIcon,
+  KeyboardArrowLeft as KeyboardArrowLeftIcon,
+  KeyboardArrowRight as KeyboardArrowRightIcon,
+  UnfoldMore as UnfoldMoreIcon,
+  Delete as DeleteIcon,
+  RemoveRedEye as RemoveRedEyeIcon,
+} from '@mui/icons-material';
+import { useForm, Controller } from 'react-hook-form';
 import { UserContext } from '../../UserContext';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { Controller } from 'react-hook-form';
 import TaskSlider from './TaskSlider';
 import DatePickerComponent from '../../common/Datepicker';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
-import { DataTable } from 'simple-datatables';
+
+const avatarColors = [
+  'bg-purple-600 text-white',
+  'bg-emerald-600 text-white',
+  'bg-blue-600 text-white',
+  'bg-amber-600 text-white',
+  'bg-rose-600 text-white',
+  'bg-teal-600 text-white',
+  'bg-indigo-600 text-white',
+];
+
+const getAvatarBg = (index) => avatarColors[index % avatarColors.length];
+
+const getInitials = (first, last, fallback) => {
+  if (first && last) return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+  if (first) return first.slice(0, 2).toUpperCase();
+  if (fallback) return String(fallback).slice(0, 2).toUpperCase();
+  return 'TK';
+};
 
 const TaskPage = ({ jobId }) => {
   const [data, setData] = useState([]);
@@ -40,9 +58,12 @@ const TaskPage = ({ jobId }) => {
   const [roles, setRoles] = useState([]);
   const [customer, setCustomer] = useState([]);
   const [jobs, setjobs] = useState([]);
-  const { username, role, id, ws } = useContext(UserContext);
+  const { username, id, ws } = useContext(UserContext);
   const [filter, setFilter] = useState('');
-  const token = localStorage.getItem('token');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
 
   const notify = (message) =>
     toast.success(message, {
@@ -69,39 +90,18 @@ const TaskPage = ({ jobId }) => {
       const response = await axios.get(
         `${apiPath}/api/task?scheduledFor=${filter}&jobId=${jobId || ''}`,
       );
-      if (response?.data?.length > 0) {
-        if ($.fn.DataTable.isDataTable('#tasks')) {
-          $('#tasks').DataTable().destroy();
-        }
-
-        setData(response['data']);
-
-        setTimeout(() => {
-          $('#tasks').DataTable({
-  order: [[2, 'desc']] // 0 = first column
-});
-        }, 10);
-      } else {
-        if ($.fn.DataTable.isDataTable('#tasks')) {
-          $('#tasks').DataTable().destroy();
-        }
-        setData([]);
-        setTimeout(() => {
-         $('#tasks').DataTable({
-  order: [[2, 'desc']] 
-});
-        }, 10);
-      }
+      setData(response?.data || []);
     } catch (err) {
       setData([]);
-      setError('Failed to fetch agents. Please try again later.');
-      notifyError(`Failed to fetch data: ${err.message}`);
+      setError('Failed to fetch tasks. Please try again later.');
+      notifyError(`Failed to fetch tasks: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const openDeleteModal = (agent) => {
+    setSelectedStaff(agent);
     setDeleteModalOpen(true);
   };
 
@@ -110,12 +110,13 @@ const TaskPage = ({ jobId }) => {
   };
 
   const confirmDelete = async () => {
+    if (!selectedStaff?._id) return;
     setLoading(true);
     try {
       const response = await axios.delete(
         `${apiPath}/api/task/${selectedStaff._id}`,
       );
-      if (response.status == 200) {
+      if (response.status === 200) {
         notify('Task deleted successfully');
         handleAlltask();
         setSelectedStaff(null);
@@ -127,12 +128,14 @@ const TaskPage = ({ jobId }) => {
       setLoading(false);
     }
   };
+
   const openEditModal = () => {
     setEditModalOpen(true);
   };
 
   const closeEditModal = () => {
     setEditModalOpen(false);
+    reset();
   };
 
   const onSubmit = async (formData) => {
@@ -149,25 +152,23 @@ const TaskPage = ({ jobId }) => {
     }
     try {
       let response = await axios.post(`${apiPath}/api/task`, formData);
-      notify('task created successfully');
+      notify('Task created successfully');
       if (response.status === 201) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          formData?.teamMembers.forEach((item) => {
+          formData?.teamMembers?.forEach((item) => {
             const messageData = {
               recipient: item,
               sender: id,
-              text: `A New Task is created by ${username} and you are the part of the task. check the email for more information about this task and team members`,
+              text: `A New Task was created by ${username} and you are part of the task.`,
             };
             ws.send(JSON.stringify(messageData));
           });
         }
         handleAlltask();
         closeEditModal();
-        reset();
       }
     } catch (err) {
-      notifyError(`Error: ${err?.response?.data?.error}`);
-      console.error('Failed to update agent:', err);
+      notifyError(`Error: ${err?.response?.data?.error || err.message}`);
     } finally {
       setLoading(false);
     }
@@ -176,67 +177,57 @@ const TaskPage = ({ jobId }) => {
   const handleAllTeams = async () => {
     try {
       const response = await axios.get(`${apiPath}/api/teams`);
-      let teams = response['data'].map((team) => {
-        return {
-          label: team.teamName,
-          value: team._id,
-          teamMembers: team.members.map((item) => item._id),
-        };
-      });
+      let teams = (response['data'] || []).map((team) => ({
+        label: team.teamName,
+        value: team._id,
+        teamMembers: team.members.map((item) => item._id),
+      }));
       handleAllEmploye(teams);
     } catch (err) {
       console.error(err);
     }
   };
-  const handleAllEmploye = async (data) => {
+
+  const handleAllEmploye = async (teamsData) => {
     try {
       const response = await axios.get(`${apiPath}/user/all`);
-      let Employee = response['data'].map((team) => {
-        return {
-          label: team.username,
-          value: team._id,
-          teamMembers: [team._id],
-        };
-      });
-      setRoles([...data, ...Employee]);
+      let employees = (response['data'] || []).map((team) => ({
+        label: team.username,
+        value: team._id,
+        teamMembers: [team._id],
+      }));
+      setRoles([...teamsData, ...employees]);
     } catch (err) {
       console.error(err);
     }
   };
+
   const handleAllcustomer = async () => {
     try {
       const response = await axios.get(`${apiPath}/customer/customerList`);
-      let customer = response['data'].customers.map((team) => {
-        return {
-          label: team.firstName + ' ' + team.lastName + '    ' + team.email,
-          value: team._id,
-        };
-      });
-      setCustomer(customer);
+      let cust = (response['data']?.customers || []).map((c) => ({
+        label: `${c.firstName || ''} ${c.lastName || ''} (${c.email || ''})`.trim(),
+        value: c._id,
+      }));
+      setCustomer(cust);
     } catch (err) {
       console.error(err);
     }
   };
 
-  let customerId = watch('customer');
+  let customerIdWatch = watch('customer');
 
   const handleAllJob = async () => {
-    if (customerId) {
+    if (customerIdWatch) {
       try {
         const response = await axios.get(
-          `${apiPath}/api/jobList?customer=${customerId}`,
+          `${apiPath}/api/jobList?customer=${customerIdWatch}`,
         );
-        let jobs = response['data'].jobList.map((job) => {
-          return {
-            label:
-              job.customer?.firstName +
-              ' ' +
-              job.customer?.lastName +
-              ` (${job.index})`,
-            value: job._id,
-          };
-        });
-        setjobs(jobs);
+        let jList = (response['data']?.jobList || []).map((j) => ({
+          label: `${j.customer?.firstName || ''} ${j.customer?.lastName || ''} (#${j.index || ''})`.trim(),
+          value: j._id,
+        }));
+        setjobs(jList);
       } catch (err) {
         console.error(err);
       }
@@ -245,7 +236,7 @@ const TaskPage = ({ jobId }) => {
 
   useEffect(() => {
     handleAllJob();
-  }, [customerId]);
+  }, [customerIdWatch]);
 
   useEffect(() => {
     handleAllTeams();
@@ -256,432 +247,599 @@ const TaskPage = ({ jobId }) => {
     handleAlltask();
   }, [filter]);
 
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const filteredData = useMemo(() => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.filter((item) => {
+      const summary = (item?.summary || '').toLowerCase();
+      const desc = (item?.description || '').toLowerCase();
+      const customerName = `${item?.customer?.firstName || ''} ${item?.customer?.lastName || ''}`.toLowerCase();
+      const assigned = (item?.assignedTo || '').toLowerCase();
+      const status = (item?.status || '').toLowerCase();
+      const jobIdx = String(item?.job?.index || '').toLowerCase();
+      const query = searchTerm.toLowerCase();
+
+      return (
+        summary.includes(query) ||
+        desc.includes(query) ||
+        customerName.includes(query) ||
+        assigned.includes(query) ||
+        status.includes(query) ||
+        jobIdx.includes(query)
+      );
+    });
+  }, [data, searchTerm]);
+
+  const sortedData = useMemo(() => {
+    const sorted = [...filteredData];
+    if (!sortConfig.key) return sorted;
+
+    sorted.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      if (sortConfig.key === 'title') {
+        valA = a?.summary || '';
+        valB = b?.summary || '';
+      } else if (sortConfig.key === 'customer') {
+        valA = `${a?.customer?.firstName || ''} ${a?.customer?.lastName || ''}`;
+        valB = `${b?.customer?.firstName || ''} ${b?.customer?.lastName || ''}`;
+      } else if (sortConfig.key === 'assignedTo') {
+        valA = a?.assignedTo || '';
+        valB = b?.assignedTo || '';
+      } else if (sortConfig.key === 'createdAt') {
+        valA = new Date(a?.createdAt || 0).getTime();
+        valB = new Date(b?.createdAt || 0).getTime();
+        return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+      } else if (sortConfig.key === 'status') {
+        valA = a?.status || '';
+        valB = b?.status || '';
+      }
+
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+
+      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [filteredData, sortConfig]);
+
+  const totalPages = Math.ceil(sortedData.length / entriesPerPage) || 1;
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    return sortedData.slice(startIndex, startIndex + entriesPerPage);
+  }, [sortedData, currentPage, entriesPerPage]);
+
+  const getStatusBadge = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'completed' || s === 'done') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Completed
+        </span>
+      );
+    } else if (s === 'in progress' || s === 'ongoing') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+          In Progress
+        </span>
+      );
+    } else if (s === 'overdue' || s === 'urgent') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+          Urgent
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+        {status || 'Pending'}
+      </span>
+    );
+  };
+
   if (error) {
     return <div className="text-red-500 text-center p-4">{error}</div>;
   }
 
   return (
-    <div
-      className="flex flex-col md:flex-row text-slate-600 min-h-screen"
-      style={{
-        justifyContent: 'flex-start',
-        height: jobId ? 'h-full' : 'calc(100vh - 84px)',
-      }}
-    >
+    <div className="w-full space-y-5 font-sans">
       {loading && <Loader />}
 
-      <div
-        className={`${
-          jobId ? 'w-full' : 'w-full md:w-1/2'
-        } bg-white pt-2 pl-1 h-full overflow-auto`}
-      >
-        <div className="rounded-sm dark:border-strokedark dark:bg-boxdark p-3">
-          {!jobId && (
-            <>
-              <div className="text-xl md:text-2xl font-bold mb-6">
-                Hi{' '}
-                <span style={{ textTransform: 'capitalize' }}>{username}</span>,
-                there are{' '}
-                <span className="font-bold">{data && data?.length}</span> tasks
-                for you. Just keep going!
-              </div>
-              <div className="flex flex-wrap gap-2 md:gap-4 mb-5 items-center">
-                <Button
-                  onClick={() => setFilter('today')}
-                  size="small"
-                  variant={filter === 'today' ? 'contained' : 'outlined'}
-                >
-                  Today
-                </Button>
-                <Button
-                  onClick={() => setFilter('tomorrow')}
-                  size="small"
-                  variant={filter === 'tomorrow' ? 'contained' : 'outlined'}
-                >
-                  Tomorrow
-                </Button>
-                <Button
-                  onClick={() => setFilter('ever')}
-                  size="small"
-                  variant={filter === 'ever' ? 'contained' : 'outlined'}
-                >
-                  Ever
-                </Button>
-                <div className="mr-auto flex gap-2">
-                  <Button
-                    onClick={() => openEditModal()}
-                    startIcon={<Add />}
-                    size="small"
-                    variant="contained"
-                  >
-                    New task
-                  </Button>
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <div className={`w-full ${selectedStaff ? 'lg:w-7/12' : 'w-full'} bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm overflow-hidden transition-all duration-300`}>
+          <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  <AssignmentIcon />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                    {jobId ? 'Job Tasks' : `Tasks Overview`}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {data.length} {data.length === 1 ? 'task' : 'tasks'} in schedule
+                  </p>
                 </div>
               </div>
-            </>
-          )}
-          <div className="overflow-x-auto">
-            {/* Table for larger screens */}
-            <table id="tasks" className="hidden md:table w-full">
-              <thead className="bg-gray-200 border-b">
-                <tr>
-                
-                  <th className="p-3 text-left">Title</th>
-                  <th className="p-3 text-center">Assigned to</th>
-                    <th className="p-3 text-left">Created</th>
-                  <th className="p-3 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data &&
-                  data.map((item) => (
-                    <tr
-                      key={item._id}
-                      onClick={() => setSelectedStaff(item)}
-                      className="bg-white shadow-md cursor-pointer hover:bg-gray-100 transition border-b"
-                    >
-                 
-                      <td className="p-3 font-bold capitalize md:flex items-center">
-                        <Badge
-                          color="error"
-                          variant="dot"
-                          badgeContent=" "
-                          className="mr-1 z-0"
-                        >
-                          <IconButton size="small">
-                            <Flag color="error" />
-                          </IconButton>
-                        </Badge>
-                        {item?.summary} {item?.customer?.firstName}{' '}
-                        {item?.customer?.lastName} ({item?.job?.index || ''})
-                      </td>
 
-                      <td className="p-3 text-center">{item?.assignedTo}</td>
-                           <td className="p-3 text-center">
-                        {new Date(item?.createdAt).toLocaleString()}
-                      </td>
-                      <td className="p-3 text-center">
-                        <Button variant="outlined" size="small">
-                          {item?.status}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={openEditModal}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+                >
+                  <AddIcon style={{ fontSize: 18 }} />
+                  <span>New Task</span>
+                </button>
+              </div>
+            </div>
 
-            {/* Mobile-friendly stacked list */}
-            <div className="block md:hidden">
-              {data &&
-                data.map((item) => (
-                  <div
-                    key={item._id}
-                    onClick={() => setSelectedStaff(item)}
-                    className="bg-white shadow-md rounded-lg p-4 mb-2 cursor-pointer hover:bg-gray-100 transition"
-                  >
-                    <div className="flex items-center mb-2">
-                      <Badge color="error" variant="dot" className="mr-2">
-                        <IconButton size="small">
-                          <Flag color="error" />
-                        </IconButton>
-                      </Badge>
-                      <h3 className="text-sm font-bold capitalize">
-                        {item?.summary}
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-                      <p>
-                        <span className="font-semibold">Assigned to:</span>{' '}
-                        {item?.assignedTo}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Status:</span>{' '}
-                        {item?.status}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => { setFilter(''); setCurrentPage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    filter === ''
+                      ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  All Tasks
+                </button>
+                <button
+                  onClick={() => { setFilter('today'); setCurrentPage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    filter === 'today'
+                      ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => { setFilter('tomorrow'); setCurrentPage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    filter === 'tomorrow'
+                      ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  Tomorrow
+                </button>
+                <button
+                  onClick={() => { setFilter('ever'); setCurrentPage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    filter === 'ever'
+                      ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  Future
+                </button>
+              </div>
+
+              <div className="relative flex-1 sm:max-w-xs">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ fontSize: 18 }} />
+                <input
+                  type="text"
+                  placeholder="Search tasks, assignee, job..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-slate-800 dark:text-white"
+                />
+              </div>
             </div>
           </div>
 
-          <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>
-            <Box className="bg-white p-6 rounded shadow-md max-w-md mx-auto mt-30">
-              <IconButton
-                onClick={closeDeleteModal}
-                className="absolute top-0 right-3"
-              >
-                <CloseIcon />
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/40 select-none">
+                  <th
+                    onClick={() => handleSort('title')}
+                    className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>TASK & CUSTOMER</span>
+                      <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('assignedTo')}
+                    className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>ASSIGNED TO</span>
+                      <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('createdAt')}
+                    className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>CREATED / SCHEDULED</span>
+                      <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('status')}
+                    className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>STATUS</span>
+                      <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-4 text-center">ACTION</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 text-sm">
+                {paginatedData.length > 0 ? (
+                  paginatedData.map((item, index) => {
+                    const isSelected = selectedStaff?._id === item._id;
+                    const initials = getInitials(
+                      item?.customer?.firstName,
+                      item?.customer?.lastName,
+                      item?.summary
+                    );
+                    const avatarBg = getAvatarBg(index);
+                    const customerFullName = item?.customer 
+                      ? `${item.customer.firstName || ''} ${item.customer.lastName || ''}`.trim()
+                      : '';
+
+                    return (
+                      <tr
+                        key={item._id || index}
+                        onClick={() => setSelectedStaff(item)}
+                        className={`group transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-50/80 dark:bg-indigo-950/40 font-medium'
+                            : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0 ${avatarBg}`}>
+                              {initials}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-slate-900 dark:text-white group-hover:text-primary transition-colors capitalize">
+                                {item?.summary || 'Untitled Task'}
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                                {customerFullName && <span>{customerFullName}</span>}
+                                {item?.job?.index && (
+                                  <span className="text-primary font-bold">
+                                    • Job #{item.job.index}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300">
+                          {item?.assignedTo ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                              <PersonIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                              <span>{item.assignedTo}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-xs">Unassigned</span>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <CalendarTodayIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                            <span>{new Date(item?.createdAt || Date.now()).toLocaleDateString('en-GB')}</span>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          {getStatusBadge(item?.status)}
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => setSelectedStaff(item)}
+                              title="View Details"
+                              className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-primary hover:text-white transition-all shadow-xs cursor-pointer"
+                            >
+                              <RemoveRedEyeIcon style={{ fontSize: 18 }} />
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteModal(item);
+                              }}
+                              title="Delete Task"
+                              className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-600 hover:text-white transition-all shadow-xs cursor-pointer"
+                            >
+                              <DeleteIcon style={{ fontSize: 18 }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-slate-400 text-xs">
+                      No tasks found matching your filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {sortedData.length > entriesPerPage && (
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+              <span>
+                Showing {(currentPage - 1) * entriesPerPage + 1} to {Math.min(currentPage * entriesPerPage, sortedData.length)} of {sortedData.length} entries
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <KeyboardArrowLeftIcon style={{ fontSize: 18 }} />
+                </button>
+                <span className="px-2.5 font-bold text-slate-700 dark:text-slate-300">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <KeyboardArrowRightIcon style={{ fontSize: 18 }} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side: Task Inspector Panel */}
+        {selectedStaff && (
+          <div className="w-full lg:w-5/12 bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm p-4 sm:p-6 overflow-hidden">
+            <TaskSlider
+              handler={handleAlltask}
+              roles={roles}
+              Ondelete={openDeleteModal}
+              task={selectedStaff}
+              onClose={() => setSelectedStaff(null)}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Modern Create New Task Modal */}
+      <Modal open={isEditModalOpen} onClose={closeEditModal}>
+        <Box className="fixed inset-0 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={closeEditModal} />
+
+          <div className="relative bg-white dark:bg-boxdark rounded-3xl shadow-2xl max-w-xl w-full p-6 sm:p-8 border border-slate-100 dark:border-strokedark z-10 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  <AddIcon />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create New Task</h3>
+                  <p className="text-xs text-slate-500">Assign task, schedule date, and customer linking</p>
+                </div>
+              </div>
+              <IconButton onClick={closeEditModal} size="small">
+                <CloseIcon fontSize="small" />
               </IconButton>
-              <Typography
-                variant="h6"
-                component="h2"
-                className="mb-5"
-                style={{ margin: '5px 0' }}
-              >
-                Confirm Delete
-              </Typography>
-              <Typography className="mb-4" style={{ margin: '5px 0' }}>
-                Are you sure you want to delete{' '}
-                {selectedStaff?.customer?.firstName} ?
-              </Typography>
-              <Box
-                className="flex justify-end"
-                style={{ margin: '5px 0', display: 'flex', gap: '10px' }}
-              >
-                <Button
-                  variant="contained"
-                  color="#FF0000"
-                  onClick={confirmDelete}
-                  className="mr-2 b"
-                >
-                  Yes
-                </Button>
-                <Button variant="outlined" onClick={closeDeleteModal}>
-                  No
-                </Button>
-              </Box>
-            </Box>
-          </Modal>
-          <Modal open={isEditModalOpen} onClose={closeEditModal}>
-            <Box
-              className="bg-white p-5 rounded-lg shadow-lg mx-auto"
-              sx={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                width: '100%',
-                maxWidth: '600px',
-              }}
-            >
-              <div className="flex justify-between items-start">
-                <Typography
-                  variant="h5"
-                  component="h3"
-                  fontWeight="bold"
-                  fontSize={'27px'}
-                  className="text-primary"
-                >
-                  Create new task
-                </Typography>
-                <IconButton onClick={closeEditModal}>
-                  <CloseIcon />
-                </IconButton>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Task Title *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Schedule delivery inspection"
+                  {...register('summary', { required: 'Title is required' })}
+                  className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-slate-900 dark:text-white"
+                />
+                {errors.summary && (
+                  <p className="text-rose-600 text-[11px] mt-1 font-semibold">{errors.summary.message}</p>
+                )}
               </div>
 
-              <form onSubmit={handleSubmit(onSubmit)}>
-                <TextField
-                  label="Tittle*"
-                  variant="standard"
-                  fullWidth
-                  margin="normal"
-                  {...register('summary', { required: 'Summary is required' })}
-                  error={!!errors.summary} // Show error styling
-                  helperText={errors.summary ? errors.summary.message : ''} // Display error message
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Description *
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Detailed instructions for the assignee..."
+                  {...register('description', { required: 'Description is required' })}
+                  className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-slate-900 dark:text-white"
                 />
-                <TextField
-                  label="Description*"
-                  variant="standard"
-                  fullWidth
-                  margin="normal"
-                  {...register('description', {
-                    required: 'Description is required',
-                  })}
-                  error={!!errors.description}
-                  helperText={
-                    errors.description ? errors.description.message : ''
-                  }
-                />
-                <div className="flex gap-4 mt-4">
-                  <DatePickerComponent
+                {errors.description && (
+                  <p className="text-rose-600 text-[11px] mt-1 font-semibold">{errors.description.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Schedule Date
+                  </label>
+                  <DatePickerComponent control={control} name="scheduledFor" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Customer Link
+                  </label>
+                  <Controller
+                    name="customer"
                     control={control}
-                    name="scheduledFor"
-                    label="Scheduled for*"
-                    rules={{ required: 'field is required' }}
-                    errors={errors}
-                    minDate={new Date()}
-                  />
-                  <TextField
-                    label="Scheduled Time*"
-                    type="time"
-                    variant="standard"
-                    InputLabelProps={{ shrink: true }}
-                    fullWidth
-                    {...register('scheduledTime', {
-                      required: 'Scheduled time is required',
-                    })}
-                    error={!!errors.scheduledTime}
-                    helperText={
-                      errors.scheduledTime ? errors.scheduledTime.message : ''
-                    }
+                    render={({ field }) => (
+                      <Autocomplete
+                        options={customer}
+                        getOptionLabel={(option) => option.label || ''}
+                        isOptionEqualToValue={(option, val) => option.value === val}
+                        onChange={(_, data) => field.onChange(data ? data.value : '')}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Select customer..."
+                            size="small"
+                            variant="outlined"
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '12px' } }}
+                          />
+                        )}
+                      />
+                    )}
                   />
                 </div>
-                <Controller
-                  name="assignedTo"
-                  control={control}
-                  rules={{ required: 'Assigned to is required' }}
-                  render={({ field }) => (
-                    <Autocomplete
-                      options={roles}
-                      getOptionLabel={(option) => option.label}
-                      isOptionEqualToValue={(option, value) =>
-                        option.value === value.value
-                      }
-                      value={
-                        roles.find((role) => role.label === field.value) || null
-                      } // Set matching role or null
-                      onChange={(_, data) => {
-                        field.onChange(data ? data.label : '');
-                        setValue('teamMembers', data.teamMembers);
-                      }} // Save the label instead of value
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Assigned to*"
-                          variant="standard"
-                          className="w-full"
-                          margin="normal"
-                          error={!!errors.assignedTo} // Show error styling
-                          helperText={
-                            errors.assignedTo ? errors.assignedTo.message : ''
-                          } // Display error message
-                        />
-                      )}
-                    />
-                  )}
-                />
-                <Controller
-                  name="priority"
-                  control={control}
-                  render={({ field }) => (
-                    <Autocomplete
-                      options={[
-                        { label: 'High', value: 'High' },
-                        { label: 'Medium', value: 'Medium' },
-                        { label: 'Low', value: 'Low' },
-                      ]}
-                      getOptionLabel={(option) => option.label}
-                      isOptionEqualToValue={(option, value) =>
-                        option.value === value.value
-                      } // Match based on ID
-                      value={
-                        field.value
-                          ? { label: field.value, value: field.value }
-                          : null
-                      } // Set matching priority or null
-                      onChange={(_, data) =>
-                        field.onChange(data ? data.value : '')
-                      }
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Priority"
-                          variant="standard"
-                          className="w-full"
-                          margin="normal"
-                          error={!!errors.priority} // Show error styling
-                          helperText={
-                            errors.priority ? errors.priority.message : ''
-                          } // Display error message
-                        />
-                      )}
-                    />
-                  )}
-                />
-                <Controller
-                  name="customer"
-                  control={control}
-                  rules={{ required: 'Customer is required' }} // Add validation rule
-                  render={({ field }) => (
-                    <Autocomplete
-                      options={customer}
-                      getOptionLabel={(option) => option.label}
-                      isOptionEqualToValue={(option, value) =>
-                        option.value === value.value
-                      } // Match based on ID
-                      value={
-                        customer.find((cust) => cust.value === field.value) ||
-                        null
-                      } // Set matching customer or null
-                      onChange={(_, data) =>
-                        field.onChange(data ? data.value : '')
-                      }
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Customer*"
-                          variant="standard"
-                          className="w-full"
-                          margin="normal"
-                          error={!!errors.customer} // Show error styling
-                          helperText={
-                            errors.customer ? errors.customer.message : ''
-                          } // Display error message
-                        />
-                      )}
-                    />
-                  )}
-                />
-                <Controller
-                  name="job"
-                  control={control}
-                  render={({ field }) => (
-                    <Autocomplete
-                      options={jobs} // Replace 'roles' with 'jobs'
-                      getOptionLabel={(option) => option.label} // Assuming each job has a 'label' property
-                      isOptionEqualToValue={(option, value) =>
-                        option.value === value.value
-                      } // Match based on ID
-                      value={
-                        jobs.find((job) => job.value === field.value) || null
-                      } // Set matching job or null
-                      onChange={(_, data) =>
-                        field.onChange(data ? data.value : '')
-                      }
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Job"
-                          variant="standard"
-                          className="w-full"
-                          margin="normal"
-                          error={!!errors.job} // Show error styling
-                          helperText={errors.job ? errors.job.message : ''} // Display error message
-                        />
-                      )}
-                    />
-                  )}
-                />
-                <Box className="flex justify-end mt-6 space-x-2">
-                  <Button variant="outlined" onClick={closeEditModal}>
-                    Cancel
-                  </Button>
-                  <Button variant="contained" color="primary" type="submit">
-                    Submit
-                  </Button>
-                </Box>
-              </form>
-            </Box>
-          </Modal>
-        </div>
-      </div>
-      <div
-        className={`${
-          jobId
-            ? 'absolute z-10 transition-all delay-400 ease-in-out top-0 right-0 left-full bottom-0'
-            : 'w-full md:w-1/2 h-full shadow border-l border-gray'
-        } ${selectedStaff && '!left-0'} bg-white h-full overflow-auto `}
-      >
-        <TaskSlider
-          handler={handleAlltask}
-          roles={roles}
-          Ondelete={openDeleteModal}
-          task={selectedStaff}
-          onClose={() => setSelectedStaff(null)}
-        />
-      </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Assign Team Members
+                  </label>
+                  <Controller
+                    name="teamMembers"
+                    control={control}
+                    render={({ field }) => (
+                      <Autocomplete
+                        multiple
+                        options={roles}
+                        getOptionLabel={(option) => option.label || ''}
+                        isOptionEqualToValue={(option, val) => option.value === val}
+                        onChange={(_, data) => field.onChange(data.map((item) => item.value))}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Add assignees..."
+                            size="small"
+                            variant="outlined"
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '12px' } }}
+                          />
+                        )}
+                      />
+                    )}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Linked Job
+                  </label>
+                  <Controller
+                    name="job"
+                    control={control}
+                    render={({ field }) => (
+                      <Autocomplete
+                        options={jobs}
+                        getOptionLabel={(option) => option.label || ''}
+                        isOptionEqualToValue={(option, val) => option.value === val}
+                        onChange={(_, data) => field.onChange(data ? data.value : '')}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Select job..."
+                            size="small"
+                            variant="outlined"
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '12px' } }}
+                          />
+                        )}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Creating...' : 'Create Task'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </Box>
+      </Modal>
+
+      {/* Modern Delete Confirmation Dialog */}
+      <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>
+        <Box className="fixed inset-0 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={closeDeleteModal} />
+
+          <div className="relative bg-white dark:bg-boxdark rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 dark:border-strokedark z-10 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto mb-4 border border-rose-100 dark:border-rose-900">
+              <WarningAmberIcon style={{ fontSize: 28 }} />
+            </div>
+
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+              Delete Task
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
+              Are you sure you want to delete <span className="font-bold text-slate-800 dark:text-white">"{selectedStaff?.summary}"</span>? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="w-1/2 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={loading}
+                className="w-1/2 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md shadow-rose-500/20 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {loading ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </Box>
+      </Modal>
     </div>
   );
 };

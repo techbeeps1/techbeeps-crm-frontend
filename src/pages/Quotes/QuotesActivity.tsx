@@ -1,44 +1,48 @@
-import React, { useState, useEffect } from "react";
-import {
-  VerticalTimeline,
-  VerticalTimelineElement,
-} from "react-vertical-timeline-component";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   IconButton,
 } from '@mui/material';
-import { FaEnvelope, FaTimes, FaChevronDown } from 'react-icons/fa';
-import "react-vertical-timeline-component/style.min.css";
-import { Email, CheckCircle, Warning } from "@mui/icons-material";
-import { Typography } from "@mui/material";
+import { 
+  Email as EmailIcon, 
+  CheckCircle as CheckCircleIcon, 
+  Warning as WarningIcon,
+  Timeline as TimelineIcon,
+  FilterList as FilterListIcon,
+  Person as PersonIcon,
+  AccessTime as AccessTimeIcon,
+  MarkEmailRead as MarkEmailReadIcon,
+  Visibility as VisibilityIcon
+} from "@mui/icons-material";
+import CloseIcon from '@mui/icons-material/Close';
 import axios from "axios";
 import { apiPath } from "../../../apiPath";
 import { toast } from 'react-toastify';
 import Loader from "../../common/Loader";
 
 interface Activity {
+  _id?: string;
   type: string;
   title: string;
   comment: string;
   description: string;
   date: string;
-  icon: React.ReactNode;
-  background: string;
+  status?: string;
   sender: string;
   email: string;
 }
 
 const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false); // State for modal open/close
-  const [showDetails, setShowDetails] = useState(true);
-  const [emailData, setEmailData] = useState<any>()
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [emailData, setEmailData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
-
+  const [emailLoading, setEmailLoading] = useState<boolean>(false);
+  const [filterType, setFilterType] = useState<string>('all');
 
   const notifyError = (message: string) => toast.error(message, {
     autoClose: 2000,
@@ -53,203 +57,323 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
       return;
     }
     try {
-      
       const response = await axios.get(`${apiPath}/api/activities?offer=${invoiceData?._id}`);
-      setActivities(response.data)
-      const activiteList: Activity[] = response?.data.map((item: any) => ({
-        ...item,
-        icon: getIconByType(item.status),
-      }));
-      setActivities(activiteList)
-    } catch (error) {
-   
-      notifyError(`Error ${error}`);
-      setActivities([])
+      setActivities(response.data || []);
+    } catch (error: any) {
+      notifyError(`Error: ${error.message || error}`);
+      setActivities([]);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchEmail = async (emailId: string) => {
-    setLoading(true);
-    setIsModalOpen(true)
+    setEmailLoading(true);
+    setIsModalOpen(true);
     try {
       let response = await axios.get(`${apiPath}/api/emails/${emailId}`);
-      setEmailData(response.data)
+      setEmailData(response.data);
     } catch (error: any) {
-      notifyError(`Error deleting email : ${error.message}`);
+      notifyError(`Error fetching email: ${error.message}`);
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
     }
   };
 
   function formatDate(dateString: string): string {
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      throw new Error("Invalid date string");
-    }
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
-    const formattedDate: string = date.toLocaleDateString('en-US', options).replace(',', '');
-    let hours: number = date.getUTCHours(); // Get hours in UTC
-    const minutes: number = date.getUTCMinutes(); // Get minutes in UTC
-    const ampm: string = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12; // Convert to 12-hour format
-    hours = hours ? hours : 12; // Show 12 instead of 0
-    const formattedTime: string = `${hours}:${minutes < 10 ? '0' + minutes : minutes} ${ampm}`;
-    return `${formattedDate}, ${formattedTime}`;
+    if (isNaN(date.getTime())) return "N/A";
+    
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
   }
 
   useEffect(() => {
-    handleActivity()
-  }, [])
+    handleActivity();
+  }, [invoiceData?._id]);
 
-  const getIconByType = (type: string): React.ReactNode => {
-    switch (type) {
-      case "error":
-        return <Warning className="text-danger" />;
-      case "success":
-        return <CheckCircle className="text-primary" />;
-      case "info":
-        return <Email className="text-blue" />;
-      default:
-        return <Email />;
+  const filteredActivities = useMemo(() => {
+    if (!activities || !Array.isArray(activities)) return [];
+    if (filterType === 'all') return activities;
+    if (filterType === 'emails') {
+      return activities.filter((a) => a.email || (a.type || '').toLowerCase().includes('email') || (a.title || '').toLowerCase().includes('email'));
     }
+    if (filterType === 'updates') {
+      return activities.filter((a) => !a.email && !(a.type || '').toLowerCase().includes('email'));
+    }
+    return activities;
+  }, [activities, filterType]);
+
+  const getActivityStyle = (activity: Activity) => {
+    const status = (activity.status || activity.type || '').toLowerCase();
+    const title = (activity.title || '').toLowerCase();
+
+    if (activity.email || status.includes('email') || title.includes('email')) {
+      return {
+        icon: <EmailIcon style={{ fontSize: 18 }} />,
+        iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
+        badge: 'Email Event',
+        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
+      };
+    }
+    if (status.includes('success') || status.includes('accept') || title.includes('accepted') || title.includes('sent')) {
+      return {
+        icon: <CheckCircleIcon style={{ fontSize: 18 }} />,
+        iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800',
+        badge: 'Success',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
+      };
+    }
+    if (status.includes('error') || status.includes('warn') || status.includes('reject')) {
+      return {
+        icon: <WarningIcon style={{ fontSize: 18 }} />,
+        iconBg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800',
+        badge: 'Notice',
+        badgeColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300'
+      };
+    }
+    return {
+      icon: <TimelineIcon style={{ fontSize: 18 }} />,
+      iconBg: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800',
+      badge: 'Activity',
+      badgeColor: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300'
+    };
   };
 
   return (
-    <div className="overflow-y-auto min-h-[400px] max-h-[85vh] w-full px-4">
+    <div className="w-full space-y-6">
+      {/* Header with Filter Controls */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-200/80 dark:border-strokedark">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <TimelineIcon />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Activity Timeline</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Audit trail of quotation events, email deliveries, and status updates
+            </p>
+          </div>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+          <button
+            onClick={() => setFilterType('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'all'
+                ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            All ({activities.length})
+          </button>
+          <button
+            onClick={() => setFilterType('emails')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'emails'
+                ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            Emails
+          </button>
+          <button
+            onClick={() => setFilterType('updates')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'updates'
+                ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            Updates
+          </button>
+        </div>
+      </div>
+
       {loading && <Loader />}
-      {!activities && "No activity found"}
-      <div style={{ maxWidth: "1000px", margin: 'auto' }}>
-        <VerticalTimeline>
-          {activities && activities.map((activity, index) => (
-            <VerticalTimelineElement
-              key={index}
-              contentStyle={{
-                background: "white",
-                boxShadow: "0 0px 20px rgba(0, 0, 0, 0.2)",
-                borderRadius: "8px",
-                padding: "20px",
-              }}
-              contentArrowStyle={{ borderRight: "8px solid white" }}
-              iconStyle={{
-                background: "#ffffff",
-                color: "#000000",
-                boxShadow: "0 0px 6px rgba(0, 0, 0, 0.5)",
-                border: "4px solid gray",
-              }}
-              icon={activity.icon}
-            >
-              <div className="w-full max-w-lg overflow-auto break-words">
-                <div className="font-bold text-md text-black mb-1">
-                  {activity.title}
+
+      {/* Modern Activity Feed List */}
+      {!loading && filteredActivities.length > 0 && (
+        <div className="relative pl-6 md:pl-8 space-y-6 before:absolute before:left-3 md:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+          {filteredActivities.map((activity, index) => {
+            const style = getActivityStyle(activity);
+            return (
+              <div key={activity._id || index} className="relative group">
+                {/* Timeline node icon */}
+                <div className={`absolute -left-6 md:-left-8 top-1.5 w-7 h-7 rounded-full flex items-center justify-center shadow-xs z-10 ${style.iconBg}`}>
+                  {style.icon}
                 </div>
-                <div className="font-semibold text-sm mb-1">
-                  {activity.description}
+
+                {/* Activity Card */}
+                <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 sm:p-5 shadow-xs hover:shadow-md transition-all group-hover:border-primary/40">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${style.badgeColor}`}>
+                        {style.badge}
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white capitalize">
+                        {activity.title || "Quotation Event"}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                      <AccessTimeIcon style={{ fontSize: 14 }} />
+                      <span>{formatDate(activity.date)}</span>
+                    </div>
+                  </div>
+
+                  {/* Body Content */}
+                  <div className="space-y-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                    {activity.description && (
+                      <p className="font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                        {activity.description}
+                      </p>
+                    )}
+                    {activity.comment && (
+                      <p className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-700/60 text-slate-600 dark:text-slate-300 italic">
+                        "{activity.comment}"
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Footer / Sender & Email Trigger */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+                    {activity.sender ? (
+                      <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                        <PersonIcon style={{ fontSize: 14 }} />
+                        <span>By <strong className="text-slate-700 dark:text-slate-300">{activity.sender}</strong></span>
+                      </div>
+                    ) : <div />}
+
+                    {activity.email && (
+                      <button
+                        onClick={() => fetchEmail(activity.email)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-primary bg-primary/10 hover:bg-primary hover:text-white dark:bg-primary/20 dark:hover:bg-primary transition-all cursor-pointer shadow-xs"
+                      >
+                        <VisibilityIcon style={{ fontSize: 15 }} />
+                        <span>View Email Message</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="font-semibold mb-1 text-black">
-                  {activity.comment}
-                </div>
-                <div className="font-semibold mb-1">
-                  {activity.sender}
-                </div>
-                {activity.email && (
-                  <div
-                    onClick={() => fetchEmail(activity.email)}
-                    className="font-semibold mb-1 cursor-pointer"
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && filteredActivities.length === 0 && (
+        <div className="py-16 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3">
+            <TimelineIcon style={{ fontSize: 32 }} />
+          </div>
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No Activities Found</h4>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+            {filterType === 'all'
+              ? 'No activity logs have been recorded for this quotation yet.'
+              : `No ${filterType} match your current filter.`}
+          </p>
+        </div>
+      )}
+
+      {/* Modern Superhuman/Gmail-Style Email Reader Modal */}
+      <Dialog
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle className="flex justify-between items-center bg-slate-50 dark:bg-boxdark border-b border-slate-200/80 dark:border-strokedark p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+              <MarkEmailReadIcon />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {emailData?.subject || "Email Preview"}
+              </h3>
+              <p className="text-xs text-slate-400">
+                {emailData ? formatDate(emailData.sentAt) : 'Loading message details...'}
+              </p>
+            </div>
+          </div>
+          <IconButton onClick={() => setIsModalOpen(false)} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent className="p-5 sm:p-6 space-y-4">
+          {emailLoading ? (
+            <div className="py-12">
+              <Loader />
+            </div>
+          ) : (
+            <>
+              {/* Sender & Recipient Box */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 text-xs space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-500">From:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{emailData?.from || 'N/A'}</span>
+                  </div>
+                  <button
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="text-primary font-bold text-[11px] hover:underline"
                   >
-                    view Email
+                    {showDetails ? 'Hide Details' : 'View Headers'}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-500">To:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{emailData?.recipient || 'N/A'}</span>
+                </div>
+
+                {showDetails && (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-700 text-slate-500 text-[11px] space-y-1">
+                    <p><strong className="text-slate-700 dark:text-slate-300">Message ID:</strong> {emailData?._id}</p>
+                    <p><strong className="text-slate-700 dark:text-slate-300">Delivered:</strong> {formatDate(emailData?.sentAt)}</p>
                   </div>
                 )}
               </div>
 
-              <Typography
-                variant="caption"
-                className="block mt-4"
-                style={{
-                  borderTop: "1px solid #E5E7EB",
-                  paddingTop: "8px",
-                  fontSize: ".9rem",
-                }}
-              >
-                {new Date(activity.date).toLocaleString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit", // Optional: include seconds if needed
-                  hour12: true, // Use 12-hour format (true) or 24-hour format (false)
-                })}
-              </Typography>
-            </VerticalTimelineElement>
-          ))}
-
-
-        </VerticalTimeline>
-               { activities.length === 0 && (
-            <div className="text-center text-gray-500 mt-4">
-              No activities found.
-            </div>
+              {/* Email Rendered Content */}
+              <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-slate-200/60 dark:border-strokedark text-slate-800 dark:text-slate-100 text-sm leading-relaxed overflow-x-auto min-h-[160px]">
+                {emailData?.htmlContent ? (
+                  <div dangerouslySetInnerHTML={{ __html: emailData.htmlContent }} />
+                ) : (
+                  <p className="text-slate-400 italic">No message content available.</p>
+                )}
+              </div>
+            </>
           )}
-      </div>
-      <Dialog
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        maxWidth="lg" // Maximum width for larger screens
-        fullWidth // Full width to make the dialog responsive
-        TransitionProps={{ onExited: () => setIsModalOpen(false) }} // Animation prop
-      >
-        <DialogTitle className="flex justify-between items-center">
-          <div className="flex items-center py-2">
-            <FaEnvelope className="h-5 w-5 text-blue-600 mr-2" aria-hidden="true" />
-            <span className="text-md">{emailData?.subject}</span>
-          </div>
-          <IconButton onClick={() => setIsModalOpen(false)} edge="end" color="inherit">
-            <FaTimes />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent dividers>
-          <div className='mb-4 dropdown_email'>
-            <div className="flex items-center justify-between" onClick={() => setShowDetails(!showDetails)} style={{ cursor: 'pointer' }}>
-              <div className="flex flex-col md:flex-row justify-between w-full">
-                <div className="text-gray-500 text-base mb-1 md:mb-0 md:mr-4">
-                  <span className="font-medium">From: </span>{emailData?.from}
-                </div>
-                <div className="date text-gray-500 text-base">
-                  <span className="font-medium">Received at: </span>{`${emailData && formatDate(emailData?.sentAt)}`}
-                </div>
-              </div>
-              <div color="inherit" >
-                <FaChevronDown className={`m-3 transform ${showDetails ? 'rotate-180' : ''}`} />
-              </div>
-            </div>
-            {showDetails && (
-              <div className="pb-3 flex flex-col md:flex-row justify-between w-full">
-                <div className=" date text-gray-500 text-base">
-                  <span className="font-medium">Received to: </span>{`${emailData?.recipient}`}
-                </div>
-              </div>
-            )}
-          </div>
-          <Typography variant="body1" className="mt-4 text-gray-800">
-            <span dangerouslySetInnerHTML={{ __html: emailData?.htmlContent }} />
-          </Typography>
         </DialogContent>
 
-
-        <DialogActions>
-          <div className="p-2">
-            <Button
-              onClick={() => setIsModalOpen(false)}
-              color="primary"
-              variant="outlined"
-            >
-              Close
-            </Button>
-          </div>
+        <DialogActions className="p-4 bg-slate-50 dark:bg-boxdark border-t border-slate-200/80 dark:border-strokedark">
+          <button
+            onClick={() => setIsModalOpen(false)}
+            className="px-5 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 transition-colors"
+          >
+            Close
+          </button>
         </DialogActions>
       </Dialog>
     </div>

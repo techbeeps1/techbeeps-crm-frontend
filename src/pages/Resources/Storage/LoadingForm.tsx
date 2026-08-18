@@ -1,35 +1,36 @@
 import React, { useState, useEffect } from 'react';
-
 import {
-  Button,
-  IconButton,
   Modal,
   Box,
-  Tabs,
-  Tab,
-  MenuItem,
-  Select,
-  Typography,
-  FormControl,
-  Avatar,
-  InputLabel,
   FormControlLabel,
   RadioGroup,
   Radio,
 } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import CloseIcon from '@mui/icons-material/Close';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { apiPath } from '../../../../apiPath';
 import axios from 'axios';
 import CustomerForm from '../../Jobpage/helper/NewcustomForm';
 import Loader from '../../../common/Loader/index';
 import ReactDatePicker from '../../../common/ReactDatepicker';
+import { 
+  MdWarehouse, 
+  MdAdd, 
+  MdClose, 
+  MdDeleteOutline, 
+  MdCheckCircle, 
+  MdPerson, 
+  MdReceipt, 
+  MdInventory2 
+} from 'react-icons/md';
 
 const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState([]);
+  const [customer, setCustomer] = useState([]);
+  const [customerType, setCustomerType] = useState('existing');
+  const [countries, setCountries] = useState([]);
 
   const {
     register,
@@ -47,7 +48,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
           itemCode: '',
           externalCode: '',
           contents: '',
-          storageLocation: '',
+          storageLocation: storageData?.storageLocation?._id || '',
           loadedOn: null,
           ReleasedOn: null,
           loadedByEmployee: null,
@@ -63,31 +64,27 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
     name: 'rows',
   });
 
-  const [customerType, setCustomerType] = useState('existing');
-  const [countries, setCountries] = useState([]);
-  const [customer, setCustomer] = useState([]);
   const [invoicePeriod, setInvoicePeriod] = useState('Monthly');
   const [vatOption, setVatOption] = useState('Including VAT');
   const [storageOption, setStorageOption] = useState('In advance');
   const [salesGroupOption, setSalesGroupOption] = useState<any>([]);
   const [jobs, setJobs] = useState<any>([]);
-  const [handlingCost, setHandlingCost] = useState<any>('No');
   const [invoicePerVolume, setInvoicePerVolume] = useState<boolean>(false);
-
   const [loading, setLoading] = useState(false);
+
   const handleCustomerTypeChange = (event: any) => {
     setCustomerType(event.target.value);
     setValue('customer', '');
   };
 
   const [activeStep, setActiveStep] = useState(0);
-
-  const handleBack = () => setActiveStep((prev) => prev - 1);
+  const handleBack = () => setActiveStep((prev) => Math.max(0, prev - 1));
   const handleClose = () => {
-    setOpen(false), reset();
+    setOpen(false);
+    reset();
+    setActiveStep(0);
   };
   const invoicingStartDate = watch('invoicingStartDate');
-
   const volumeHandler = watch('rows');
 
   const totalVolume = volumeHandler?.reduce((acc: any, item: any) => {
@@ -95,49 +92,49 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
       return acc + Number(item.contents);
     }
     return acc;
-  }, 0);
+  }, 0) || 0;
 
   useEffect(() => {
-    if (storageData.cubicMeter < totalVolume) {
-      alert(`Storage has only ${storageData.cubicMeter} m\u00B3 Space`);
+    if (storageData && storageData.cubicMeter < totalVolume) {
+      alert(`Storage has only ${storageData.cubicMeter} m³ Space`);
     }
     setValue('totalVolume', totalVolume);
   }, [totalVolume]);
 
   const steps = [
-    { label: 'Customer' },
-    { label: 'Billing' },
-    { label: 'What' },
+    { label: '1. Customer Details', icon: <MdPerson className="w-4 h-4" /> },
+    { label: '2. Billing & Terms', icon: <MdReceipt className="w-4 h-4" /> },
+    { label: '3. Inventory Items', icon: <MdInventory2 className="w-4 h-4" /> },
   ];
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (formData: any) => {
     let finalData = {
-      ...data,
-      percentageFill: ((totalVolume / storageData.cubicMeter) * 100).toFixed(2),
+      ...formData,
+      percentageFill: ((totalVolume / (storageData?.cubicMeter || 1)) * 100).toFixed(2),
       invoicePerVolume: invoicePerVolume,
       invoicingPeriod: invoicePeriod,
       storageStatus: 'In use',
-      costAction: [data.action],
+      costAction: formData.action ? [formData.action] : [],
       includingVat: vatOption,
       billStorageInAdvance: storageOption,
-      events: data.rows,
+      events: formData.rows,
       loadedOn: new Date(),
     };
     storageHandlers(finalData);
   };
 
-  const storageHandlers = async (data: any) => {
+  const storageHandlers = async (formData: any) => {
     setLoading(true);
     let path = `${apiPath}/api/storages/${storageData?._id}`;
     try {
       if (customerType === 'new') {
         const customerResponse = await axios.post(
           `${apiPath}/customer/customeradd`,
-          data.client,
+          formData.client,
         );
-        data.customer = customerResponse.data._id;
+        formData.customer = customerResponse.data._id;
       }
-      const response = await axios.post(path, data);
+      const response = await axios.post(path, formData);
       if (response.status === 201 || response.status === 200) {
         handler();
         setOpen(false);
@@ -153,44 +150,36 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
     }
   };
 
-  const handleNext = () => {
-    handleSubmit(() => {
-      setActiveStep((prev) => prev + 1);
-    })();
-  };
-
   const handleAllEmploye = async () => {
     try {
       const response = await axios.get(`${apiPath}/user/all`);
-      let Employee = response['data'].map((team: any) => {
+      let Employee = response['data']?.map((team: any) => {
         return { label: team.username, value: team._id };
-      });
+      }) || [];
       setData(Employee);
     } catch (err) {
       console.error(err);
     }
   };
+
   let customerId = watch('customer');
   const handleAllJob = async () => {
     try {
       const response = await axios.get(
         `${apiPath}/api/jobList?customer=${customerId || ''}`,
       );
-      let jobs = response['data'].jobList.map((job: any) => {
+      let jobs = response['data']?.jobList?.map((job: any) => {
         return {
-          label:
-            job.customer?.firstName +
-            ' ' +
-            job.customer?.lastName +
-            ` (${job.index})`,
+          label: `${job.customer?.firstName || ''} ${job.customer?.lastName || ''} (${job.index})`,
           value: job._id,
         };
-      });
+      }) || [];
       setJobs(jobs);
     } catch (err) {
       console.error(err);
     }
   };
+
   useEffect(() => {
     handleAllJob();
   }, [customerId]);
@@ -198,30 +187,33 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
   const handleClient = async () => {
     try {
       let response = await axios.get(apiPath + '/customer/customerList');
-      setCustomer(response.data.customers);
+      setCustomer(response.data?.customers || []);
     } catch (error: any) {
-      alert(error.message);
+      console.error(error.message);
     }
   };
+
   const countriesHandler = async () => {
     try {
       let response = await axios.get(`${apiPath}/api/sale_group?type=country`);
-      const countryNames = response.data?.map((country: any) => country?.name);
+      const countryNames = response.data?.map((country: any) => country?.name) || [];
       setCountries(countryNames);
     } catch (error) {
       console.error('Error fetching countries:', error);
     }
   };
+
   const salesGroupHandler = async () => {
     try {
       let response = await axios.get(
         `${apiPath}/api/sale_group?type=salesGroup`,
       );
-      setSalesGroupOption(response.data);
+      setSalesGroupOption(response.data || []);
     } catch (error) {
-      console.error('Error fetching countries:', error);
+      console.error('Error fetching sales groups:', error);
     }
   };
+
   useEffect(() => {
     handleAllEmploye();
     salesGroupHandler();
@@ -231,750 +223,465 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
 
   return (
     <>
-      <div>
-        <button
-          onClick={() => setOpen(true)}
-          className="px-3 py-2 h-auto text-lg font-semibold bg-sky-700 text-red-600 border border-red-600 rounded hover:bg-red-600 text-white transition duration-300"
-        >
-          Load Storage
-        </button>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <Modal open={open} onClose={handleClose}>
-            <Box
-              className="bg-white p-5 rounded-lg shadow-lg mx-auto relative overflow-y-auto"
-              style={{ maxHeight: '100vh' }}
-            >
-              {loading && <Loader />}
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex gap-8">
-                  <Typography variant="h4" component="h2" className="pb-2">
-                    Load Storage
-                  </Typography>
-                  <Tabs
-                    value={activeStep}
-                    className=""
-                    onChange={(e, val) => setActiveStep(val)}
-                    variant="standard"
-                  >
-                    {steps.map((step, index) => (
-                      <Tab
-                        label={step.label}
-                        key={index}
-                        sx={{ fontSize: '15px' }}
-                        disabled={index > activeStep}
-                      />
-                    ))}
-                  </Tabs>
-                </div>
-                <IconButton
-                  onClick={handleClose}
-                  className="absolute top-0 right-2 text-gray hover:text-black"
-                >
-                  <CloseIcon />
-                </IconButton>
-              </div>
-              <div>
-                {loading ? (
-                  <p
-                    style={{
-                      minHeight: '80vh',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    loading...
-                  </p>
-                ) : (
-                  <form onSubmit={handleSubmit(onSubmit)}>
-                    {activeStep === 0 && (
-                      <>
-                        <div
-                          style={{
-                            maxWidth: '700px',
-                            margin: 'auto',
-                            minHeight: '76vh',
-                          }}
-                        >
-                          <FormControl
-                            component="fieldset"
-                            style={{ marginBottom: '16px' }}
-                          >
-                            <RadioGroup
-                              row
-                              value={customerType}
-                              onChange={handleCustomerTypeChange}
-                            >
-                              <FormControlLabel
-                                value="new"
-                                control={<Radio />}
-                                label="New customer"
-                              />
-                              <FormControlLabel
-                                value="existing"
-                                control={<Radio />}
-                                label="Existing customer"
-                              />
-                            </RadioGroup>
-                          </FormControl>
-                          {customerType === 'new' && (
-                            <CustomerForm
-                              register={register}
-                              errors={errors}
-                              control={control}
-                              countries={countries}
-                            />
-                          )}
-                          {customerType === 'existing' && (
-                            <FormControl
-                              fullWidth
-                              variant="standard"
-                              className="w-1/2"
-                            >
-                              <InputLabel>Select Customer</InputLabel>
-                              <Controller
-                                name="customer" // Name for the form field
-                                control={control}
-                                defaultValue="" // Set a default value to prevent undefined
-                                rules={{ required: 'Customer is required' }} // Validation rule
-                                render={({ field }) => (
-                                  <Select
-                                    {...field}
-                                    value={field.value || ''} // Ensure value is never undefined
-                                    label="Select Customer"
-                                  >
-                                    {customer &&
-                                      customer.map(
-                                        (item: any, index: number) => (
-                                          <MenuItem
-                                            key={index}
-                                            value={item._id}
-                                          >
-                                            <Box className="flex items-center">
-                                              <Avatar className="bg-gray-500 mr-2"></Avatar>
-                                              <Box>
-                                                <Typography variant="body1">{`${item.firstName} ${item.lastName}`}</Typography>
-                                                <Typography
-                                                  variant="body2"
-                                                  color="textSecondary"
-                                                >
-                                                  {item.email}
-                                                </Typography>
-                                              </Box>
-                                            </Box>
-                                          </MenuItem>
-                                        ),
-                                      )}
-                                  </Select>
-                                )}
-                              />
-                              {errors.customer && (
-                                <span className="text-red">
-                                  {errors.customer.message}
-                                </span>
-                              )}{' '}
-                              {/* Display error message */}
-                            </FormControl>
-                          )}
-                        </div>
-                      </>
-                    )}
-                    {activeStep === 1 && (
-                      <>
-                        <div
-                          style={{
-                            maxWidth: '800px',
-                            margin: 'auto',
-                            minHeight: '76vh',
-                          }}
-                        >
-                          <div className="mb-6">
-                            <p className="font-medium text-lg mb-2">
-                              Invoice period
-                            </p>
-                            <div className="flex space-x-2">
-                              {[
-                                'Daily',
-                                'Weekly',
-                                'Monthly',
-                                'quarter',
-                                'Annual',
-                              ].map((period) => (
-                                <button
-                                  type="button"
-                                  key={period}
-                                  className={`px-4 w-full py-2 text-lg font-medium border rounded ${
-                                    invoicePeriod === period
-                                      ? 'bg-blue text-white'
-                                      : 'bg-gray'
-                                  }`}
-                                  onClick={() => setInvoicePeriod(period)}
-                                >
-                                  {period}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                            <div className="mb-4">
-                              <p className="font-medium text-lg mb-2">
-                                Is the price inclusive or exclusive of VAT?
-                              </p>
-                              <div className="flex space-x-2">
-                                {['Including VAT', 'Excluding VAT'].map(
-                                  (option) => (
-                                    <button
-                                      type="button"
-                                      key={option}
-                                      className={`w-full px-4 py-2 border text-lg font-medium rounded ${
-                                        vatOption === option
-                                          ? 'bg-blue text-white'
-                                          : 'bg-gray'
-                                      }`}
-                                      onClick={() => setVatOption(option)}
-                                    >
-                                      {option}
-                                    </button>
-                                  ),
-                                )}
-                              </div>
-                            </div>
-                            <div className="mb-4">
-                              <p className="font-medium text-lg mb-2">
-                                Storage in advance or after invoicing?
-                              </p>
-                              <div className="flex space-x-2">
-                                {['In advance', 'Afterwards'].map((option) => (
-                                  <button
-                                    type="button"
-                                    key={option}
-                                    className={`w-full px-4 py-2 border text-lg font-medium rounded ${
-                                      storageOption === option
-                                        ? 'bg-blue text-white'
-                                        : 'bg-gray'
-                                    }`}
-                                    onClick={() => setStorageOption(option)}
-                                  >
-                                    {option}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                            <div className="mb-4">
-                              <p className="font-medium text-lg mb-2">
-                                Invoice by volume?
-                              </p>
-                              <div className="flex space-x-2">
-                                <button
-                                  type="button"
-                                  className={`w-full px-4 py-2 border text-lg font-medium rounded ${
-                                    invoicePerVolume
-                                      ? 'bg-blue text-white'
-                                      : 'bg-gray'
-                                  }`}
-                                  onClick={() => setInvoicePerVolume(true)}
-                                >
-                                  Yes
-                                </button>
-                                <button
-                                  type="button"
-                                  className={`w-full px-4 py-2 border text-lg font-medium rounded ${
-                                    !invoicePerVolume
-                                      ? 'bg-blue text-white'
-                                      : 'bg-gray'
-                                  }`}
-                                  onClick={() => setInvoicePerVolume(false)}
-                                >
-                                  No
-                                </button>
-                              </div>
-                            </div>
-                          </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+      >
+        <MdWarehouse className="w-4 h-4" />
+        <span>Load Storage</span>
+      </button>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            <div>
-                              <label className="block font-medium text-lg mb-2">
-                                VAT
-                              </label>
-                              <select
-                                className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                {...register('vatPercentage', {
-                                  required: 'VAT is required',
-                                })}
-                              >
-                                <option value="">Select Vat</option>
-                                <option value="0">0%</option>
-                                <option value="9">9%</option>
-                                <option value="21">21%</option>
-                              </select>
-                              {errors.vatPercentage && (
-                                <p className="text-red-500 text-sm">
-                                  {errors.vatPercentage.message}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block font-medium text-lg mb-2">{`Price per ${invoicePeriod} ${
-                                invoicePerVolume ? 'Per volume' : ''
-                              }`}</label>
-                              <input
-                                type="number"
-                                min={0}
-                                className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                {...register('price', {
-                                  required: 'Price is required',
-                                })}
-                                placeholder={`Enter price per ${invoicePeriod} ${
-                                  invoicePerVolume ? 'Per volume' : ''
-                                }`}
-                              />
-                              {errors.price && (
-                                <p className="text-red-500 text-sm">
-                                  {errors.price.message}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block font-medium text-lg mb-2">
-                                Sales group
-                              </label>
-                              <select
-                                className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                {...register('salesGroup')}
-                              >
-                                <option value="">Select Salesgroup</option>
-                                {salesGroupOption &&
-                                  salesGroupOption.map((item: any) => (
-                                    <option key={item._id} value={item.name}>
-                                      {item.name}
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block font-medium text-lg mb-2">
-                                Job
-                              </label>
-                              <select
-                                className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                {...register('storedForProject')}
-                              >
-                                <option value="">Select job</option>
-                                {jobs &&
-                                  jobs.map((item: any) => (
-                                    <option key={item.value} value={item.value}>
-                                      {item.label}
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block font-medium text-lg mb-2">
-                                Invoice reference
-                              </label>
-                              <input
-                                type="text"
-                                className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                {...register('invoiceReference')}
-                                placeholder="Enter invoice reference"
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-medium text-lg mb-2">
-                                Start date
-                              </label>
-                              <ReactDatePicker
-                                control={control}
-                                name="invoicingStartDate"
-                                rules={{ required: 'Date is required' }}
-                                placeholderText="Select Start date"
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-medium text-lg mb-2">
-                                Last invoiced date
-                              </label>
-                              <ReactDatePicker
-                                control={control}
-                                name="lastInvoicedDate"
-                                minDate={invoicingStartDate}
-                                placeholderText="Select invoiced date"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </>
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Modal open={open} onClose={handleClose}>
+          <Box className="fixed inset-0 flex items-center justify-center p-4 z-50">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleClose}></div>
+
+            <div className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-slate-100 z-10">
+              {loading && <Loader />}
+              
+              <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                    <MdWarehouse className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Load Storage ({storageData?.storageCode})
+                    </h3>
+                    <p className="text-xs text-slate-500">Assign customer and load inventory units</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleClose}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <MdClose className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="px-6 pt-4 pb-2 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-2">
+                  {steps.map((step, idx) => {
+                    const isCurrent = activeStep === idx;
+                    const isCompleted = activeStep > idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveStep(idx)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                          isCurrent
+                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                            : isCompleted
+                            ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200/70'
+                        }`}
+                      >
+                        {isCompleted ? <MdCheckCircle className="w-4 h-4 text-indigo-600" /> : step.icon}
+                        <span>{step.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit(onSubmit)} className="p-6">
+                {activeStep === 0 && (
+                  <div className="space-y-5 max-w-2xl mx-auto py-2">
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/80 flex items-center justify-center">
+                      <RadioGroup
+                        row
+                        value={customerType}
+                        onChange={handleCustomerTypeChange}
+                        className="gap-6"
+                      >
+                        <FormControlLabel
+                          value="existing"
+                          control={<Radio size="small" />}
+                          label={<span className="text-xs font-bold text-slate-800">Existing Customer</span>}
+                        />
+                        <FormControlLabel
+                          value="new"
+                          control={<Radio size="small" />}
+                          label={<span className="text-xs font-bold text-slate-800">New Customer</span>}
+                        />
+                      </RadioGroup>
+                    </div>
+
+                    {customerType === 'new' && (
+                      <CustomerForm
+                        register={register}
+                        errors={errors}
+                        control={control}
+                        countries={countries}
+                      />
                     )}
-                    {activeStep === 2 && (
-                      <>
-                        <div style={{ margin: 'auto', minHeight: '76vh' }}>
-                          <div className="flex gap-3 my-4">
-                            <div className="w-full">
-                              <label className="block font-medium text-lg mb-2">
-                                Notes
-                              </label>
-                              <input
-                                type="text"
-                                className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                {...register('notes')}
-                                placeholder="Notes"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center">
+
+                    {customerType === 'existing' && (
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                          Select Customer <span className="text-red-500">*</span>
+                        </label>
+                        <Controller
+                          name="customer"
+                          control={control}
+                          defaultValue=""
+                          rules={{ required: 'Customer is required' }}
+                          render={({ field }) => (
+                            <select
+                              {...field}
+                              className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
+                                errors.customer ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
+                              } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                            >
+                              <option value="">Select customer...</option>
+                              {customer && customer.map((item: any) => (
+                                <option key={item._id} value={item._id}>
+                                  {item.firstName} {item.lastName} ({item.email || 'No email'})
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        />
+                        {errors.customer && (
+                          <p className="text-red-500 text-xs mt-1">{errors.customer.message}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeStep === 1 && (
+                  <div className="space-y-5 max-w-2xl mx-auto py-2">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                        Invoice Period
+                      </label>
+                      <div className="grid grid-cols-5 gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                        {['Daily', 'Weekly', 'Monthly', 'quarter', 'Annual'].map((period) => (
+                          <button
+                            type="button"
+                            key={period}
+                            className={`py-2 text-xs font-bold rounded-xl transition-all capitalize ${
+                              invoicePeriod === period
+                                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/80'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                            onClick={() => setInvoicePeriod(period)}
+                          >
+                            {period === 'quarter' ? 'Quarter' : period}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                          VAT Option
+                        </label>
+                        <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                          {['Including VAT', 'Excluding VAT'].map((option) => (
                             <button
                               type="button"
-                              onClick={() =>
-                                append({
-                                  description: '',
-                                  itemCode: '',
-                                  externalCode: '',
-                                  contents: '',
-                                  storageLocation: '',
-                                  loadedOn: '',
-                                  ReleasedOn: '',
-                                  loadedByEmployee: '',
-                                  ReleasedByEmployee: null,
-                                  loadedByCustomer: false,
-                                })
-                              }
-                              className="px-4 py-2 mb-3  bg-blue text-white border border-danger font-medium text-lg rounded hover:bg-blue"
+                              key={option}
+                              className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                                vatOption === option
+                                  ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/80'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                              onClick={() => setVatOption(option)}
                             >
-                              Add Row
+                              {option}
                             </button>
-                          </div>
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full bg-white">
-                              <thead>
-                                <tr>
-                                  <th className="p-2 border border-gray">
-                                    Description
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Item Code
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    External Code
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Contents
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Storage Location
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Loaded on
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Released On
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Loaded by Employee
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Released by Employee
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Loaded By Customer
-                                  </th>
-                                  <th className="p-2 border border-gray">
-                                    Actions
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {fields.map((field: any, index: any) => (
-                                  <tr key={field.id}>
-                                    <td className="p-2 border border-gray">
-                                      <input
-                                        type="text"
-                                        {...register(
-                                          `rows.${index}.description`,
-                                          {
-                                            required: 'Description is required',
-                                          },
-                                        )}
-                                        className={`w-full p-2 border ${
-                                          errors.rows?.[index]?.description
-                                            ? 'border-red-500'
-                                            : 'border-gray'
-                                        }`}
-                                      />
-                                      {errors.rows?.[index]?.description && (
-                                        <p className="text-red-500 text-sm">
-                                          {
-                                            errors.rows[index].description
-                                              .message
-                                          }
-                                        </p>
-                                      )}
-                                    </td>
-                                    <td className="p-2 border border-gray">
-                                      <input
-                                        type="text"
-                                        {...register(`rows.${index}.itemCode`)}
-                                        className="w-full p-2 border border-gray"
-                                      />
-                                    </td>
-                                    <td className="p-2 border border-gray">
-                                      <input
-                                        type="text"
-                                        {...register(
-                                          `rows.${index}.externalCode`,
-                                        )}
-                                        className="w-full p-2 border border-gray"
-                                      />
-                                    </td>
-                                    <td className="p-2 border border-gray">
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        {...register(`rows.${index}.contents`)}
-                                        className="w-full p-2 border border-gray"
-                                      />
-                                    </td>
-                                    <td className="p-2 border border-gray">
-                                      <select
-                                        className="w-full p-2 border border-gray"
-                                        {...register(
-                                          `rows.${index}.storageLocation`,
-                                          { required: 'field is required' },
-                                        )}
-                                      >
-                                        {storageData && (
-                                          <option
-                                            value={
-                                              storageData?.storageLocation
-                                                ?._id || null
-                                            }
-                                          >
-                                            {storageData?.storageLocation?.name}
-                                          </option>
-                                        )}
-                                      </select>
-                                      {errors.rows?.[index]
-                                        ?.storageLocation && (
-                                        <p className="text-red-500 text-sm">
-                                          {
-                                            errors.rows[index].storageLocation
-                                              .message
-                                          }
-                                        </p>
-                                      )}
-                                    </td>
-                                    <td className="p-2 border border-gray">
-                                      <ReactDatePicker
-                                        control={control}
-                                        name={`rows.${index}.loadedOn`}
-                                        rules={{ required: 'Date is required' }}
-                                        placeholderText=""
-                                      />
-                                    </td>
-                                    <td className="p-2 border border-gray">
-                                      <ReactDatePicker
-                                        control={control}
-                                        name={`rows.${index}.ReleasedOn`}
-                                        placeholderText=""
-                                      />
-                                    </td>
-
-                                    <td className="p-2 border border-gray">
-                                      <select
-                                        className="w-full p-2 border border-gray"
-                                        {...register(
-                                          `rows.${index}.loadedByEmployee`,
-                                          { required: 'field is required' },
-                                        )}
-                                      >
-                                        {data &&
-                                          data.map((item: any) => (
-                                            <option
-                                              key={item.value}
-                                              value={item.value}
-                                            >
-                                              {item.label}
-                                            </option>
-                                          ))}
-                                      </select>
-                                      {errors.rows?.[index]
-                                        ?.loadedByEmployee && (
-                                        <p className="text-red-500 text-sm">
-                                          {
-                                            errors.rows[index].loadedByEmployee
-                                              .message
-                                          }
-                                        </p>
-                                      )}
-                                    </td>
-                                    <td className="p-2 border border-gray">
-                                      <select
-                                        className="w-full p-2 border border-gray"
-                                        {...register(
-                                          `rows.${index}.ReleasedByEmployee`,
-                                        )}
-                                      >
-                                        {data &&
-                                          data.map((item: any) => (
-                                            <option
-                                              key={item.value}
-                                              value={item.value}
-                                            >
-                                              {item.label}
-                                            </option>
-                                          ))}
-                                      </select>
-                                    </td>
-                                    <td className="p-2 border border-gray text-center">
-                                      <input
-                                        type="checkbox"
-                                        {...register(
-                                          `rows.${index}.loadedByCustomer`,
-                                        )}
-                                        className="h-5 w-5"
-                                      />
-                                    </td>
-                                    <td className="p-2 border border-gray text-center">
-                                      <button
-                                        type="button"
-                                        onClick={() => remove(index)}
-                                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                                      >
-                                        Delete
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          <div className="flex w-full mt-6 gap-5">
-                            <div className="w-full">
-                              <p className="font-bold text-xl mb-2">
-                                The cost of handling -
-                              </p>
-                              <div className="mb-4">
-                                <p className="font-medium text-lg mb-2">
-                                  Do you want to invoice the handling costs ?
-                                </p>
-                                <div className="flex space-x-2">
-                                  {['Yes', 'No'].map((option) => (
-                                    <button
-                                      type="button"
-                                      key={option}
-                                      className={`w-full px-4 py-2 border text-lg font-medium rounded ${
-                                        handlingCost === option
-                                          ? 'bg-blue text-white'
-                                          : 'bg-gray'
-                                      }`}
-                                      onClick={() => setHandlingCost(option)}
-                                    >
-                                      {option}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                              {handlingCost === 'Yes' && (
-                                <>
-                                  <div className="w-full mb-4">
-                                    <label className="block font-medium text-lg mb-2">
-                                      Description
-                                    </label>
-                                    <input
-                                      type="text"
-                                      className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                      {...register('action.description')}
-                                      placeholder="Description"
-                                    />
-                                  </div>
-                                  <div className="flex gap-3 my-4">
-                                    <div className="w-full">
-                                      <label className="block font-medium text-lg mb-2">
-                                        Amount
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                        {...register('action.price')}
-                                        placeholder="Enter price"
-                                      />
-                                    </div>
-                                    <div className="w-full">
-                                      <label className="block font-medium text-lg mb-2">
-                                        Quantity
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        className="w-full px-4 py-2 border border-gray rounded outline-none text-lg"
-                                        {...register('action.quantity')}
-                                        placeholder="Quantity"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <label className="block font-medium text-lg mb-2">
-                                      Action Date
-                                    </label>
-                                    <ReactDatePicker
-                                      control={control}
-                                      name="action.actionDate"
-                                      rules={{ required: 'Date is required' }}
-                                      placeholderText="Select date"
-                                    />
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            <div className="w-full flex gap-5">
-                              {invoicePerVolume && (
-                                <>
-                                  <p className="font-bold text-xl mb-2">
-                                    Volume based billing -
-                                  </p>
-                                  <p className="font-bold text-lg mb-2">
-                                    Allowed
-                                  </p>
-                                </>
-                              )}
-                            </div>
-                          </div>
+                          ))}
                         </div>
-                      </>
-                    )}
+                      </div>
 
-                    <Box className="flex justify-between mt-6 mb-5">
-                      <Button
-                        variant="outlined"
-                        disabled={activeStep === 0}
-                        onClick={handleBack}
-                        size="large"
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        disabled={storageData.cubicMeter < totalVolume}
-                        size="large"
-                        onClick={
-                          activeStep === steps.length - 1
-                            ? handleSubmit(onSubmit)
-                            : handleNext
-                        }
-                      >
-                        {activeStep === steps.length - 1 ? 'Submit' : 'Next'}
-                      </Button>
-                    </Box>
-                  </form>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                          Billing Schedule
+                        </label>
+                        <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                          {['In advance', 'Afterwards'].map((option) => (
+                            <button
+                              type="button"
+                              key={option}
+                              className={`py-2 text-xs font-bold rounded-xl transition-all ${
+                                storageOption === option
+                                  ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/80'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                              onClick={() => setStorageOption(option)}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                          VAT % <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          {...register('vatPercentage', { required: 'VAT is required' })}
+                        >
+                          <option value="">Select VAT</option>
+                          <option value="0">0%</option>
+                          <option value="9">9%</option>
+                          <option value="21">21%</option>
+                        </select>
+                        {errors.vatPercentage && <p className="text-red-500 text-xs mt-1">{errors.vatPercentage.message}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                          Price per {invoicePeriod} <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          {...register('price', { required: 'Price is required' })}
+                          placeholder="e.g. 150"
+                        />
+                        {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                          Sales Group
+                        </label>
+                        <select
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          {...register('salesGroup')}
+                        >
+                          <option value="">Select Sales Group</option>
+                          {salesGroupOption && salesGroupOption.map((item: any) => (
+                            <option key={item._id} value={item.name}>{item.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                          Job
+                        </label>
+                        <select
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          {...register('storedForProject')}
+                        >
+                          <option value="">Select Job</option>
+                          {jobs && jobs.map((item: any) => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                          Start Date <span className="text-red-500">*</span>
+                        </label>
+                        <ReactDatePicker
+                          control={control}
+                          name="invoicingStartDate"
+                          rules={{ required: 'Start date is required' }}
+                          placeholderText="Select Start date"
+                        />
+                        {errors.invoicingStartDate && <p className="text-red-500 text-xs mt-1">{errors.invoicingStartDate.message}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                          Last Invoiced Date
+                        </label>
+                        <ReactDatePicker
+                          control={control}
+                          name="lastInvoicedDate"
+                          minDate={invoicingStartDate}
+                          placeholderText="Select Last date"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </div>
-            </Box>
-          </Modal>
-        </LocalizationProvider>
-      </div>
+
+                {activeStep === 2 && (
+                  <div className="space-y-5 py-2">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Inventory Items to Load</h4>
+                        <p className="text-xs text-slate-500">Total volume filled: <span className="font-bold text-indigo-600">{totalVolume} m³</span> of {storageData?.cubicMeter} m³</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          append({
+                            description: '',
+                            itemCode: '',
+                            externalCode: '',
+                            contents: '',
+                            storageLocation: storageData?.storageLocation?._id || '',
+                            loadedOn: '',
+                            ReleasedOn: '',
+                            loadedByEmployee: '',
+                            ReleasedByEmployee: null,
+                            loadedByCustomer: false,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                      >
+                        <MdAdd className="w-4 h-4" />
+                        <span>Add Row</span>
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                            <th className="p-3 text-left">Description</th>
+                            <th className="p-3 text-left">Item Code</th>
+                            <th className="p-3 text-left">Ext Code</th>
+                            <th className="p-3 text-left">Vol (m³)</th>
+                            <th className="p-3 text-left">Loaded On</th>
+                            <th className="p-3 text-left">Handler</th>
+                            <th className="p-3 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {fields.map((field: any, index: any) => (
+                            <tr key={field.id} className="hover:bg-slate-50/50">
+                              <td className="p-2">
+                                <input
+                                  type="text"
+                                  placeholder="Item name/description"
+                                  {...register(`rows.${index}.description`, {
+                                    required: 'Required',
+                                  })}
+                                  className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <input
+                                  type="text"
+                                  placeholder="Code"
+                                  {...register(`rows.${index}.itemCode`)}
+                                  className="w-24 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <input
+                                  type="text"
+                                  placeholder="Ext Code"
+                                  {...register(`rows.${index}.externalCode`)}
+                                  className="w-24 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  placeholder="0"
+                                  {...register(`rows.${index}.contents`)}
+                                  className="w-20 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <ReactDatePicker
+                                  control={control}
+                                  name={`rows.${index}.loadedOn`}
+                                  placeholderText="Date"
+                                />
+                              </td>
+                              <td className="p-2">
+                                <select
+                                  {...register(`rows.${index}.loadedByEmployee`)}
+                                  className="w-32 px-2 py-1.5 border border-slate-300 rounded-lg text-xs"
+                                >
+                                  <option value="">Select Employee</option>
+                                  {data && data.map((item: any) => (
+                                    <option key={item.value} value={item.value}>{item.label}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="p-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => remove(index)}
+                                  className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete row"
+                                >
+                                  <MdDeleteOutline className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Notes
+                      </label>
+                      <input
+                        type="text"
+                        className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                        {...register('notes')}
+                        placeholder="Additional notes about this loading..."
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-6">
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    disabled={activeStep === 0}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-40"
+                  >
+                    Back
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+
+                    {activeStep < 2 ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveStep((prev) => prev + 1)}
+                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+                      >
+                        Next Step
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+                      >
+                        Submit & Load Storage
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </form>
+            </div>
+          </Box>
+        </Modal>
+      </LocalizationProvider>
     </>
   );
 };
