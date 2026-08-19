@@ -174,13 +174,13 @@ const EditwithJob = ({ open, onClose, data }) => {
                             <div className="space-x-2">
                                 <button
                                     type='button'
-                                    className={`px-4 py-2 rounded-md border focus:outline-none ${priceAgree === 'accepted_job'
+                                    className={`px-4 py-2 rounded-md border focus:outline-none ${priceAgree === 'fixed_price'
                                         ? 'bg-blue text-white border-blue-500'
                                         : 'bg-white text-gray-700 border-gray'
                                         }`}
-                                    onClick={() => setPriceAgree('accepted_job')}
+                                    onClick={() => setPriceAgree('fixed_price')}
                                 >
-                                    Accepted Job
+                                    Fixed Price
                                 </button>
                                 <button
                                     type='button'

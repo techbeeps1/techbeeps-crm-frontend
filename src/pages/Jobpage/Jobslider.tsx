@@ -27,8 +27,6 @@ import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { DeleteForever } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
@@ -66,8 +64,9 @@ const notifyError = (message: string) =>
 
 const Jobslider: React.FC<JobsliderProps> = ({
   job,
-  onClose = () => {},
-  Ondelete = () => {},
+  onClose = () => { },
+  handler = () => { },
+  Ondelete = () => { },
 }) => {
   const [tabIndex, setTabIndex] = useState(0);
   const [isNotesModalShow, setIsNotesModalShow] = useState(false);
@@ -232,7 +231,10 @@ const Jobslider: React.FC<JobsliderProps> = ({
       </div>
     );
   }
-
+  const formatHours = (value: any) => {
+    const parsed = parseFloat(value);
+    return !isNaN(parsed) ? parsed.toFixed(2) : "0.00";
+  };
   const tabsConfig = [
     { label: 'Description', icon: <InfoOutlinedIcon fontSize="small" /> },
     { label: 'Offers', icon: <LocalOfferOutlinedIcon fontSize="small" /> },
@@ -241,7 +243,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
     { label: 'Documents', icon: <FolderOutlinedIcon fontSize="small" /> },
     { label: 'Communication', icon: <ForumOutlinedIcon fontSize="small" /> },
     { label: 'Email', icon: <EmailOutlinedIcon fontSize="small" /> },
-    { label: 'Taken', icon: <TaskAltOutlinedIcon fontSize="small" /> },
+    { label: 'Task', icon: <TaskAltOutlinedIcon fontSize="small" /> },
     { label: 'Activity', icon: <HistoryOutlinedIcon fontSize="small" /> },
   ];
 
@@ -262,11 +264,10 @@ const Jobslider: React.FC<JobsliderProps> = ({
           </div>
           <div className="mt-1.5 flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${
-                (job?.status || '').toLowerCase() === 'execution'
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                  : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
-              }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${(job?.status || '').toLowerCase() === 'execution'
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
               {job?.status || 'PENDING'}
@@ -397,7 +398,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
             <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 shadow-xs space-y-5">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-strokedark">
                 <LocalShippingIcon className="text-primary" fontSize="small" />
-                <span>Relocation Metrics & Rates Breakdown</span>
+                <span>Package: {job?.package?.name || job?.package?.name || 'Fixed Full Service'} </span>
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -455,37 +456,37 @@ const Jobslider: React.FC<JobsliderProps> = ({
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Total Hours</span>
                       <span className="font-extrabold text-slate-900 dark:text-white">
-                        {relocation.relocation?.requiredHours ?? relocation.hours?.hours ?? 0} hrs
+                        {formatHours(relocation.relocation?.requiredHours) ?? formatHours(relocation.hours?.hours) ?? 0} hrs
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Travel Time</span>
                       <span className="font-extrabold text-slate-900 dark:text-white">
-                        {relocation.relocation?.travelTime ?? relocation.hours?.travelTime ?? 0} hrs
+                        {formatHours(relocation.relocation?.travelTime) ?? formatHours(relocation.hours?.travelTime) ?? 0} hrs
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Assembling</span>
                       <span className="font-extrabold text-slate-900 dark:text-white">
-                        {relocation.assembling?.requiredHours ?? relocation.hours?.assemblingHours ?? 0} hrs
+                        {formatHours(relocation.assembling?.requiredHours) ?? formatHours(relocation.hours?.assemblingHours) ?? 0} hrs
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Disassembly</span>
                       <span className="font-extrabold text-slate-900 dark:text-white">
-                        {relocation.disassembling?.requiredHours ?? relocation.hours?.disassemblyHours ?? 0} hrs
+                        {formatHours(relocation.disassembling?.requiredHours) ?? formatHours(relocation.hours?.disassemblyHours) ?? 0} hrs
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Packing</span>
                       <span className="font-extrabold text-slate-900 dark:text-white">
-                        {relocation.packing?.requiredHours ?? relocation.hours?.packingHours ?? 0} hrs
+                        {formatHours(relocation.packing?.requiredHours) ?? formatHours(relocation.hours?.packingHours) ?? 0} hrs
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Unpacking</span>
                       <span className="font-extrabold text-slate-900 dark:text-white">
-                        {relocation.unpacking?.requiredHours ?? relocation.hours?.unpackingHours ?? 0} hrs
+                        {formatHours(relocation.unpacking?.requiredHours) ?? formatHours(relocation.hours?.unpackingHours) ?? 0} hrs
                       </span>
                     </div>
                   </div>
@@ -552,23 +553,21 @@ const Jobslider: React.FC<JobsliderProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
                 { ...job?.load, type: 'Load / Origin', isLoad: true },
-                { ...job?.unload, type: 'Unload / Destination', isLoad: false },
+                ...(job?.unload ? [{ ...job?.unload, type: 'Unload / Destination', isLoad: false }] : [])
               ].map((item: any, index: number) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-2xl border ${
-                    item.isLoad
-                      ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/40'
-                      : 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40'
-                  } space-y-3 text-xs`}
+                  className={`p-4 rounded-2xl border ${item.isLoad
+                    ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/80 dark:border-blue-900/40'
+                    : 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40'
+                    } space-y-3 text-xs`}
                 >
                   <div className="flex items-center justify-between">
                     <span
-                      className={`font-black uppercase tracking-wider text-xs ${
-                        item.isLoad
-                          ? 'text-blue-700 dark:text-blue-300'
-                          : 'text-emerald-700 dark:text-emerald-300'
-                      }`}
+                      className={`font-black uppercase tracking-wider text-xs ${item.isLoad
+                        ? 'text-blue-700 dark:text-blue-300'
+                        : 'text-emerald-700 dark:text-emerald-300'
+                        }`}
                     >
                       {item.type}
                     </span>
@@ -801,7 +800,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
       {/* Tab 2: Financial */}
       {tabIndex === 2 && (
         <div className="space-y-6">
-          <FinanceModule data={job.package} />
+          <FinanceModule data={job?.package} job={job} onSuccess={handler} />
           <JobOffermodule type="invoice" job={job} />
         </div>
       )}
@@ -1006,7 +1005,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
         </div>
       )}
 
-      {/* Tab 7: Taken / Tasks */}
+      {/* Tab 7: task / Tasks */}
       {tabIndex === 7 && (
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <TaskPage jobId={job._id} />

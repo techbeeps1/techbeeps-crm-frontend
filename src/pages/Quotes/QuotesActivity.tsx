@@ -6,9 +6,9 @@ import {
   DialogActions,
   IconButton,
 } from '@mui/material';
-import { 
-  Email as EmailIcon, 
-  CheckCircle as CheckCircleIcon, 
+import {
+  Email as EmailIcon,
+  CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Timeline as TimelineIcon,
   FilterList as FilterListIcon,
@@ -58,7 +58,7 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
     }
     try {
       const response = await axios.get(`${apiPath}/api/activities?offer=${invoiceData?._id}`);
-      setActivities(response.data || []);
+      setActivities(response.data.toReversed() || []);
     } catch (error: any) {
       notifyError(`Error: ${error.message || error}`);
       setActivities([]);
@@ -84,7 +84,7 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "N/A";
-    
+
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       year: "numeric",
@@ -118,18 +118,20 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
 
     if (activity.email || status.includes('email') || title.includes('email')) {
       return {
-        icon: <EmailIcon style={{ fontSize: 18 }} />,
+        icon: <CheckCircleIcon style={{ fontSize: 18 }} />,
         iconBg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
-        badge: 'Email Event',
-        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
+
+        badge: 'Success',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
       };
+
     }
     if (status.includes('success') || status.includes('accept') || title.includes('accepted') || title.includes('sent')) {
       return {
-        icon: <CheckCircleIcon style={{ fontSize: 18 }} />,
+        icon: <EmailIcon style={{ fontSize: 18 }} />,
         iconBg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800',
-        badge: 'Success',
-        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300'
+        badge: 'Sending ',
+        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300'
       };
     }
     if (status.includes('error') || status.includes('warn') || status.includes('reject')) {
@@ -168,31 +170,28 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
         <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
           <button
             onClick={() => setFilterType('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterType === 'all'
-                ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === 'all'
+              ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
           >
             All ({activities.length})
           </button>
           <button
             onClick={() => setFilterType('emails')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterType === 'emails'
-                ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === 'emails'
+              ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
           >
             Emails
           </button>
           <button
             onClick={() => setFilterType('updates')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterType === 'updates'
-                ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === 'updates'
+              ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
           >
             Updates
           </button>

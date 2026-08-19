@@ -17,8 +17,8 @@ const PriceAgree: React.FC<any> = ({ setPackageData, setAppendedItems }) => {
 
     useEffect(() => {
 
-        console.log("priceAgreement",priceAgreement)
-        console.log("selectedPackage",selectedPackage)
+        console.log("priceAgreement", priceAgreement)
+        console.log("selectedPackage", selectedPackage)
         const fetchPackages = async () => {
             if (priceAgreement) {
                 try {
@@ -64,10 +64,10 @@ const PriceAgree: React.FC<any> = ({ setPackageData, setAppendedItems }) => {
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        field.onChange("accepted_job");
+                                        field.onChange("fixed_price");
                                         setValue("package", ""); // Reset package on change
                                     }}
-                                    className={`w-full py-2 px-4 text-lg font-medium shadow ${field.value === "accepted_job"
+                                    className={`w-full py-2 px-4 text-lg font-medium shadow ${field.value === "fixed_price"
                                         ? "bg-blue text-white"
                                         : "bg-white hover:bg-gray"
                                         }`}

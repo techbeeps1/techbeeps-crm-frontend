@@ -36,11 +36,11 @@ const NewPackjob = ({ open, onClose }) => {
             alert('Package name must be between 2 and 55 characters');
             return;
         }
-        if(packageData?.invoice?.discountDescription.trim()===''){
-alert('Please enter a discount description for the invoice');
-return;
+        if (packageData?.invoice?.discountDescription.trim() === '') {
+            alert('Please enter a discount description for the invoice');
+            return;
         }
-         if(packageData?.invoice?.discountDescription.length < 5 || packageData?.invoice?.discountDescription.length > 100){
+        if (packageData?.invoice?.discountDescription.length < 5 || packageData?.invoice?.discountDescription.length > 100) {
             alert('Discount description must be between 5 and 100 characters');
             return;
         }
@@ -160,13 +160,13 @@ return;
                             <div className="space-x-2">
                                 <button
                                     type='button'
-                                    className={`px-4 py-2 rounded-md border focus:outline-none ${priceAgree === 'accepted_job'
+                                    className={`px-4 py-2 rounded-md border focus:outline-none ${priceAgree === 'fixed_price'
                                         ? 'bg-blue text-white border-blue-500'
                                         : 'bg-white text-gray-700 border-gray'
                                         }`}
-                                    onClick={() => setPriceAgree('accepted_job')}
+                                    onClick={() => setPriceAgree('fixed_price')}
                                 >
-                                    Accepted Job
+                                    Fixed Price
                                 </button>
                                 <button
                                     type='button'

@@ -21,6 +21,7 @@ import {
   UnfoldMore as UnfoldMoreIcon,
   Delete as DeleteIcon,
   RemoveRedEye as RemoveRedEyeIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { UserContext } from '../../UserContext';
@@ -65,6 +66,8 @@ const TaskPage = ({ jobId }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
 
+  const [currentJobData, setCurrentJobData] = useState(null);
+
   const notify = (message) =>
     toast.success(message, {
       autoClose: 2000,
@@ -83,6 +86,57 @@ const TaskPage = ({ jobId }) => {
     reset,
     formState: { errors },
   } = useForm();
+
+  // Fetch job information when jobId prop is present
+  const fetchCurrentJob = async () => {
+    if (!jobId) return;
+    try {
+      const response = await axios.get(`${apiPath}/api/jobs/${jobId}`);
+      const jobObj = response.data?.job || response.data;
+      if (jobObj) {
+        setCurrentJobData(jobObj);
+
+        // Preload customer into list
+        if (jobObj.customer) {
+          const cId = jobObj.customer._id || jobObj.customer;
+          const cLabel =
+            typeof jobObj.customer === 'object'
+              ? `${jobObj.customer.firstName || ''} ${jobObj.customer.lastName || ''} (${jobObj.customer.email || ''})`.trim()
+              : 'Customer';
+
+          setCustomer((prev) => {
+            if (!prev.some((c) => c.value === cId)) {
+              return [{ label: cLabel, value: cId }, ...prev];
+            }
+            return prev;
+          });
+        }
+
+        // Preload job into list
+        const jId = jobObj._id || jobId;
+        const jCustomerName =
+          typeof jobObj.customer === 'object'
+            ? `${jobObj.customer.firstName || ''} ${jobObj.customer.lastName || ''}`.trim()
+            : '';
+        const jLabel = `${jCustomerName} (#${jobObj.index || jId})`.trim();
+
+        setjobs((prev) => {
+          if (!prev.some((j) => j.value === jId)) {
+            return [{ label: jLabel, value: jId }, ...prev];
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch job details for task:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (jobId) {
+      fetchCurrentJob();
+    }
+  }, [jobId]);
 
   const handleAlltask = async () => {
     setLoading(true);
@@ -130,6 +184,18 @@ const TaskPage = ({ jobId }) => {
   };
 
   const openEditModal = () => {
+    const custId =
+      currentJobData?.customer?._id ||
+      (typeof currentJobData?.customer === 'string' ? currentJobData.customer : '');
+
+    reset({
+      summary: '',
+      description: '',
+      scheduledFor: new Date().toISOString().split('T')[0],
+      customer: jobId ? (custId || '') : '',
+      job: jobId || '',
+      teamMembers: [],
+    });
     setEditModalOpen(true);
   };
 
@@ -137,6 +203,19 @@ const TaskPage = ({ jobId }) => {
     setEditModalOpen(false);
     reset();
   };
+
+  // Synchronize customer and job values when modal opens in job-specific mode
+  useEffect(() => {
+    if (isEditModalOpen && jobId) {
+      setValue('job', jobId);
+      const custId =
+        currentJobData?.customer?._id ||
+        (typeof currentJobData?.customer === 'string' ? currentJobData.customer : '');
+      if (custId) {
+        setValue('customer', custId);
+      }
+    }
+  }, [isEditModalOpen, jobId, currentJobData, setValue]);
 
   const onSubmit = async (formData) => {
     setLoading(true);
@@ -150,12 +229,33 @@ const TaskPage = ({ jobId }) => {
       setLoading(false);
       return;
     }
+
+    if (formData.scheduledFor) {
+      const selectedDate = new Date(formData.scheduledFor);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        notifyError('Schedule date cannot be in the past');
+        setLoading(false);
+        return;
+      }
+    }
+
+    const custId =
+      currentJobData?.customer?._id ||
+      (typeof currentJobData?.customer === 'string' ? currentJobData.customer : '');
+
+    const payload = {
+      ...formData,
+      ...(jobId ? { job: jobId, ...(custId ? { customer: custId } : {}) } : {}),
+    };
+
     try {
-      let response = await axios.post(`${apiPath}/api/task`, formData);
+      let response = await axios.post(`${apiPath}/api/task`, payload);
       notify('Task created successfully');
       if (response.status === 201) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          formData?.teamMembers?.forEach((item) => {
+          payload?.teamMembers?.forEach((item) => {
             const messageData = {
               recipient: item,
               sender: id,
@@ -694,29 +794,64 @@ const TaskPage = ({ jobId }) => {
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                     Schedule Date
                   </label>
-                  <DatePickerComponent control={control} name="scheduledFor" />
+                  <DatePickerComponent
+                    control={control}
+                    name="scheduledFor"
+                    minDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Customer Link
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Customer Link
+                    </label>
+                    {jobId && (
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                        <LockIcon style={{ fontSize: 11 }} />
+                        <span>Auto-Linked from Job</span>
+                      </span>
+                    )}
+                  </div>
                   <Controller
                     name="customer"
                     control={control}
                     render={({ field }) => (
                       <Autocomplete
+                        disabled={!!jobId}
                         options={customer}
-                        getOptionLabel={(option) => option.label || ''}
-                        isOptionEqualToValue={(option, val) => option.value === val}
+                        getOptionLabel={(option) =>
+                          typeof option === 'string' ? option : option?.label || ''
+                        }
+                        value={
+                          customer.find((c) => c.value === field.value) ||
+                          (field.value && currentJobData?.customer
+                            ? {
+                                label:
+                                  typeof currentJobData.customer === 'object'
+                                    ? `${currentJobData.customer.firstName || ''} ${currentJobData.customer.lastName || ''} (${currentJobData.customer.email || ''})`.trim()
+                                    : 'Linked Customer',
+                                value: field.value,
+                              }
+                            : null)
+                        }
+                        isOptionEqualToValue={(option, val) =>
+                          option?.value === (val?.value || val)
+                        }
                         onChange={(_, data) => field.onChange(data ? data.value : '')}
                         renderInput={(params) => (
                           <TextField
                             {...params}
-                            placeholder="Select customer..."
+                            placeholder={jobId ? 'Customer auto-selected' : 'Select customer...'}
                             size="small"
                             variant="outlined"
-                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '12px' } }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                backgroundColor: jobId ? 'rgba(241, 245, 249, 0.7)' : undefined,
+                              },
+                            }}
                           />
                         )}
                       />
@@ -737,8 +872,8 @@ const TaskPage = ({ jobId }) => {
                       <Autocomplete
                         multiple
                         options={roles}
-                        getOptionLabel={(option) => option.label || ''}
-                        isOptionEqualToValue={(option, val) => option.value === val}
+                        getOptionLabel={(option) => option?.label || ''}
+                        isOptionEqualToValue={(option, val) => option?.value === (val?.value || val)}
                         onChange={(_, data) => field.onChange(data.map((item) => item.value))}
                         renderInput={(params) => (
                           <TextField
@@ -755,25 +890,56 @@ const TaskPage = ({ jobId }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Linked Job
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Linked Job
+                    </label>
+                    {jobId && (
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                        <LockIcon style={{ fontSize: 11 }} />
+                        <span>Fixed for this Job</span>
+                      </span>
+                    )}
+                  </div>
                   <Controller
                     name="job"
                     control={control}
                     render={({ field }) => (
                       <Autocomplete
+                        disabled={!!jobId}
                         options={jobs}
-                        getOptionLabel={(option) => option.label || ''}
-                        isOptionEqualToValue={(option, val) => option.value === val}
+                        getOptionLabel={(option) =>
+                          typeof option === 'string' ? option : option?.label || ''
+                        }
+                        value={
+                          jobs.find((j) => j.value === field.value) ||
+                          (field.value || jobId
+                            ? {
+                                label:
+                                  currentJobData?.index
+                                    ? `Job #${currentJobData.index}`
+                                    : `Job #${String(field.value || jobId).slice(-6)}`,
+                                value: field.value || jobId,
+                              }
+                            : null)
+                        }
+                        isOptionEqualToValue={(option, val) =>
+                          option?.value === (val?.value || val)
+                        }
                         onChange={(_, data) => field.onChange(data ? data.value : '')}
                         renderInput={(params) => (
                           <TextField
                             {...params}
-                            placeholder="Select job..."
+                            placeholder={jobId ? 'Current Job' : 'Select job...'}
                             size="small"
                             variant="outlined"
-                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '12px' } }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                backgroundColor: jobId ? 'rgba(241, 245, 249, 0.7)' : undefined,
+                              },
+                            }}
                           />
                         )}
                       />

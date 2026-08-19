@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import moment from 'moment';
@@ -10,27 +10,28 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-
+  IconButton,
   Avatar,
-  Stack,
-  Divider,
   Box,
-
 } from '@mui/material';
 
-import EventIcon from '@mui/icons-material/Event';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import PersonIcon from '@mui/icons-material/Person';
-import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
-import NotesIcon from '@mui/icons-material/Notes';
+import {
+  Event as EventIcon,
+  AccessTime as AccessTimeIcon,
+  LocationOn as LocationOnIcon,
+  Person as PersonIcon,
+  DirectionsCar as DirectionsCarIcon,
+  Notes as NotesIcon,
+  Close as CloseIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Search as SearchIcon,
+  PeopleAlt as PeopleAltIcon,
+  WorkOutline as WorkOutlineIcon,
+  CalendarMonth as CalendarMonthIcon,
+} from '@mui/icons-material';
 
 import { apiPath } from '../../apiPath';
-import {  CloseSharp } from '@mui/icons-material';
 
 const localizer = momentLocalizer(moment);
 
@@ -44,39 +45,95 @@ interface AppointmentEvent {
   start: Date;
   end: Date;
   title: string;
+  employees: number;
   appointment: any;
 }
+
+// Google Calendar style color map
+const typeColors: Record<string, { bg: string; text: string; border: string; lightBg: string }> = {
+  unloading: { bg: '#1a73e8', text: '#ffffff', border: '#1557b0', lightBg: '#e8f0fe' },
+  packing: { bg: '#28a745ff', text: '#ffffff', border: '#23a553ff', lightBg: '#e8f0fe' },
+  move: { bg: '#1a73e8', text: '#ffffff', border: '#1557b0', lightBg: '#e8f0fe' },
+  valuation: { bg: '#ffc107ff', text: '#ffffff', border: '#f3c813ff', lightBg: '#e6f4ea' },
+  survey: { bg: '#9334e6', text: '#ffffff', border: '#7b1fa2', lightBg: '#f3e8fd' },
+  loading: { bg: '#01c2e6ff', text: '#ffffff', border: '#01a5ccff', lightBg: '#e1f5fe' },
+  default: { bg: '#ffc107ff', text: '#ffffff', border: '#ffc107ff', lightBg: '#e1f5fe' },
+};
+
+const getEventColor = (typeString: string) => {
+  const key = (typeString || '').toLowerCase().trim();
+  for (const k of Object.keys(typeColors)) {
+    if (key.includes(k)) return typeColors[k];
+  }
+  return typeColors.default;
+};
 
 export default function TaskPlanningCalendar({
   dayLayoutAlgorithm = 'no-overlap',
 }: Props) {
   const [events, setEvents] = useState<AppointmentEvent[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [currentView, setCurrentView] = useState<string>(Views.DAY);
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const fetchAppointments = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${apiPath}/api/appointment`);
+      const list = res.data.data || res.data || [];
+
+      setEvents(
+        list.map((item: any) => ({
+          start: new Date(item.startTime || item.date),
+          end: new Date(item.endTime || item.date),
+          title: item.appointmentType || 'Appointment',
+          employees: item.assignedEmployees?.length || 0,
+          appointment: item,
+        }))
+      );
+    } catch (e) {
+      console.error('Error fetching appointments:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchAppointments();
   }, []);
 
-  const fetchAppointments = async () => {
-    try {
-      const res = await axios.get(
-        `${apiPath}/api/appointment?jobId=6a6c61ccf8b1372865280281`,
+  // Filtered Events
+  const filteredEvents = useMemo(() => {
+    return events.filter((ev) => {
+      const titleMatch = ev.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const locationMatch = (ev.appointment?.departureLocation || '')
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const empMatch = (ev.appointment?.assignedEmployees || []).some((emp: any) =>
+        (emp?.employeeName || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
-      const list = res.data.data || res.data;
 
-      setEvents(
-        list.map((item: any) => ({
-          start: new Date(item.startTime),
-          end: new Date(item.endTime),
-          title: `${item.appointmentType}`,
-          employees: item.assignedEmployees.length,
-          appointment: item,
-        })),
-      );
-    } catch (e) {
-      console.error(e);
-    }
-  };
+      const matchesSearch = !searchTerm || titleMatch || locationMatch || empMatch;
+
+      const matchesType =
+        typeFilter === 'all' ||
+        ev.title.toLowerCase().includes(typeFilter.toLowerCase());
+
+      return matchesSearch && matchesType;
+    });
+  }, [events, searchTerm, typeFilter]);
+
+  // Unique Appointment Types
+  const availableTypes = useMemo(() => {
+    const types = new Set<string>();
+    events.forEach((ev) => {
+      if (ev.title) types.add(ev.title);
+    });
+    return Array.from(types);
+  }, [events]);
 
   const handleSelectEvent = useCallback((event: AppointmentEvent) => {
     setSelectedAppointment(event.appointment);
@@ -87,230 +144,554 @@ export default function TaskPlanningCalendar({
       defaultDate: new Date(),
       scrollToTime: new Date(1970, 1, 1, 8),
     }),
-    [],
+    []
   );
-  const colors = [
-    '#2b72e3',
-    '#10B981',
-    '#F59E0B',
-    '#e74c4c',
-    '#8B5CF6',
-    '#fb69b2',
-    '#06B6D4',
-  ];
 
-  const getColor = (text: string) => {
-    let hash = 0;
-
-    for (let i = 0; i < text.length; i++) {
-      hash = text.charCodeAt(i) + ((hash << 5) - hash);
-    }
-
-    return colors[Math.abs(hash) % colors.length];
+  const eventStyleGetter = (event: AppointmentEvent) => {
+    const colorScheme = getEventColor(event.title);
+    return {
+      style: {
+        backgroundColor: colorScheme.bg,
+        borderColor: colorScheme.border,
+        color: '#ffffff',
+        borderRadius: '8px',
+        padding: '0px',
+        border: 'none',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+      },
+    };
   };
 
-  const eventStyleGetter = (event: any) => ({
-    style: {
-      backgroundColor: getColor(event.title),
-      color: '#fff',
-      border: 'none',
-      borderRadius: '8px',
-      minHeight: '35px',
-     
-    },
-  });
-  const CustomEvent = ({ event }: any) => (
-    <div className="flex flex-col gap-1 bg-[#fafafa2a] text-white rounded-lg p-2 h-full overflow-y-auto [&::-webkit-scrollbar]:w-1
-  [&::-webkit-scrollbar-track]:bg-gray-100
-  [&::-webkit-scrollbar-thumb]:bg-gray-200
-  dark:[&::-webkit-scrollbar-track]:bg-neutral-300
-  dark:[&::-webkit-scrollbar-thumb]:bg-neutral-200">
-      <strong ><EventIcon fontSize="small" /> {event.title}</strong>
-      <span className="my-2">
-        <AccessTimeIcon fontSize="small" /> {format(event.start, 'hh:mm a')} - {format(event.end, 'hh:mm a')}
-      </span>
- 
-    {event?.appointment?.assignedEmployees?.map((emp:any)=> emp?.vehicle?.name ? <span className="my-2">   <DirectionsCarIcon fontSize="small" /> {emp?.vehicle?.name}  {emp?.vehicle?.licensePlate}</span>:"")}
-      
-      <span > <PersonIcon /> {event.employees} Employees
-      </span>
-    </div>
-  );
+  // Google-Calendar Custom Day/Week Event View
+  const CustomEvent = ({ event }: any) => {
+    const colorScheme = getEventColor(event.title);
+    return (
+      <div
+        className="flex flex-col justify-between h-full p-2 text-white overflow-hidden text-xs rounded-lg transition-all select-none"
+        style={{
+          backgroundColor: colorScheme.bg,
+        }}
+      >
+        <div>
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <span className="font-black text-xs tracking-tight truncate flex items-center gap-1">
+              <EventIcon style={{ fontSize: 13 }} />
+              {event.title}
+            </span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/20 whitespace-nowrap">
+              {format(event.start, 'HH:mm')} - {format(event.end, 'HH:mm')}
+            </span>
+          </div>
 
-  const MonthEvent = ({ event }: any) => (
-    <div className="flex flex-col gap-1 bg-[#fafafa2a] text-white rounded-lg p-[2px] h-full ps-4">
-      <strong>{event.title}</strong>
-    </div>
-  );
+          {event.appointment?.departureLocation && (
+            <div className="text-[11px] opacity-90 truncate flex items-center gap-1">
+              <LocationOnIcon style={{ fontSize: 12 }} />
+              <span className="truncate">{event.appointment.departureLocation}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-1 mt-1 pt-1 border-t border-white/20 text-[10px]">
+          <span className="flex items-center gap-0.5 font-bold">
+            <PersonIcon style={{ fontSize: 12 }} />
+            <span>{event.employees} Staff</span>
+          </span>
+
+          {event?.appointment?.assignedEmployees?.some((e: any) => e?.vehicle?.name) && (
+            <span className="flex items-center gap-0.5 opacity-90">
+              <DirectionsCarIcon style={{ fontSize: 12 }} />
+              <span className="truncate max-w-[80px]">
+                {
+                  event.appointment.assignedEmployees.find(
+                    (e: any) => e?.vehicle?.name
+                  )?.vehicle?.name
+                }
+              </span>
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Google-Calendar Custom Month Event View
+  const MonthEvent = ({ event }: any) => {
+    const colorScheme = getEventColor(event.title);
+    return (
+      <div
+        className="flex items-center justify-between px-2 py-0.5 rounded-md text-[11px] font-bold text-white shadow-2xs truncate my-0.5"
+        style={{ backgroundColor: colorScheme.bg }}
+      >
+        <div className="flex items-center gap-1 truncate">
+          <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+          <span className="font-mono text-[10px] opacity-90">
+            {format(event.start, 'HH:mm')}
+          </span>
+          <span className="truncate">{event.title}</span>
+        </div>
+        {event.employees > 0 && (
+          <span className="text-[9px] opacity-80 shrink-0 ml-1">
+            ({event.employees})
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  // Google-Calendar Custom Toolbar Header Component
+  const CustomToolbar = (toolbar: any) => {
+    const goToBack = () => {
+      toolbar.onNavigate('PREV');
+    };
+    const goToNext = () => {
+      toolbar.onNavigate('NEXT');
+    };
+    const goToToday = () => {
+      toolbar.onNavigate('TODAY');
+    };
+
+    return (
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 bg-white dark:bg-boxdark p-4 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs">
+        {/* Left: Navigation, Today, and Date Title */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={goToToday}
+            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs active:scale-95"
+          >
+            Today
+          </button>
+
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+            <IconButton
+              size="small"
+              onClick={goToBack}
+              className="text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-boxdark rounded-lg"
+              title="Previous"
+            >
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={goToNext}
+              className="text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-boxdark rounded-lg"
+              title="Next"
+            >
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <CalendarMonthIcon className="text-primary hidden sm:block" fontSize="small" />
+            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
+              {toolbar.label}
+            </h2>
+          </div>
+        </div>
+
+        {/* Right: Search Filter & View Switcher */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Quick Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search appointments..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-40 sm:w-52 pl-8 pr-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-strokedark bg-slate-50 dark:bg-slate-800/40 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <SearchIcon
+              fontSize="small"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+              style={{ fontSize: 15 }}
+            />
+          </div>
+
+          {/* View Toggle Segment (Google Calendar Style) */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+            {[
+              { id: 'month', label: 'Month' },
+
+              { id: 'day', label: 'Day' },
+              { id: 'agenda', label: 'Agenda' },
+            ].map((v) => {
+              const isSelected = toolbar.view === v.id;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => {
+                    toolbar.onView(v.id);
+                    setCurrentView(v.id);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${isSelected
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                  {v.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <>
-      <Box sx={{ p: 2, bgcolor: '#f5f7fb', height: 'calc(100vh - 90px)' }}>
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          titleAccessor="title"
-          defaultView={Views.DAY}
-          defaultDate={defaultDate}
-          scrollToTime={scrollToTime}
-          dayLayoutAlgorithm={dayLayoutAlgorithm}
-          selectable
-          popup
-        
-          style={{
-            height: '100%',
-            background: '#fff',
-            borderRadius: 12,
-            padding: 10,
-          }}
-          views={{ day: true, month: true }}
-          onSelectEvent={handleSelectEvent}
-          eventPropGetter={eventStyleGetter}
-          components={{
-            day: {
-              event: CustomEvent,
-            },
-            month: {
-              event: MonthEvent,
-            },
-          }}
-        />
-      </Box>
+    <div className="min-h-screen bg-slate-50/50 dark:bg-boxdark-2 text-slate-800 dark:text-slate-100 p-4 md:p-6 font-sans flex flex-col">
+      {/* Category Pills Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-1">
+        <button
+          onClick={() => setTypeFilter('all')}
+          className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${typeFilter === 'all'
+            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
+            : 'bg-white dark:bg-boxdark text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-strokedark hover:bg-slate-100'
+            }`}
+        >
+          All ({events.length})
+        </button>
 
+        {availableTypes.map((type) => {
+          const colorScheme = getEventColor(type);
+          const isSelected = typeFilter === type;
+          const count = events.filter((e) => e.title === type).length;
+          return (
+            <button
+              key={type}
+              onClick={() => setTypeFilter(type)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap border ${isSelected
+                ? 'shadow-xs text-white'
+                : 'bg-white dark:bg-boxdark text-slate-700 dark:text-slate-300 border-slate-200 dark:border-strokedark hover:bg-slate-50'
+                }`}
+              style={{
+                backgroundColor: isSelected ? colorScheme.bg : undefined,
+                borderColor: isSelected ? colorScheme.border : undefined,
+              }}
+            >
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: colorScheme.bg }}
+              />
+              <span>{type}</span>
+              <span className="opacity-75 text-[10px]">({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Main Calendar Card with Google Calendar Styling */}
+      <div className="flex-grow bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 md:p-6 shadow-xs flex flex-col">
+        <div className="flex-grow google-calendar-wrapper h-[76vh]">
+          <Calendar
+            localizer={localizer}
+            events={filteredEvents}
+            startAccessor="start"
+            endAccessor="end"
+            titleAccessor="title"
+            defaultView={Views.DAY}
+            view={currentView}
+            onView={(view: any) => setCurrentView(view)}
+            date={currentDate}
+            onNavigate={(newDate) => setCurrentDate(newDate)}
+            defaultDate={defaultDate}
+            scrollToTime={scrollToTime}
+            dayLayoutAlgorithm={dayLayoutAlgorithm}
+            selectable
+            popup
+            views={{ month: true, day: true, agenda: true }}
+            onSelectEvent={handleSelectEvent}
+            eventPropGetter={eventStyleGetter}
+            components={{
+              toolbar: CustomToolbar,
+              day: {
+                event: CustomEvent,
+              },
+              month: {
+                event: MonthEvent,
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Google Calendar-Style Event Details Dialog */}
       <Dialog
         open={Boolean(selectedAppointment)}
         onClose={() => setSelectedAppointment(null)}
-        maxWidth="md"
+        maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 4 } }}
+        PaperProps={{
+          sx: {
+            borderRadius: '1.25rem',
+            overflow: 'hidden',
+          },
+        }}
       >
         {selectedAppointment && (
-          <>
-            <DialogTitle sx={{ bgcolor: '#2563eb', color: '#fff' }}>
-              <Stack direction="row" justifyContent="space-between">
-                <Box sx={{ py: 1 }}>
-                  <Typography variant="h5" fontWeight={500}>
-                    {'Appointment'}
-                  </Typography>
-                </Box>
+          <div className="bg-white dark:bg-boxdark text-slate-800 dark:text-slate-100">
+            {/* Header with Type Color Banner */}
+            <div
+              className="p-5 text-white flex items-center justify-between relative"
+              style={{
+                backgroundColor: getEventColor(
+                  selectedAppointment.appointmentType
+                ).bg,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs">
+                  <EventIcon />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/80 block">
+                    Appointment Details
+                  </span>
+                  <h3 className="text-lg font-black text-white">
+                    {selectedAppointment.appointmentType || 'Appointment'}
+                  </h3>
+                </div>
+              </div>
 
-                <CloseSharp
+              <IconButton
+                onClick={() => setSelectedAppointment(null)}
+                size="small"
+                className="text-white hover:bg-white/20"
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </div>
+
+            {/* Dialog Body */}
+            <div className="p-6 space-y-5">
+              {/* Quick Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <CalendarMonthIcon style={{ fontSize: 16 }} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Date
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-white">
+                      {moment(selectedAppointment.date || selectedAppointment.startTime).format(
+                        'DD MMMM YYYY'
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                    <AccessTimeIcon style={{ fontSize: 16 }} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Time Window
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-white font-mono">
+                      {moment(selectedAppointment.startTime).format('hh:mm A')} -{' '}
+                      {moment(selectedAppointment.endTime).format('hh:mm A')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Card */}
+              {selectedAppointment.departureLocation && (
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center mt-0.5">
+                    <LocationOnIcon style={{ fontSize: 16 }} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Departure Location
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-white">
+                      {selectedAppointment.departureLocation}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Assigned Staff & Vehicles Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-strokedark">
+                  <PeopleAltIcon fontSize="small" className="text-primary" />
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                    Assigned Staff ({selectedAppointment.assignedEmployees?.length || 0})
+                  </h4>
+                </div>
+
+                {selectedAppointment.assignedEmployees?.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No staff assigned to this appointment.</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {selectedAppointment.assignedEmployees?.map((emp: any, idx: number) => (
+                      <div
+                        key={emp._id || idx}
+                        className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Avatar
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              bgcolor: '#1a73e8',
+                            }}
+                          >
+                            {emp.employeeName?.[0] || 'E'}
+                          </Avatar>
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white block">
+                              {emp.employeeName}
+                            </span>
+                            <span className="text-[11px] text-slate-400 capitalize">
+                              {emp.workType || 'Crew Member'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 block">
+                            {moment(emp.startTime).format('hh:mm A')} →{' '}
+                            {moment(emp.endTime).format('hh:mm A')}
+                          </span>
+                          {emp?.vehicle?.name && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-primary font-bold">
+                              <DirectionsCarIcon style={{ fontSize: 12 }} />
+                              <span>
+                                {emp.vehicle.name} ({emp.vehicle.licensePlate})
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Notes & Job Details */}
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark space-y-1">
+                <div className="flex items-center gap-1.5 text-slate-500 mb-1">
+                  <NotesIcon style={{ fontSize: 15 }} />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">
+                    Notes & Remarks
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                  {selectedAppointment.notes || 'No specific notes recorded for this appointment.'}
+                </p>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
                   onClick={() => setSelectedAppointment(null)}
-                  className="mt-2 cursor-pointer transition-all duration-300 hover:rotate-90 hover:scale-110"
-                />
-              </Stack>
-            </DialogTitle>
-
-            <DialogContent sx={{ bgcolor: '#f8fafc', py: 3 }}>
-              <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} md={3}>
-                  <Card>
-                    <CardContent
-                      sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                    >
-                      <EventIcon color="primary" />
-
-                      <Typography fontWeight={400}>
-                        {moment(selectedAppointment.date).format('DD MMM YYYY')}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <Card>
-                    <CardContent
-                      sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                    >
-                      <AccessTimeIcon color="primary" />
-
-                      <Typography fontWeight={400}>
-                        {moment(selectedAppointment.startTime).format(
-                          'hh:mm A',
-                        )}{' '}
-                        -{' '}
-                        {moment(selectedAppointment.endTime).format('hh:mm A')}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                <Grid item xs={12} md={5}>
-                  <Card>
-                    <CardContent
-                      sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                    >
-                      <LocationOnIcon color="primary" />
-
-                      <Typography fontWeight={400}>
-                        {selectedAppointment.departureLocation}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-
-              <Typography variant="h6" mt={4} mb={2}>
-                Assigned Employees
-              </Typography>
-
-              {selectedAppointment.assignedEmployees?.map((emp: any) => (
-                <Card key={emp._id} sx={{ mb: 2, borderRadius: 3 }}>
-                  <CardContent>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Avatar>
-                        <PersonIcon />
-                      </Avatar>
-                      <Box flex={1}>
-                        <Typography fontWeight={700}>
-                          {emp.employeeName}
-                        </Typography>
-                        <Typography color="text.secondary">
-                          {emp.workType}
-                        </Typography>
-                      </Box>
-                      <Box flex={1}>
-                        <Typography>
-                          {' '}
-                          <AccessTimeIcon color="primary" />{' '}
-                          {moment(emp.startTime).format('hh:mm A')} →{' '}
-                          {moment(emp.endTime).format('hh:mm A')}
-                        </Typography>
-                        { emp?.vehicle?.name && (
-                        <Stack direction="row" spacing={1} mt={1}>
-                          <DirectionsCarIcon fontSize="small" />
-                          <Typography variant="body2">{emp?.vehicle?.name} {emp?.vehicle?.licensePlate}</Typography>
-                        </Stack>
-                        )}
-                      </Box>
-                      <Divider sx={{ my: 1 }} />
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-
-              <Card sx={{ borderRadius: 3 }}>
-                <CardContent>
-                  <Typography variant="h6">Job Details</Typography>
-                  <Typography>
-                    <b>Type:</b> {selectedAppointment.appointmentType}
-                  </Typography>
-                 
-                  <Stack direction="row" spacing={1} mt={2}>
-                    <NotesIcon />
-                    <Typography>
-                      {selectedAppointment.notes || 'No notes available.'}
-                    </Typography>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </DialogContent>
-          </>
+                  className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </Dialog>
-    </>
+
+      {/* Embedded Google Calendar Custom CSS Overrides */}
+      <style>{`
+        .google-calendar-wrapper .rbc-calendar {
+          font-family: inherit;
+          border: none;
+        }
+        .google-calendar-wrapper .rbc-header {
+          padding: 8px 4px;
+          font-weight: 800;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #5f6368;
+          border-bottom: 1px solid #dadce0 !important;
+        }
+        .google-calendar-wrapper .rbc-month-view,
+        .google-calendar-wrapper .rbc-time-view {
+          border: 1px solid #dadce0;
+          border-radius: 1rem;
+          overflow: hidden;
+          background-color: #ffffff;
+        }
+        .google-calendar-wrapper .rbc-day-bg + .rbc-day-bg {
+          border-left: 1px solid #f1f3f4;
+        }
+        .google-calendar-wrapper .rbc-month-row + .rbc-month-row {
+          border-top: 1px solid #f1f3f4;
+        }
+        .google-calendar-wrapper .rbc-today {
+          background-color: #f8fafd !important;
+        }
+        .google-calendar-wrapper .rbc-now .rbc-button-link {
+          background-color: #1a73e8;
+          color: #ffffff !important;
+          border-radius: 50%;
+          width: 22px;
+          height: 22px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .google-calendar-wrapper .rbc-time-header {
+          border-bottom: 1px solid #dadce0;
+        }
+        .google-calendar-wrapper .rbc-time-content {
+          border-top: none;
+        }
+        .google-calendar-wrapper .rbc-time-slot {
+          font-size: 11px;
+          color: #70757a;
+          font-weight: 500;
+        }
+        .google-calendar-wrapper .rbc-timeslot-group {
+          border-bottom: 1px solid #f1f3f4;
+          min-height: 52px;
+        }
+        .google-calendar-wrapper .rbc-day-slot .rbc-time-slot {
+          border-top: 1px solid #f8f9fa;
+        }
+        .google-calendar-wrapper .rbc-event {
+          padding: 0 !important;
+          border: none !important;
+          border-radius: 8px !important;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15), 0 1px 2px rgba(60, 64, 67, 0.1);
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .google-calendar-wrapper .rbc-event:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(60, 64, 67, 0.2);
+          z-index: 10;
+        }
+        .google-calendar-wrapper .rbc-current-time-indicator {
+          background-color: #ea4335;
+          height: 2px;
+        }
+        .google-calendar-wrapper .rbc-current-time-indicator::before {
+          content: '';
+          position: absolute;
+          left: -5px;
+          top: -4px;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background-color: #ea4335;
+        }
+      `}</style>
+    </div>
   );
 }
 

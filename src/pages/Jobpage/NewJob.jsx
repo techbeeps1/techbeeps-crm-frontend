@@ -125,77 +125,77 @@ const NewJob = ({ handler }) => {
     JobHandler(data);
   };
 
- const JobHandler = async (jobData) => {
-  setLoading(true);
+  const JobHandler = async (jobData) => {
+    setLoading(true);
 
-  try {
-    let customerId = '';
+    try {
+      let customerId = '';
 
-    if (jobData.customer === '') {
-      try {
-        const customerResponse = await axios.post(
-          `${apiPath}/customer/customeradd`,
-          jobData.client
-        );
-
-        customerId = customerResponse.data.customerID;
-      } catch (error) {
-        if (error.response?.status === 400) {
-          toast.error(
-            error.response?.data?.error || 'Customer email already exists'
+      if (jobData.customer === '') {
+        try {
+          const customerResponse = await axios.post(
+            `${apiPath}/customer/customeradd`,
+            jobData.client
           );
-          return; // stop further execution
+
+          customerId = customerResponse.data.customerID;
+        } catch (error) {
+          if (error.response?.status === 400) {
+            toast.error(
+              error.response?.data?.error || 'Customer email already exists'
+            );
+            return; // stop further execution
+          }
+
+          throw error;
         }
-
-        throw error;
+      } else {
+        customerId = jobData.customer;
       }
-    } else {
-      customerId = jobData.customer;
+
+      const jobScheduleData = {
+        date: jobData.date,
+        customer: customerId,
+        package: jobData.package,
+        hasElevator,
+        unloadElevator,
+        load: jobData.load,
+        unload: jobData.knownAddress ? {} : jobData.unload,
+        knownAddress: jobData.knownAddress,
+      };
+
+      const jobResponse = await axios.post(
+        `${apiPath}/api/jobSchedule`,
+        jobScheduleData
+      );
+
+      toast.success('Job created successfully');
+
+      const jobId = jobResponse.data._id;
+
+      createAppointment(jobId, valuation);
+      createAppointment(jobId, appointData);
+
+      setData([]);
+      setSelectedEmployee('');
+      setSelectedDate(null);
+
+      handleClose();
+      handler();
+
+    } catch (error) {
+      console.error(error);
+
+      toast.error(
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Something went wrong'
+      );
+    } finally {
+      setLoading(false);
     }
-
-    const jobScheduleData = {
-      date: jobData.date,
-      customer: customerId,
-      package: jobData.package,
-      hasElevator,
-      unloadElevator,
-      load: jobData.load,
-      unload: jobData.knownAddress ? {} : jobData.unload,
-      knownAddress: jobData.knownAddress,
-    };
-
-    const jobResponse = await axios.post(
-      `${apiPath}/api/jobSchedule`,
-      jobScheduleData
-    );
-
-    toast.success('Job created successfully');
-
-    const jobId = jobResponse.data._id;
-
-    createAppointment(jobId, valuation);
-    createAppointment(jobId, appointData);
-
-    setData([]);
-    setSelectedEmployee('');
-    setSelectedDate(null);
-
-    handleClose();
-    handler();
-
-  } catch (error) {
-    console.error(error);
-
-    toast.error(
-      error.response?.data?.error ||
-      error.response?.data?.message ||
-      error.message ||
-      'Something went wrong'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const createAppointment = async (jobId, appointData) => {
     if (appointData) {
@@ -288,58 +288,170 @@ const NewJob = ({ handler }) => {
           <span>New Job</span>
         </button>
       </div>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <Modal open={open} onClose={handleClose}>
-            <Box
-              className="bg-white p-8 rounded-lg shadow-lg mx-auto relative overflow-y-auto"
-              style={{ maxHeight: '100vh' }}
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Modal open={open} onClose={handleClose}>
+          <Box
+            className="bg-white p-8 rounded-lg shadow-lg mx-auto relative overflow-y-auto"
+            style={{ maxHeight: '100vh' }}
+          >
+            <IconButton
+              onClick={handleClose}
+              className="absolute top-0 right-2 text-gray hover:text-black"
             >
-              <IconButton
-                onClick={handleClose}
-                className="absolute top-0 right-2 text-gray hover:text-black"
+              <CloseIcon />
+            </IconButton>
+            <div className="flex gap-8 ">
+              <Typography variant="h5" component="h2" className="pt-2">
+                Relocation
+              </Typography>
+              <Tabs
+                value={activeStep}
+                className="mb-4"
+                onChange={(e, val) => setActiveStep(val)}
+                variant="standard"
               >
-                <CloseIcon />
-              </IconButton>
-              <div className="flex gap-8 ">
-                <Typography variant="h5" component="h2" className="pt-2">
-                  Relocation
-                </Typography>
-                <Tabs
-                  value={activeStep}
-                  className="mb-4"
-                  onChange={(e, val) => setActiveStep(val)}
-                  variant="standard"
-                >
-                  {steps.map((step, index) => (
-                    <Tab
-                      label={step.label}
-                      key={index}
-                      className="text-lg font-medium"
-                      disabled={index > activeStep}
-                    />
-                  ))}
-                </Tabs>
-              </div>
+                {steps.map((step, index) => (
+                  <Tab
+                    label={step.label}
+                    key={index}
+                    className="text-lg font-medium"
+                    disabled={index > activeStep}
+                  />
+                ))}
+              </Tabs>
+            </div>
 
-              <div>
-                {loading ? (
-                  <p
-                    style={{
-                      minHeight: '70vh',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    }}
-                  >
-                    loading...
-                  </p>
-                ) : (
-                  <form onSubmit={handleSubmit(onSubmit)}>
-                    {/* Form Fields */}
-                    {activeStep === 0 && (
+            <div>
+              {loading ? (
+                <p
+                  style={{
+                    minHeight: '70vh',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  loading...
+                </p>
+              ) : (
+                <form onSubmit={handleSubmit(onSubmit)}>
+                  {/* Form Fields */}
+                  {activeStep === 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-100">
+                      {/* Date Picker Section */}
+                      <Box className="bg-white p-4 rounded-lg shadow-md h-[65vh] overflow-y-scroll">
+                        {errors.date && (
+                          <span className="text-red">
+                            {errors.date.message}
+                          </span>
+                        )}{' '}
+                        {/* Display error message */}
+                        <Controller
+                          name="date"
+                          rules={{ required: 'Date is required' }} // Validation rule
+                          control={control}
+                          defaultValue={selectedDate}
+                          render={({ field }) => (
+                            <StaticDatePicker
+                              {...field}
+                              onChange={(date) => {
+                                setSelectedDate(date);
+                                field.onChange(date);
+                              }}
+                              value={selectedDate}
+                              minDate={new Date()}
+                            />
+                          )}
+                        />
+                      </Box>
+
+                      {/* Employee Select Section */}
+                      <Box className="bg-white p-4 rounded-lg shadow-md h-[65vh] overflow-y-scroll">
+                        <FormControl fullWidth variant="standard">
+                          <InputLabel>Select Employee</InputLabel>
+                          <Select
+                            value={selectedEmployee}
+                            label="Select Employee"
+                            onChange={handleEmployeeChange}
+                            sx={{
+                              borderBottom: '1px solid', // Only bottom border
+                              borderColor: 'primary.main', // Change color as needed
+                            }}
+                          >
+                            {data &&
+                              data.map((employee, index) => (
+                                <MenuItem key={index} value={employee.value}>
+                                  <Box className="flex items-center">
+                                    <Avatar className="bg-gray-500 mr-2">
+                                      {employee.label[0]}
+                                    </Avatar>
+                                    <Box>
+                                      <Typography variant="body1">
+                                        {employee.label}
+                                      </Typography>
+                                      <Typography
+                                        variant="body2"
+                                        color="textSecondary"
+                                      >
+                                        Variable hours
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+                                </MenuItem>
+                              ))}
+                          </Select>
+                        </FormControl>
+                        <Box>
+                          {data &&
+                            data.map((item, index) => (
+                              <div
+                                key={index}
+                                className="flex my-4"
+                                onClick={() =>
+                                  setSelectedEmployee(item.value)
+                                }
+                              >
+                                <Avatar className="bg-gray mr-2">
+                                  {item.label[0]}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="body1">
+                                    {item.label}
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color="textSecondary"
+                                  >
+                                    Variable hours
+                                  </Typography>
+                                </Box>
+                              </div>
+                            ))}
+                        </Box>
+                      </Box>
+                      {/* Available Times Section */}
+                      <Box className="bg-white p-4 rounded-lg shadow-md h-[65vh] overflow-y-scroll">
+                        <Typography
+                          variant="h6"
+                          className="mb-4 text-gray-600"
+                        >
+                          Available Times
+                        </Typography>
+                        <TimeSlots
+                          selectedDate={selectedDate}
+                          Data={setValuation}
+                          availableTimes={availableTimes}
+                        />
+                      </Box>
+                    </div>
+                  )}
+                  {activeStep === 1 && (
+                    <>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-100">
                         {/* Date Picker Section */}
-                        <Box className="bg-white p-4 rounded-lg shadow-md h-[65vh] overflow-y-scroll">
+                        <Box
+                          className="bg-white p-4 rounded-lg shadow-md min-h-[400px] md:min-h-[500px] lg:h-[65vh] overflow-y-auto"
+                        >
                           {errors.date && (
                             <span className="text-red">
                               {errors.date.message}
@@ -360,488 +472,376 @@ const NewJob = ({ handler }) => {
                                 }}
                                 value={selectedDate}
                                 minDate={new Date()}
+                                className="w-full max-w-xs md:max-w-sm lg:max-w-md"
                               />
                             )}
                           />
-                        </Box>
-
-                        {/* Employee Select Section */}
-                        <Box className="bg-white p-4 rounded-lg shadow-md h-[65vh] overflow-y-scroll">
-                          <FormControl fullWidth variant="standard">
-                            <InputLabel>Select Employee</InputLabel>
-                            <Select
-                              value={selectedEmployee}
-                              label="Select Employee"
-                              onChange={handleEmployeeChange}
-                              sx={{
-                                borderBottom: '1px solid', // Only bottom border
-                                borderColor: 'primary.main', // Change color as needed
-                              }}
+                          <Box mt={4}>
+                            <Typography
+                              variant="subtitle1"
+                              color="textSecondary"
                             >
-                              {data &&
-                                data.map((employee, index) => (
-                                  <MenuItem key={index} value={employee.value}>
-                                    <Box className="flex items-center">
-                                      <Avatar className="bg-gray-500 mr-2">
-                                        {employee.label[0]}
-                                      </Avatar>
-                                      <Box>
-                                        <Typography variant="body1">
-                                          {employee.label}
-                                        </Typography>
-                                        <Typography
-                                          variant="body2"
-                                          color="textSecondary"
-                                        >
-                                          Variable hours
-                                        </Typography>
-                                      </Box>
-                                    </Box>
-                                  </MenuItem>
-                                ))}
-                            </Select>
-                          </FormControl>
-                          <Box>
-                            {data &&
-                              data.map((item, index) => (
-                                <div
-                                  key={index}
-                                  className="flex my-4"
-                                  onClick={() =>
-                                    setSelectedEmployee(item.value)
-                                  }
-                                >
-                                  <Avatar className="bg-gray mr-2">
-                                    {item.label[0]}
-                                  </Avatar>
-                                  <Box>
-                                    <Typography variant="body1">
-                                      {item.label}
-                                    </Typography>
-                                    <Typography
-                                      variant="body2"
-                                      color="textSecondary"
-                                    >
-                                      Variable hours
-                                    </Typography>
-                                  </Box>
-                                </div>
-                              ))}
-                          </Box>
-                        </Box>
-                        {/* Available Times Section */}
-                        <Box className="bg-white p-4 rounded-lg shadow-md h-[65vh] overflow-y-scroll">
-                          <Typography
-                            variant="h6"
-                            className="mb-4 text-gray-600"
-                          >
-                            Available Times
-                          </Typography>
-                          <TimeSlots
-                            selectedDate={selectedDate}
-                            Data={setValuation}
-                            availableTimes={availableTimes}
-                          />
-                        </Box>
-                      </div>
-                    )}
-                    {activeStep === 1 && (
-                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-100">
-                          {/* Date Picker Section */}
-                          <Box
-                            className="bg-white p-4 rounded-lg shadow-md min-h-[400px] md:min-h-[500px] lg:h-[65vh] overflow-y-auto"
-                          >
-                            {errors.date && (
-                              <span className="text-red">
-                                {errors.date.message}
-                              </span>
-                            )}{' '}
-                            {/* Display error message */}
-                            <Controller
-                              name="date"
-                              rules={{ required: 'Date is required' }} // Validation rule
-                              control={control}
-                              defaultValue={selectedDate}
-                              render={({ field }) => (
-                                <StaticDatePicker
-                                  {...field}
-                                  onChange={(date) => {
-                                    setSelectedDate(date);
-                                    field.onChange(date);
-                                  }}
-                                  value={selectedDate}
-                                  minDate={new Date()}
-                                  className="w-full max-w-xs md:max-w-sm lg:max-w-md"
-                                />
-                              )}
-                            />
-                            <Box mt={4}>
-                              <Typography
-                                variant="subtitle1"
-                                color="textSecondary"
-                              >
-                                Show availability based on
-                              </Typography>
-                              <Box display="flex" gap={2} mt={1}>
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={showPeople}
-                                      onChange={() =>
-                                        setShowPeople(!showPeople)
-                                      }
-                                    />
-                                  }
-                                  label="People"
-                                />
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={showAutos}
-                                      onChange={() => setShowAutos(!showAutos)}
-                                    />
-                                  }
-                                  label="Auto's"
-                                />
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={showLifts}
-                                      onChange={() => setShowLifts(!showLifts)}
-                                    />
-                                  }
-                                  label="Lifts"
-                                />
-                              </Box>
+                              Show availability based on
+                            </Typography>
+                            <Box display="flex" gap={2} mt={1}>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={showPeople}
+                                    onChange={() =>
+                                      setShowPeople(!showPeople)
+                                    }
+                                  />
+                                }
+                                label="People"
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={showAutos}
+                                    onChange={() => setShowAutos(!showAutos)}
+                                  />
+                                }
+                                label="Auto's"
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={showLifts}
+                                    onChange={() => setShowLifts(!showLifts)}
+                                  />
+                                }
+                                label="Lifts"
+                              />
                             </Box>
                           </Box>
-                          <Box
-                            className="md:col-span-2 bg-white p-4 rounded-lg shadow-md min-h-[400px] md:min-h-[500px] lg:h-[65vh] overflow-y-auto"
-                          >
-                            <div className="grid grid-cols-12 gap-4 text-center">
-                              <Box className="border-r border-gray-300 col-span-12 md:col-span-8">
-                                <Typography
-                                  variant="h6"
-                                  className="mb-4 text-gray-600"
-                                >
-                                  People
-                                </Typography>
-                                <Box className="flex flex-wrap justify-center gap-2">
-                                  {data &&
-                                    data.map((item, index) => (
-                                      <div
-                                        key={index}
-                                        className="flex my-2"
-                                        onClick={() =>
-                                          setSelectedEmployee(item.value)
-                                        }
-                                      >
-                                        <Tooltip
-                                          title={`Details: ${item.label}`}
-                                          arrow
-                                        >
-                                          <Avatar
-                                            style={{
-                                              textTransform: 'uppercase',
-                                              border: '4px solid green',
-                                            }}
-                                            className="p-5 mr-2"
-                                          >
-                                            {item.label[0]}
-                                          </Avatar>
-                                        </Tooltip>
-                                      </div>
-                                    ))}
-                                </Box>
-                              </Box>
-
-                              <Box className="border-r border-gray-300 col-span-6 md:col-span-2">
-                                <Typography
-                                  variant="h6"
-                                  className="mb-4 text-gray-600"
-                                >
-                                  Auto's
-                                </Typography>
-                                <Box className="lg:flex justify-center gap-2">
-                                  <div className="flex my-2">
-                                    <Avatar
-                                      style={{
-                                        textTransform: 'uppercase',
-                                        border: '4px solid green',
-                                      }}
-                                      className="p-5 mr-2"
-                                    >
-                                      12
-                                    </Avatar>
-                                  </div>
-                                  <div className="flex my-2">
-                                    <Avatar
-                                      style={{
-                                        textTransform: 'uppercase',
-                                        border: '4px solid green',
-                                      }}
-                                      className="p-5 mr-2"
-                                    >
-                                      16
-                                    </Avatar>
-                                  </div>
-                                </Box>
-                              </Box>
-                              <Box className="col-span-6 md:col-span-2">
-                                <Typography
-                                  variant="h6"
-                                  className="mb-4 text-gray-600"
-                                >
-                                  Lift's
-                                </Typography>
-                                <Box className="flex">
-                                  <div className="flex my-2">
-                                    <Avatar
-                                      style={{
-                                        textTransform: 'uppercase',
-                                        border: '4px solid green',
-                                      }}
-                                      className="p-5 mr-2"
-                                    >
-                                      M
-                                    </Avatar>
-                                  </div>
-                                </Box>
-                              </Box>
-                            </div>
-                            <div className="flex flex-col">
+                        </Box>
+                        <Box
+                          className="md:col-span-2 bg-white p-4 rounded-lg shadow-md min-h-[400px] md:min-h-[500px] lg:h-[65vh] overflow-y-auto"
+                        >
+                          <div className="grid grid-cols-12 gap-4 text-center">
+                            <Box className="border-r border-gray-300 col-span-12 md:col-span-8">
                               <Typography
                                 variant="h6"
                                 className="mb-4 text-gray-600"
                               >
-                                Available Times
+                                People
                               </Typography>
-                              <TimeSlots
-                                selectedDate={selectedDate}
-                                Data={setAppointData}
-                                availableTimes={availableTimes}
-                              />
-                            </div>
-                          </Box>
-                        </div>
-                      </>
-                    )}
+                              <Box className="flex flex-wrap justify-center gap-2">
+                                {data &&
+                                  data.map((item, index) => (
+                                    <div
+                                      key={index}
+                                      className="flex my-2"
+                                      onClick={() =>
+                                        setSelectedEmployee(item.value)
+                                      }
+                                    >
+                                      <Tooltip
+                                        title={`Details: ${item.label}`}
+                                        arrow
+                                      >
+                                        <Avatar
+                                          style={{
+                                            textTransform: 'uppercase',
+                                            border: '4px solid green',
+                                          }}
+                                          className="p-5 mr-2"
+                                        >
+                                          {item.label[0]}
+                                        </Avatar>
+                                      </Tooltip>
+                                    </div>
+                                  ))}
+                              </Box>
+                            </Box>
 
-                    {activeStep === 2 && (
-                      <>
-                        <div
-                          className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5"
-                          style={{ minHeight: '70vh' }}
+                            <Box className="border-r border-gray-300 col-span-6 md:col-span-2">
+                              <Typography
+                                variant="h6"
+                                className="mb-4 text-gray-600"
+                              >
+                                Auto's
+                              </Typography>
+                              <Box className="lg:flex justify-center gap-2">
+                                <div className="flex my-2">
+                                  <Avatar
+                                    style={{
+                                      textTransform: 'uppercase',
+                                      border: '4px solid green',
+                                    }}
+                                    className="p-5 mr-2"
+                                  >
+                                    12
+                                  </Avatar>
+                                </div>
+                                <div className="flex my-2">
+                                  <Avatar
+                                    style={{
+                                      textTransform: 'uppercase',
+                                      border: '4px solid green',
+                                    }}
+                                    className="p-5 mr-2"
+                                  >
+                                    16
+                                  </Avatar>
+                                </div>
+                              </Box>
+                            </Box>
+                            <Box className="col-span-6 md:col-span-2">
+                              <Typography
+                                variant="h6"
+                                className="mb-4 text-gray-600"
+                              >
+                                Lift's
+                              </Typography>
+                              <Box className="flex">
+                                <div className="flex my-2">
+                                  <Avatar
+                                    style={{
+                                      textTransform: 'uppercase',
+                                      border: '4px solid green',
+                                    }}
+                                    className="p-5 mr-2"
+                                  >
+                                    M
+                                  </Avatar>
+                                </div>
+                              </Box>
+                            </Box>
+                          </div>
+                          <div className="flex flex-col">
+                            <Typography
+                              variant="h6"
+                              className="mb-4 text-gray-600"
+                            >
+                              Available Times
+                            </Typography>
+                            <TimeSlots
+                              selectedDate={selectedDate}
+                              Data={setAppointData}
+                              availableTimes={availableTimes}
+                            />
+                          </div>
+                        </Box>
+                      </div>
+                    </>
+                  )}
+
+                  {activeStep === 2 && (
+                    <>
+                      <div
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5"
+                        style={{ minHeight: '70vh' }}
+                      >
+                        <LoadSection
+                          unloadElevator={unloadElevator}
+                          setUnloadElevator={setUnloadElevator}
+                          countries={countries}
+                          hasElevator={hasElevator}
+                          setHasElevator={setHasElevator}
+                          register={register}
+                          errors={errors}
+                          Controller={Controller}
+                          control={control}
+                        />
+                      </div>
+                    </>
+                  )}
+                  {activeStep === 3 && (
+                    <>
+                      <div
+                        style={{
+                          maxWidth: '600px',
+                          margin: 'auto',
+                          minHeight: '70vh',
+                        }}
+                      >
+                        <FormControl
+                          component="fieldset"
+                          style={{ marginBottom: '16px' }}
                         >
-                          <LoadSection
-                            unloadElevator={unloadElevator}
-                            setUnloadElevator={setUnloadElevator}
-                            countries={countries}
-                            hasElevator={hasElevator}
-                            setHasElevator={setHasElevator}
+                          <RadioGroup
+                            row
+                            value={customerType}
+                            onChange={handleCustomerTypeChange}
+                          >
+                            <FormControlLabel
+                              value="new"
+                              control={<Radio />}
+                              label="New customer"
+                            />
+                            <FormControlLabel
+                              value="existing"
+                              control={<Radio />}
+                              label="Existing customer"
+                            />
+                          </RadioGroup>
+                        </FormControl>
+                        {customerType === 'new' && (
+                          <CustomerForm
                             register={register}
                             errors={errors}
-                            Controller={Controller}
                             control={control}
+                            countries={countries}
                           />
-                        </div>
-                      </>
-                    )}
-                    {activeStep === 3 && (
-                      <>
-                        <div
-                          style={{
-                            maxWidth: '600px',
-                            margin: 'auto',
-                            minHeight: '70vh',
-                          }}
-                        >
-                          <FormControl
-                            component="fieldset"
-                            style={{ marginBottom: '16px' }}
-                          >
-                            <RadioGroup
-                              row
-                              value={customerType}
-                              onChange={handleCustomerTypeChange}
-                            >
-                              <FormControlLabel
-                                value="new"
-                                control={<Radio />}
-                                label="New customer"
-                              />
-                              <FormControlLabel
-                                value="existing"
-                                control={<Radio />}
-                                label="Existing customer"
-                              />
-                            </RadioGroup>
-                          </FormControl>
-                          {customerType === 'new' && (
-                            <CustomerForm
-                              register={register}
-                              errors={errors}
-                              control={control}
-                              countries={countries}
-                            />
-                          )}
-                          {customerType === 'existing' && (
-                            <FormControl
-                              fullWidth
-                              variant="standard"
-                              className="w-1/2"
-                            >
-                              <InputLabel>Select Customer</InputLabel>
-                              <Controller
-                                name="customer" // Name for the form field
-                                control={control}
-                                defaultValue="" // Set a default value to prevent undefined
-                                rules={{ required: 'Customer is required' }} // Validation rule
-                                render={({ field }) => (
-                                  <Select
-                                    {...field}
-                                    value={field.value || ''} // Ensure value is never undefined
-                                    label="Select Customer"
-                                  >
-                                    {customer &&
-                                      customer.map((item, index) => (
-                                        <MenuItem key={index} value={item._id}>
-                                          <Box className="flex items-center">
-                                            <Avatar className="bg-gray-500 mr-2"></Avatar>
-                                            <Box>
-                                              <Typography variant="body1">{`${item.firstName} ${item.lastName}`}</Typography>
-                                              <Typography
-                                                variant="body2"
-                                                color="textSecondary"
-                                              >
-                                                {item.email}
-                                              </Typography>
-                                            </Box>
-                                          </Box>
-                                        </MenuItem>
-                                      ))}
-                                  </Select>
-                                )}
-                              />
-                              {errors.customer && (
-                                <span className="text-red">
-                                  {errors.customer.message}
-                                </span>
-                              )}{' '}
-                              {/* Display error message */}
-                            </FormControl>
-                          )}
-                        </div>
-                      </>
-                    )}
-                    {activeStep === 4 && (
-                      <>
-                        <div
-                          style={{
-                            maxWidth: '600px',
-                            margin: 'auto',
-                            minHeight: '70vh',
-                          }}
-                        >
-                          <div style={{ marginBottom: '1rem' }}>
-                            <InputLabel className="mb-5">
-                              Price agreement
-                            </InputLabel>
-                            <ButtonGroup variant="outlined" fullWidth>
-                              <Button
-                                variant={
-                                  priceAgreement === 'accepted_job'
-                                    ? 'contained'
-                                    : 'outlined'
-                                }
-                                onClick={() =>
-                                  handlePriceAgreementChange('accepted_job')
-                                }
-                              >
-                                Accepted job
-                              </Button>
-                              <Button
-                                variant={
-                                  priceAgreement === 'onhourly_basis'
-                                    ? 'contained'
-                                    : 'outlined'
-                                }
-                                onClick={() =>
-                                  handlePriceAgreementChange('onhourly_basis')
-                                }
-                              >
-                                On an hourly basis
-                              </Button>
-                            </ButtonGroup>
-                          </div>
-
+                        )}
+                        {customerType === 'existing' && (
                           <FormControl
                             fullWidth
                             variant="standard"
                             className="w-1/2"
                           >
-                            <InputLabel>Select Package</InputLabel>
+                            <InputLabel>Select Customer</InputLabel>
                             <Controller
-                              name="package" // Name for the form field
+                              name="customer" // Name for the form field
                               control={control}
                               defaultValue="" // Set a default value to prevent undefined
-                              rules={{ required: 'Package is required' }} // Validation rule
+                              rules={{ required: 'Customer is required' }} // Validation rule
                               render={({ field }) => (
                                 <Select
                                   {...field}
                                   value={field.value || ''} // Ensure value is never undefined
-                                  label="Select Package"
-                                  disabled={priceAgreement === null}
+                                  label="Select Customer"
                                 >
-                                  {packageList &&
-                                    packageList.map((item, index) => (
+                                  {customer &&
+                                    customer.map((item, index) => (
                                       <MenuItem key={index} value={item._id}>
-                                        {item.name}
+                                        <Box className="flex items-center">
+                                          <Avatar className="bg-gray-500 mr-2"></Avatar>
+                                          <Box>
+                                            <Typography variant="body1">{`${item.firstName} ${item.lastName}`}</Typography>
+                                            <Typography
+                                              variant="body2"
+                                              color="textSecondary"
+                                            >
+                                              {item.email}
+                                            </Typography>
+                                          </Box>
+                                        </Box>
                                       </MenuItem>
                                     ))}
                                 </Select>
                               )}
                             />
-                            {errors.package && (
+                            {errors.customer && (
                               <span className="text-red">
-                                {errors.package.message}
+                                {errors.customer.message}
                               </span>
                             )}{' '}
                             {/* Display error message */}
                           </FormControl>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {activeStep === 4 && (
+                    <>
+                      <div
+                        style={{
+                          maxWidth: '600px',
+                          margin: 'auto',
+                          minHeight: '70vh',
+                        }}
+                      >
+                        <div style={{ marginBottom: '1rem' }}>
+                          <InputLabel className="mb-5">
+                            Price agreement
+                          </InputLabel>
+                          <ButtonGroup variant="outlined" fullWidth>
+                            <Button
+                              variant={
+                                priceAgreement === 'fixed_price'
+                                  ? 'contained'
+                                  : 'outlined'
+                              }
+                              onClick={() =>
+                                handlePriceAgreementChange('fixed_price')
+                              }
+                            >
+                              Fixed Price
+                            </Button>
+                            <Button
+                              variant={
+                                priceAgreement === 'onhourly_basis'
+                                  ? 'contained'
+                                  : 'outlined'
+                              }
+                              onClick={() =>
+                                handlePriceAgreementChange('onhourly_basis')
+                              }
+                            >
+                              On an hourly basis
+                            </Button>
+                          </ButtonGroup>
                         </div>
-                      </>
-                    )}
-                    {/* Step Navigation Buttons */}
-                    <Box className="flex justify-between mt-6 mb-5">
-                      <Button
-                        variant="outlined"
-                        disabled={activeStep === 0}
-                        onClick={handleBack}
-                        className="text-gray-600 hover:bg-gray-100"
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={
-                          activeStep === steps.length - 1
-                            ? handleSubmit(onSubmit)
-                            : handleNext
-                        }
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
-                      </Button>
-                    </Box>
-                  </form>
-                )}
-              </div>
-            </Box>
-          </Modal>
-        </LocalizationProvider>
+
+                        <FormControl
+                          fullWidth
+                          variant="standard"
+                          className="w-1/2"
+                        >
+                          <InputLabel>Select Package</InputLabel>
+                          <Controller
+                            name="package" // Name for the form field
+                            control={control}
+                            defaultValue="" // Set a default value to prevent undefined
+                            rules={{ required: 'Package is required' }} // Validation rule
+                            render={({ field }) => (
+                              <Select
+                                {...field}
+                                value={field.value || ''} // Ensure value is never undefined
+                                label="Select Package"
+                                disabled={priceAgreement === null}
+                              >
+                                {packageList &&
+                                  packageList.map((item, index) => (
+                                    <MenuItem key={index} value={item._id}>
+                                      {item.name}
+                                    </MenuItem>
+                                  ))}
+                              </Select>
+                            )}
+                          />
+                          {errors.package && (
+                            <span className="text-red">
+                              {errors.package.message}
+                            </span>
+                          )}{' '}
+                          {/* Display error message */}
+                        </FormControl>
+                      </div>
+                    </>
+                  )}
+                  {/* Step Navigation Buttons */}
+                  <Box className="flex justify-between mt-6 mb-5">
+                    <Button
+                      variant="outlined"
+                      disabled={activeStep === 0}
+                      onClick={handleBack}
+                      className="text-gray-600 hover:bg-gray-100"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={
+                        activeStep === steps.length - 1
+                          ? handleSubmit(onSubmit)
+                          : handleNext
+                      }
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
+                    </Button>
+                  </Box>
+                </form>
+              )}
+            </div>
+          </Box>
+        </Modal>
+      </LocalizationProvider>
     </>
   );
 };
