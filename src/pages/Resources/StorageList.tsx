@@ -38,7 +38,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import { useNavigate } from 'react-router-dom';
 
 const avatarColors = [
-    'bg-purple-600 text-white',
+    'bg-primary text-white',
     'bg-emerald-600 text-white',
     'bg-blue-600 text-white',
     'bg-amber-600 text-white',

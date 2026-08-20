@@ -226,7 +226,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer"
       >
         <MdWarehouse className="w-4 h-4" />
         <span>Load Storage</span>
@@ -240,9 +240,9 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
             <div className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-slate-100 z-10">
               {loading && <Loader />}
               
-              <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/20">
+              <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-primary/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
                     <MdWarehouse className="w-5 h-5" />
                   </div>
                   <div>
@@ -272,13 +272,13 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                         onClick={() => setActiveStep(idx)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                           isCurrent
-                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                            ? 'bg-primary text-white shadow-sm shadow-primary/20'
                             : isCompleted
-                            ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                            ? 'bg-primary/10 text-primary hover:bg-primary/15'
                             : 'bg-slate-100 text-slate-500 hover:bg-slate-200/70'
                         }`}
                       >
-                        {isCompleted ? <MdCheckCircle className="w-4 h-4 text-indigo-600" /> : step.icon}
+                        {isCompleted ? <MdCheckCircle className="w-4 h-4 text-primary" /> : step.icon}
                         <span>{step.label}</span>
                       </button>
                     );
@@ -332,8 +332,8 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                             <select
                               {...field}
                               className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                                errors.customer ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                              } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                                errors.customer ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                              } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                             >
                               <option value="">Select customer...</option>
                               {customer && customer.map((item: any) => (
@@ -365,7 +365,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                             key={period}
                             className={`py-2 text-xs font-bold rounded-xl transition-all capitalize ${
                               invoicePeriod === period
-                                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/80'
+                                ? 'bg-white text-primary shadow-sm border border-slate-200/80'
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                             onClick={() => setInvoicePeriod(period)}
@@ -388,7 +388,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                               key={option}
                               className={`py-2 text-xs font-bold rounded-xl transition-all ${
                                 vatOption === option
-                                  ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/80'
+                                  ? 'bg-white text-primary shadow-sm border border-slate-200/80'
                                   : 'text-slate-600 hover:text-slate-900'
                               }`}
                               onClick={() => setVatOption(option)}
@@ -410,7 +410,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                               key={option}
                               className={`py-2 text-xs font-bold rounded-xl transition-all ${
                                 storageOption === option
-                                  ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/80'
+                                  ? 'bg-white text-primary shadow-sm border border-slate-200/80'
                                   : 'text-slate-600 hover:text-slate-900'
                               }`}
                               onClick={() => setStorageOption(option)}
@@ -428,7 +428,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                           VAT % <span className="text-red-500">*</span>
                         </label>
                         <select
-                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                           {...register('vatPercentage', { required: 'VAT is required' })}
                         >
                           <option value="">Select VAT</option>
@@ -446,7 +446,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                         <input
                           type="number"
                           min={0}
-                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                           {...register('price', { required: 'Price is required' })}
                           placeholder="e.g. 150"
                         />
@@ -458,7 +458,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                           Sales Group
                         </label>
                         <select
-                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                           {...register('salesGroup')}
                         >
                           <option value="">Select Sales Group</option>
@@ -473,7 +473,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                           Job
                         </label>
                         <select
-                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                          className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                           {...register('storedForProject')}
                         >
                           <option value="">Select Job</option>
@@ -516,7 +516,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                       <div>
                         <h4 className="text-sm font-bold text-slate-900">Inventory Items to Load</h4>
-                        <p className="text-xs text-slate-500">Total volume filled: <span className="font-bold text-indigo-600">{totalVolume} m³</span> of {storageData?.cubicMeter} m³</p>
+                        <p className="text-xs text-slate-500">Total volume filled: <span className="font-bold text-primary">{totalVolume} m³</span> of {storageData?.cubicMeter} m³</p>
                       </div>
                       <button
                         type="button"
@@ -534,7 +534,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                             loadedByCustomer: false,
                           })
                         }
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors cursor-pointer"
                       >
                         <MdAdd className="w-4 h-4" />
                         <span>Add Row</span>
@@ -632,7 +632,7 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                       </label>
                       <input
                         type="text"
-                        className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                        className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                         {...register('notes')}
                         placeholder="Additional notes about this loading..."
                       />
@@ -663,14 +663,14 @@ const LoadingForm: React.FC<any> = ({ handler, storageData }) => {
                       <button
                         type="button"
                         onClick={() => setActiveStep((prev) => prev + 1)}
-                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer"
                       >
                         Next Step
                       </button>
                     ) : (
                       <button
                         type="submit"
-                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer"
                       >
                         Submit & Load Storage
                       </button>

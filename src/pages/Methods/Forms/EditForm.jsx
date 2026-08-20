@@ -1,355 +1,480 @@
 import React, { useState, useEffect } from 'react';
-import { Button, IconButton, Checkbox } from '@mui/material';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 import { apiPath } from '../../../../apiPath';
+import {
+  MdAddCircleOutline,
+  MdDeleteOutline,
+  MdAccountBalance,
+  MdDiscount,
+  MdPercent,
+  MdListAlt,
+  MdCalculate,
+  MdTune
+} from 'react-icons/md';
 
 const EditForm = ({ register, errors, type, watch, setValue, data }) => {
-    const [rules, setRules] = useState([]);
-    const [vatSelected, setVatSelected] = useState(null);
-    const [selectedTemplate, setSelectedTemplate] = useState("");
-    const [template, setTemplate] = useState([]);
-    const [inputField, setInputFields] = useState([]);
-    const [salesgroup, setSales] = useState([]);
-    const [showConfirmation, setShowConfirmation] = useState(false);
+  const [rules, setRules] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [template, setTemplate] = useState([]);
+  const [inputField, setInputFields] = useState([]);
+  const [salesgroup, setSales] = useState([]);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
-    console.log(data)
-
-    useEffect(() => {
-        if (data) {
-            setValue(`${type}_discountDescription`, data.discountDescription || '');
-            setValue(`${type}_percentage`, data.percentage || '');
-            if (data.rules) {
-                setRules(data.rules);
-                data.rules.forEach((rule, index) => {
-                    setValue(`${type}rules[${index}].description`, rule.description);
-                    setValue(`${type}rules[${index}].number`, rule.number);
-                    setValue(`${type}rules[${index}].unitPrice`, rule.unitPrice);
-                    setValue(`${type}rules[${index}].btw`, rule.btw);
-                    setValue(`${type}rules[${index}].salesGroup`, rule.salesGroup);
-                    setValue(`${type}rules[${index}].enabled`, rule.enabled);
-                    setValue(`${type}rules[${index}].isCalculated`, rule.isCalculated);
-                });
-            }
-            if (data.financialTemplate) {
-                setShowConfirmation(true);
-            }
-        }
-    }, [data, setValue, type, salesgroup]);
-
-    const addFixedRule = (isCalculated) => {
-        const newRule = {
-            salesGroup: '',
-            description: '',
-            number: '',
-            unitPrice: '',
-            btw: '',
-            enabled: true,
-            isCalculated: isCalculated, // Flag to determine dropdown or input
-        };
-        setRules((prevRules) => [...prevRules, newRule]);
-        const newIndex = rules.length; // Use this for indexing
-        setValue(`${type}rules[${newIndex}].description`, '');
-        setValue(`${type}rules[${newIndex}].number`, '');
-        setValue(`${type}rules[${newIndex}].unitPrice`, '');
-        setValue(`${type}rules[${newIndex}].btw`, '');
-        setValue(`${type}rules[${newIndex}].salesGroup`, '');
-        setValue(`${type}rules[${newIndex}].enabled`, false);
-    };
-
-    const deleteRule = (index) => {
-        const updatedRules = rules.filter((_, i) => i !== index);
-        setRules(updatedRules);
-
-        for (let i = index; i < updatedRules.length; i++) {
-            setValue(`${type}rules[${i}].description`, watch(`${type}rules[${i + 1}].description`));
-            setValue(`${type}rules[${i}].number`, watch(`${type}rules[${i + 1}].number`));
-            setValue(`${type}rules[${i}].unitPrice`, watch(`${type}rules[${i + 1}].unitPrice`));
-            setValue(`${type}rules[${i}].btw`, watch(`${type}rules[${i + 1}].btw`));
-            setValue(`${type}rules[${i}].salesGroup`, watch(`${type}rules[${i + 1}].salesGroup`));
-            setValue(`${type}rules[${i}].enabled`, watch(`${type}rules[${i + 1}].enabled`));
-            setValue(`${type}rules[${i}].isCalculated`, watch(`${type}rules[${i + 1}].isCalculated`));
-        }
-        const lastIndex = updatedRules.length;
-        setValue(`${type}rules[${lastIndex}].description`, '');
-        setValue(`${type}rules[${lastIndex}].number`, '');
-        setValue(`${type}rules[${lastIndex}].unitPrice`, '');
-        setValue(`${type}rules[${lastIndex}].btw`, '');
-        setValue(`${type}rules[${lastIndex}].salesGroup`, '');
-        setValue(`${type}rules[${lastIndex}].enabled`, false);
-    };
-
-    const handleTemplateChange = (e) => {
-        const selectedValue = e.target.value;
-        setSelectedTemplate(selectedValue);
-    };
-
-    const handletemplate = async () => {
-        try {
-            let response = await axios.get(apiPath + `/api/templates?type=${type == 'offers' ? 'quote' : 'invoice'}`)
-            setTemplate(response.data)
-            setValue(`${type}_financialTemplate`, data?.financialTemplate || '');
-        } catch (error) {
-            console.error('Error fetching package:', error.message);
-        }
+  useEffect(() => {
+    if (data) {
+      setValue(`${type}_discountDescription`, data.discountDescription || '');
+      setValue(`${type}_percentage`, data.percentage || '');
+      if (data.rules) {
+        setRules(data.rules);
+        data.rules.forEach((rule, index) => {
+          setValue(`${type}rules[${index}].description`, rule.description);
+          setValue(`${type}rules[${index}].number`, rule.number);
+          setValue(`${type}rules[${index}].unitPrice`, rule.unitPrice);
+          setValue(`${type}rules[${index}].btw`, rule.btw);
+          setValue(`${type}rules[${index}].salesGroup`, rule.salesGroup);
+          setValue(`${type}rules[${index}].enabled`, rule.enabled);
+          setValue(`${type}rules[${index}].isCalculated`, rule.isCalculated);
+        });
+      }
+      if (data.financialTemplate) {
+        setShowConfirmation(true);
+      }
     }
-    const handleAllinputs = async () => {
-        try {
-            const response = await axios.get(`${apiPath}/api/input?inputFor=Template&name=${selectedTemplate}`);
-            setInputFields(response.data[0]?.extraFields)
-        } catch (err) {
-            console.error(err);
-        }
+  }, [data, setValue, type, salesgroup]);
+
+  const addFixedRule = (isCalculated) => {
+    const newRule = {
+      salesGroup: '',
+      description: '',
+      number: '',
+      unitPrice: '',
+      btw: '',
+      enabled: true,
+      isCalculated: isCalculated,
     };
-    const handlesalesgroup = async () => {
-        try {
-            let response = await axios.get(apiPath + "/api/sale_group?type=salesGroup")
-            setSales(response.data)
-        } catch (error) {
-            console.error('Error fetching package:', error.message);
-        }
+    setRules((prevRules) => [...prevRules, newRule]);
+    const newIndex = rules.length;
+    setValue(`${type}rules[${newIndex}].description`, '');
+    setValue(`${type}rules[${newIndex}].number`, '');
+    setValue(`${type}rules[${newIndex}].unitPrice`, '');
+    setValue(`${type}rules[${newIndex}].btw`, '');
+    setValue(`${type}rules[${newIndex}].salesGroup`, '');
+    setValue(`${type}rules[${newIndex}].enabled`, false);
+  };
+
+  const deleteRule = (index) => {
+    const updatedRules = rules.filter((_, i) => i !== index);
+    setRules(updatedRules);
+
+    for (let i = index; i < updatedRules.length; i++) {
+      setValue(
+        `${type}rules[${i}].description`,
+        watch(`${type}rules[${i + 1}].description`)
+      );
+      setValue(
+        `${type}rules[${i}].number`,
+        watch(`${type}rules[${i + 1}].number`)
+      );
+      setValue(
+        `${type}rules[${i}].unitPrice`,
+        watch(`${type}rules[${i + 1}].unitPrice`)
+      );
+      setValue(
+        `${type}rules[${i}].btw`,
+        watch(`${type}rules[${i + 1}].btw`)
+      );
+      setValue(
+        `${type}rules[${i}].salesGroup`,
+        watch(`${type}rules[${i + 1}].salesGroup`)
+      );
+      setValue(
+        `${type}rules[${i}].enabled`,
+        watch(`${type}rules[${i + 1}].enabled`)
+      );
+      setValue(
+        `${type}rules[${i}].isCalculated`,
+        watch(`${type}rules[${i + 1}].isCalculated`)
+      );
     }
+    const lastIndex = updatedRules.length;
+    setValue(`${type}rules[${lastIndex}].description`, '');
+    setValue(`${type}rules[${lastIndex}].number`, '');
+    setValue(`${type}rules[${lastIndex}].unitPrice`, '');
+    setValue(`${type}rules[${lastIndex}].btw`, '');
+    setValue(`${type}rules[${lastIndex}].salesGroup`, '');
+    setValue(`${type}rules[${lastIndex}].enabled`, false);
+  };
 
-    useEffect(() => {
-        if (selectedTemplate) {
-            handleAllinputs()
-        }
-    }, [selectedTemplate]);
+  const handleTemplateChange = (e) => {
+    const selectedValue = e.target.value;
+    setSelectedTemplate(selectedValue);
+  };
 
-    useEffect(() => {
-        handletemplate();
-        handlesalesgroup()
-    }, [setValue, data, type])
+  const handletemplate = async () => {
+    try {
+      const response = await axios.get(
+        `${apiPath}/api/templates?type=${type === 'offers' ? 'quote' : 'invoice'}`
+      );
+      setTemplate(response.data || []);
+      setValue(`${type}_financialTemplate`, data?.financialTemplate || '');
+    } catch (error) {
+      console.error('Error fetching template:', error.message);
+    }
+  };
 
+  const handleAllinputs = async () => {
+    try {
+      const response = await axios.get(
+        `${apiPath}/api/input?inputFor=Template&name=${selectedTemplate}`
+      );
+      setInputFields(response.data[0]?.extraFields || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    return (
+  const handlesalesgroup = async () => {
+    try {
+      const response = await axios.get(`${apiPath}/api/sale_group?type=salesGroup`);
+      setSales(response.data || []);
+    } catch (error) {
+      console.error('Error fetching sales group:', error.message);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      handleAllinputs();
+    }
+  }, [selectedTemplate]);
+
+  useEffect(() => {
+    handletemplate();
+    handlesalesgroup();
+  }, [setValue, data, type]);
+
+  return (
+    <div className="space-y-6">
+      {/* Use Invoice Moment Toggle */}
+      <div className="bg-gray-2/60 dark:bg-meta-4/20 p-4 rounded-xl border border-stroke dark:border-strokedark flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-            <div className="mb-4">
-                <label className="block font-bold text-sm mb-2">Use Invoice moment ?</label>
-                <div className="space-x-2">
-                    <button
-                        type='button'
-                        className={`px-4 py-2 rounded-md border focus:outline-none ${showConfirmation
-                            ? 'bg-blue text-white border-blue-500'
-                            : 'bg-white text-gray-700 border-gray'
-                            }`}
-                        onClick={() => setShowConfirmation(true)}
-                    >
-                        Yes
-                    </button>
-                    <button
-                        type='button'
-                        className={`px-4 py-2 rounded-md border focus:outline-none ${!showConfirmation
-                            ? 'bg-blue text-white border-blue-500'
-                            : 'bg-white text-gray-700 border-gray'
-                            }`}
-                        onClick={() => setShowConfirmation(false)}
-                    >
-                        No
-                    </button>
-                </div>
-            </div>
-            {showConfirmation && <div>
-                <div className="w-full mb-3">
-                    <label className="block font-bold text-sm mb-2">Financial Template</label>
-                    <select
-                        {...register(`${type}_financialTemplate`)}
-                        onChange={handleTemplateChange}
-                        className="w-full p-2 border border-gray rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">Select Template</option>
-                        {template && template.map((item, index) =>
-                            <option key={index} value={item._id}>{item.name}</option>
-                        )}
-                    </select>
-
-                    {selectedTemplate && inputField && (
-                        <div className="flex mt-4 mb-5" style={{ flexWrap: "wrap", gap: "18px" }}>
-                            {inputField.map((field, index) => (
-                                <div key={index} style={{ width: "49%" }} className=''>
-                                    <label className="block text-black pb-1">{field.label}</label>
-                                    <input
-                                        {...register(`${type}_${field.name}`)}
-                                        placeholder={field.label}
-                                        type={field.type}
-                                        className="w-full p-2 border border-gray"
-                                    />
-                                    {errors[`jobinput_${field.name}`] && <p className="text-red-500 text-xs">Field is required</p>}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-                {/* Discount Fields */}
-                <div className="flex mb-4 space-x-4">
-                    <div className="w-1/2">
-                        <label className="block font-bold text-sm mb-2">Discount Description</label>
-                        <input
-                            {...register(`${type}_discountDescription`)}
-                            className="w-full p-2 border border-gray rounded-md"
-                            placeholder="Enter discount description"
-                        />
-                    </div>
-                    <div className="w-1/2">
-                        <label className="block font-bold text-sm mb-2">Percentage</label>
-                        <input
-                            {...register(`${type}_percentage`)}
-                            className="w-full p-2 border border-gray rounded-md"
-                            placeholder="Enter %"
-                            type="number"
-                        />
-                    </div>
-                </div>
-                {rules.length > 0 && (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray">
-                            <thead className="bg-gray-50 pb-3">
-                                <tr className="bg-gray">
-                                    <th className="border border-gray w-1/8 py-3">Sales Group</th>
-                                    <th className="border border-gray w-1/3 py-3">Description</th>
-                                    <th className="border border-gray w-1/6 py-3">Quantity</th>
-                                    <th className="border border-gray w-1/6 py-3">Unit Price</th>
-                                    <th className="border border-gray w-1/15 py-3">BTW</th>
-                                    <th className="border border-gray w-1/15 py-3">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray">
-                                {rules.map((rule, index) => (
-                                    <tr key={index} className="hover:bg-gray">
-                                        <td className="">
-                                            <select
-                                                className="w-full p-2 border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                {...register(`${type}rules[${index}].salesGroup`)}
-                                            >
-                                                <option value="">Select</option>
-                                                {salesgroup && salesgroup.map((item, i) => (
-                                                    <option key={i} value={item._id}>{item.name}</option>
-                                                ))}
-                                            </select>
-                                        </td>
-                                        <td className="">
-                                            <textarea
-                                                {...register(`${type}rules[${index}].description`)}
-                                                className="w-full p-2 border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                placeholder="Description"
-                                            ></textarea>
-                                        </td>
-                                        <td className="">
-                                            {rule.isCalculated ? (
-                                                <select
-                                                    {...register(`${type}rules[${index}].number`)}
-                                                    className="w-full p-2 border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                >
-                                                    <option value="">Which Part should be use for Qunatity</option>
-                                                    <option value="{{relocation_totalVolume}}">Total Volume</option>
-                                                    <option value="{{relocation_movers}}">Movers</option>
-                                                    <option value="{{relocation_requiredHours}}">Hours</option>
-                                                    <option value="{{relocation_totalBoxes}}">Box Quantity</option>
-                                                    <option value="{{relocation_travelTime}}">Travel Time</option>
-                                                    <option value="{{relocation_distance}}">Distance</option>
-                                                    <option value="{{movingLift_quantity}}">Moving Lift</option>
-                                                    <option value="{{assembling_requiredHours}}">Assembling Hour</option>
-                                                    <option value="{{disassembling_requiredHours}}">dismantle Hour</option>
-                                                    <option value="{{total_handyman}}">Number of Handyman</option>
-                                                    <option value="{{packing_requiredHours}}">Packing Hours</option>
-                                                    <option value="{{packing_requiredPackers}}">Packers</option>
-                                                    <option value="{{unpacking_requiredHours}}">Unpacking hours</option>
-                                                    <option value="{{unpacking_requiredPackers}}">Unpackers</option>
-                                                    <option value="{{certificate_quantity}}">Warranty Certificate</option>
-                                                    <option value="{{insurance_quantity}}">Insurance</option>
-                                                    <option value="{{storage_storageVolume}}">Storage Volume</option>
-                                                </select>
-                                            ) : (
-                                                <input
-                                                    {...register(`${type}rules[${index}].number`)}
-                                                    className="w-full p-2 border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    placeholder="Number"
-                                                    type="number"
-                                                />
-                                            )}
-                                        </td>
-                                        <td className="">
-                                            {rule.isCalculated ? (
-                                                <select
-                                                    {...register(`${type}rules[${index}].unitPrice`)}
-                                                    className="w-full p-2 border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                >
-                                                    <option value="">Which component is use for Price</option>
-                                                    <option value="{{relocation_pricePerMeterCubic}}">Total Volume</option>
-                                                    <option value="{{moverPrice}}">Movers</option>
-                                                    <option value="{{relocation_pricePerMeterCubic}}">Hours</option>
-                                                    <option value="{{boxCharges}}">Box Quantity</option>
-                                                    <option value="{{relocation_pricePerHour}}">Travel Time</option>
-                                                    <option value="{{relocation_pricePerKilometer}}">Distance</option>
-                                                    <option value="{{movingLift_price}}">Moving Lift</option>
-                                                    <option value="{{assembling_appliedPrice}}">Assembling Hour</option>
-                                                    <option value="{{disassembling_appliedPrice}}">dismantle Hour</option>
-                                                    <option value="{{handymanCharge}}">Number of Handyman</option>
-                                                    <option value="{{packing_appliedPrice}}">Packing Hours</option>
-                                                    <option value="{{packersCharge}}">Packers</option>
-                                                    <option value="{{unpacking_appliedPrice}}">Unpacking hours</option>
-                                                    <option value="{{packerCharge}}">Unpackers</option>
-                                                    <option value="{{certificate_price}}">Warranty Certificate</option>
-                                                    <option value="{{insurance_price}}">Insurance</option>
-                                                    <option value="{{storage_appliedPrice}}">Storage Volume</option>
-                                                </select>
-                                            ) : (
-                                                <input
-                                                    {...register(`${type}rules[${index}].unitPrice`)}
-                                                    className="w-full p-2 border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    placeholder="Unit Price"
-                                                    type="number"
-                                                />
-                                            )}
-
-                                        </td>
-                                        <td className="">
-                                            <select
-                                                className="w-full p-2 border border-gray rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                {...register(`${type}rules[${index}].btw`)}
-                                            >
-                                                <option value="">Select</option>
-                                                <option value="0">0%</option>
-                                                <option value="9">9%</option>
-                                                <option value="21">21%</option>
-                                            </select>
-                                        </td>
-                                        <td className="text-center">
-                                            <Checkbox
-                                                {...register(`${type}rules[${index}].enabled`)}
-                                                defaultChecked
-                                            />
-                                            <input
-                                                type="hidden"
-                                                {...register(`${type}rules[${index}].isCalculated`)}
-                                                value={rule.isCalculated}
-                                            />
-                                            {/* <IconButton onClick={() => toggleClockIcon(index)}>
-                                                <AccessTimeIcon className={`${rule.isClockSelected ? 'text-blue' : 'text-black'}`} />
-                                            </IconButton> */}
-                                            <IconButton onClick={() => deleteRule(index)}>
-                                                <DeleteIcon className="text-red" />
-                                            </IconButton>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-                <div className="flex gap-3 mt-4 mb-4">
-                    <Button variant="contained" color="primary" startIcon={<AddCircleOutlineIcon />} onClick={() => addFixedRule(true)}>
-                        Add Calculated Rule
-                    </Button>
-                    <Button variant="contained" color="primary" startIcon={<AddCircleOutlineIcon />} onClick={() => addFixedRule(false)}>
-                        Add Fixed Rule
-                    </Button>
-                </div>
-            </div>}
-
+          <label className="block text-xs font-bold text-black dark:text-white">
+            Use Invoice moment calculation?
+          </label>
+          <p className="text-[11px] text-body dark:text-bodydark">
+            Enable detailed financial template mapping and itemized rules
+          </p>
         </div>
-    );
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={`py-1.5 px-4 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              showConfirmation
+                ? 'bg-primary text-white border-primary shadow-xs'
+                : 'bg-white dark:bg-boxdark text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark'
+            }`}
+            onClick={() => setShowConfirmation(true)}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            className={`py-1.5 px-4 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              !showConfirmation
+                ? 'bg-primary text-white border-primary shadow-xs'
+                : 'bg-white dark:bg-boxdark text-slate-600 dark:text-slate-300 border-stroke dark:border-strokedark'
+            }`}
+            onClick={() => setShowConfirmation(false)}
+          >
+            No
+          </button>
+        </div>
+      </div>
+
+      {showConfirmation && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Financial Template & Dynamic Extra Fields */}
+          <div className="bg-white dark:bg-boxdark p-4 sm:p-5 rounded-2xl border border-stroke dark:border-strokedark space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1.5">
+                <MdAccountBalance className="text-slate-400 text-sm" />
+                Financial Template
+              </label>
+              <select
+                {...register(`${type}_financialTemplate`)}
+                onChange={handleTemplateChange}
+                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
+              >
+                <option value="">Select Financial Template</option>
+                {template &&
+                  template.map((item, index) => (
+                    <option key={index} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Dynamic Template Fields */}
+            {selectedTemplate && inputField && inputField.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {inputField.map((field, index) => (
+                  <div key={index}>
+                    <label className="block text-xs font-semibold text-black dark:text-white mb-1">
+                      {field.label}
+                    </label>
+                    <input
+                      {...register(`${type}_${field.name}`)}
+                      placeholder={field.label}
+                      type={field.type}
+                      className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2 px-3.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-xs font-medium"
+                    />
+                    {errors[`jobinput_${field.name}`] && (
+                      <p className="text-meta-1 text-xs mt-1">Field is required</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Discount & Percentage */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-stroke dark:border-strokedark">
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1.5">
+                  <MdDiscount className="text-slate-400 text-sm" />
+                  Discount Description
+                </label>
+                <input
+                  {...register(`${type}_discountDescription`)}
+                  placeholder="Enter discount description"
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1.5">
+                  <MdPercent className="text-slate-400 text-sm" />
+                  Discount Percentage (%)
+                </label>
+                <input
+                  {...register(`${type}_percentage`)}
+                  placeholder="Enter %"
+                  type="number"
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing & Calculation Rules Section */}
+          <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark overflow-hidden shadow-xs">
+            <div className="px-5 py-4 border-b border-stroke dark:border-strokedark bg-gray-2/40 dark:bg-meta-4/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MdListAlt className="text-primary text-lg" />
+                <h4 className="text-sm font-bold text-black dark:text-white">
+                  Calculation & Line Item Rules
+                </h4>
+              </div>
+              <span className="text-xs font-medium text-body dark:text-bodydark">
+                {rules.length} rule{rules.length === 1 ? '' : 's'} configured
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-stroke dark:border-strokedark bg-gray-2/60 dark:bg-meta-4/30 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <th className="py-3 px-4 min-w-[140px]">Sales Group</th>
+                    <th className="py-3 px-4 min-w-[200px]">Description</th>
+                    <th className="py-3 px-4 min-w-[180px]">Quantity / Dynamic Metric</th>
+                    <th className="py-3 px-4 min-w-[180px]">Unit Price / Rate Source</th>
+                    <th className="py-3 px-4 min-w-[90px]">BTW (Tax)</th>
+                    <th className="py-3 px-4 text-center min-w-[90px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stroke dark:divide-strokedark text-xs">
+                  {rules.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-body dark:text-bodydark text-xs">
+                        No calculation rules configured.
+                      </td>
+                    </tr>
+                  ) : (
+                    rules.map((rule, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-gray-2/30 dark:hover:bg-meta-4/20 transition-colors"
+                      >
+                        {/* Sales Group */}
+                        <td className="py-3 px-4 align-top">
+                          <select
+                            className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                            {...register(`${type}rules[${index}].salesGroup`)}
+                          >
+                            <option value="">Select Group</option>
+                            {salesgroup &&
+                              salesgroup.map((item, i) => (
+                                <option key={i} value={item._id}>
+                                  {item.name}
+                                </option>
+                              ))}
+                          </select>
+                        </td>
+
+                        {/* Description */}
+                        <td className="py-3 px-4 align-top">
+                          <textarea
+                            rows={2}
+                            {...register(`${type}rules[${index}].description`)}
+                            className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium resize-none"
+                            placeholder="Description"
+                          />
+                        </td>
+
+                        {/* Quantity */}
+                        <td className="py-3 px-4 align-top">
+                          {rule.isCalculated ? (
+                            <select
+                              {...register(`${type}rules[${index}].number`)}
+                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                            >
+                              <option value="">Select Quantity Metric</option>
+                              <option value="{{relocation_totalVolume}}">Total Volume (m³)</option>
+                              <option value="{{relocation_movers}}">Movers Count</option>
+                              <option value="{{relocation_requiredHours}}">Required Hours</option>
+                              <option value="{{relocation_totalBoxes}}">Box Quantity</option>
+                              <option value="{{relocation_travelTime}}">Travel Time</option>
+                              <option value="{{relocation_distance}}">Distance (km)</option>
+                              <option value="{{movingLift_quantity}}">Moving Lift Count</option>
+                              <option value="{{assembling_requiredHours}}">Assembling Hours</option>
+                              <option value="{{disassembling_requiredHours}}">Dismantle Hours</option>
+                              <option value="{{total_handyman}}">Handyman Count</option>
+                              <option value="{{packing_requiredHours}}">Packing Hours</option>
+                              <option value="{{packing_requiredPackers}}">Packers Count</option>
+                              <option value="{{unpacking_requiredHours}}">Unpacking Hours</option>
+                              <option value="{{unpacking_requiredPackers}}">Unpackers Count</option>
+                              <option value="{{certificate_quantity}}">Warranty Certificate</option>
+                              <option value="{{insurance_quantity}}">Insurance Coverage</option>
+                              <option value="{{storage_storageVolume}}">Storage Volume</option>
+                            </select>
+                          ) : (
+                            <input
+                              {...register(`${type}rules[${index}].number`)}
+                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                              placeholder="Number"
+                              type="number"
+                            />
+                          )}
+                        </td>
+
+                        {/* Unit Price */}
+                        <td className="py-3 px-4 align-top">
+                          {rule.isCalculated ? (
+                            <select
+                              {...register(`${type}rules[${index}].unitPrice`)}
+                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                            >
+                              <option value="">Select Price Rate Component</option>
+                              <option value="{{relocation_pricePerMeterCubic}}">Volume Rate (€/m³)</option>
+                              <option value="{{moverPrice}}">Mover Hourly Rate</option>
+                              <option value="{{relocation_pricePerMeterCubic}}">Hours</option>
+                              <option value="{{boxCharges}}">Box Charge Rate</option>
+                              <option value="{{relocation_pricePerHour}}">Hourly Transport Rate</option>
+                              <option value="{{relocation_pricePerKilometer}}">Distance Rate (€/km)</option>
+                              <option value="{{movingLift_price}}">Moving Lift Rate</option>
+                              <option value="{{assembling_appliedPrice}}">Assembling Hourly Rate</option>
+                              <option value="{{disassembling_appliedPrice}}">Dismantle Hourly Rate</option>
+                              <option value="{{handymanCharge}}">Handyman Rate</option>
+                              <option value="{{packing_appliedPrice}}">Packing Hourly Rate</option>
+                              <option value="{{packersCharge}}">Packers Rate</option>
+                              <option value="{{unpacking_appliedPrice}}">Unpacking Hourly Rate</option>
+                              <option value="{{packerCharge}}">Unpacker Rate</option>
+                              <option value="{{certificate_price}}">Certificate Price</option>
+                              <option value="{{insurance_price}}">Insurance Premium</option>
+                              <option value="{{storage_appliedPrice}}">Storage Rate</option>
+                            </select>
+                          ) : (
+                            <input
+                              {...register(`${type}rules[${index}].unitPrice`)}
+                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                              placeholder="Unit Price"
+                              type="number"
+                            />
+                          )}
+                        </td>
+
+                        {/* BTW */}
+                        <td className="py-3 px-4 align-top">
+                          <select
+                            className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2 outline-none focus:border-primary text-xs font-medium"
+                            {...register(`${type}rules[${index}].btw`)}
+                          >
+                            <option value="">VAT</option>
+                            <option value="0">0%</option>
+                            <option value="9">9%</option>
+                            <option value="21">21%</option>
+                          </select>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-center align-top">
+                          <div className="flex items-center justify-center gap-2 pt-1">
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                {...register(`${type}rules[${index}].enabled`)}
+                                defaultChecked
+                                className="w-4 h-4 rounded text-primary focus:ring-primary border-stroke cursor-pointer"
+                              />
+                            </label>
+                            <input
+                              type="hidden"
+                              {...register(`${type}rules[${index}].isCalculated`)}
+                              value={rule.isCalculated}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => deleteRule(index)}
+                              className="p-1.5 text-slate-400 hover:text-meta-1 hover:bg-meta-1/10 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Rule"
+                            >
+                              <MdDeleteOutline className="text-base" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add Rule Actions Toolbar */}
+            <div className="p-4 border-t border-stroke dark:border-strokedark bg-gray-2/20 dark:bg-meta-4/10 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => addFixedRule(true)}
+                className="flex items-center gap-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-white text-xs font-bold py-2 px-4 rounded-xl border border-primary/20 transition-all cursor-pointer"
+              >
+                <MdCalculate className="text-base" />
+                <span>Add Calculated Dynamic Rule</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => addFixedRule(false)}
+                className="flex items-center gap-1.5 bg-gray-2 dark:bg-meta-4 hover:bg-gray-3 text-slate-700 dark:text-slate-200 text-xs font-bold py-2 px-4 rounded-xl border border-stroke dark:border-strokedark transition-all cursor-pointer"
+              >
+                <MdTune className="text-base" />
+                <span>Add Fixed Rate Rule</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default EditForm;
+

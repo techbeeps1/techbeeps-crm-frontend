@@ -1,18 +1,26 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PilotsList from "./PilotsList";
 import BoxList from "./BoxList";
 import Vehicles from "./Vehicles";
 import StorageLocation from "./StorageLocation";
 import StorageList from "./StorageList";
+import { 
+    MdInventory2, 
+    MdWarehouse, 
+    MdPlace, 
+    MdAllInbox, 
+    MdLayers, 
+    MdDirectionsCar 
+} from "react-icons/md";
 
 const tabs = [
-    { label: "Storage" },
-    { label: "Warehouse" },
-    { label: "Storage Locations" },
-    { label: "Boxes" },
-    { label: "Materials" },
-    { label: "Vehicles" },
+    { label: "Storage", icon: MdInventory2 },
+    { label: "Warehouse", icon: MdWarehouse },
+    { label: "Storage Locations", icon: MdPlace },
+    { label: "Boxes", icon: MdAllInbox },
+    { label: "Materials", icon: MdLayers },
+    { label: "Vehicles", icon: MdDirectionsCar },
 ];
 
 const ResourcesPage: React.FC = () => {
@@ -23,7 +31,7 @@ const ResourcesPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<number>(initialTab);
     const handleTabChange = (newValue: number) => {
         setActiveTab(newValue);
-        navigate(`?tab=${newValue}`); // Update the URL with the new tab value
+        navigate(`?tab=${newValue}`);
     };
 
     useEffect(() => {
@@ -34,33 +42,43 @@ const ResourcesPage: React.FC = () => {
     }, [location.search]);
 
     return (
-        <div className="bg-white flex flex-col min-h-[88vh] text-slate-700">
-            <div className="bg-white shadow">
-                <div className="flex">
-                    {tabs.map((tab, index) => (
-                        <button
-                            key={index}
-                            onClick={() => handleTabChange(index)}
-                            className={`text-center py-3 px-3 text-lg font-medium cursor-pointer transition-colors ${activeTab === index
-                                ? "border-primary border-b-2 text-primary"
-                                : "text-gray-500 hover:text-primary"
+        <div className="bg-slate-50/60 min-h-[90vh] flex flex-col text-slate-700">
+            {/* Top Navigation Bar */}
+            <div className="bg-white border-b border-slate-200 px-4 sm:px-6 pt-3 shadow-xs sticky top-0 z-30">
+                <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto no-scrollbar pb-2">
+                    {tabs.map((tab, index) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === index;
+                        return (
+                            <button
+                                key={index}
+                                onClick={() => handleTabChange(index)}
+                                className={`group flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 whitespace-nowrap cursor-pointer ${
+                                    isActive
+                                        ? "bg-primary text-white shadow-md shadow-primary/20"
+                                        : "text-slate-600 hover:text-primary hover:bg-primary/5"
                                 }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
+                            >
+                                <Icon className={`text-lg transition-transform duration-200 ${isActive ? "text-white" : "text-slate-400 group-hover:text-primary"}`} />
+                                <span>{tab.label}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
-            <div className="flex-grow">
+
+            {/* Tab Contents */}
+            <div className="flex-grow p-4 sm:p-6">
                 {activeTab === 0 && <StorageList />}
                 {activeTab === 1 && <PilotsList />}
-                {activeTab === 2 && <StorageLocation type='storage' />}
-                {activeTab === 3 && <BoxList type='Box' />}
-                {activeTab === 4 && <BoxList type='Material' />}
-                {activeTab === 5 && <Vehicles type='Vehicle' />}
+                {activeTab === 2 && <StorageLocation type="storage" />}
+                {activeTab === 3 && <BoxList type="Box" />}
+                {activeTab === 4 && <BoxList type="Material" />}
+                {activeTab === 5 && <Vehicles type="Vehicle" />}
             </div>
         </div>
     );
 };
 
 export default ResourcesPage;
+

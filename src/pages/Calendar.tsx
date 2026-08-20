@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import moment from 'moment';
-import { Calendar, Views, momentLocalizer } from 'react-big-calendar';
+import { Calendar, Views, View, momentLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { format } from 'date-fns';
 
@@ -55,9 +55,9 @@ const typeColors: Record<string, { bg: string; text: string; border: string; lig
   packing: { bg: '#28a745ff', text: '#ffffff', border: '#23a553ff', lightBg: '#e8f0fe' },
   move: { bg: '#1a73e8', text: '#ffffff', border: '#1557b0', lightBg: '#e8f0fe' },
   valuation: { bg: '#ffc107ff', text: '#ffffff', border: '#f3c813ff', lightBg: '#e6f4ea' },
-  survey: { bg: '#9334e6', text: '#ffffff', border: '#7b1fa2', lightBg: '#f3e8fd' },
+  survey: { bg: '#3C50E0', text: '#ffffff', border: '#2b3eb0', lightBg: '#e8f0fe' },
   loading: { bg: '#01c2e6ff', text: '#ffffff', border: '#01a5ccff', lightBg: '#e1f5fe' },
-  default: { bg: '#ffc107ff', text: '#ffffff', border: '#ffc107ff', lightBg: '#e1f5fe' },
+  default: { bg: '#3C50E0', text: '#ffffff', border: '#2b3eb0', lightBg: '#e8f0fe' },
 };
 
 const getEventColor = (typeString: string) => {
@@ -73,7 +73,7 @@ export default function TaskPlanningCalendar({
 }: Props) {
   const [events, setEvents] = useState<AppointmentEvent[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<string>(Views.DAY);
+  const [currentView, setCurrentView] = useState<View>(Views.DAY);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -309,12 +309,13 @@ export default function TaskPlanningCalendar({
 
           {/* View Toggle Segment (Google Calendar Style) */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-            {[
-              { id: 'month', label: 'Month' },
-
-              { id: 'day', label: 'Day' },
-              { id: 'agenda', label: 'Agenda' },
-            ].map((v) => {
+            {(
+              [
+                { id: Views.MONTH, label: 'Month' },
+                { id: Views.DAY, label: 'Day' },
+                { id: Views.AGENDA, label: 'Agenda' },
+              ] as { id: View; label: string }[]
+            ).map((v) => {
               const isSelected = toolbar.view === v.id;
               return (
                 <button
@@ -392,7 +393,7 @@ export default function TaskPlanningCalendar({
             titleAccessor="title"
             defaultView={Views.DAY}
             view={currentView}
-            onView={(view: any) => setCurrentView(view)}
+            onView={(view: View) => setCurrentView(view)}
             date={currentDate}
             onNavigate={(newDate) => setCurrentDate(newDate)}
             defaultDate={defaultDate}

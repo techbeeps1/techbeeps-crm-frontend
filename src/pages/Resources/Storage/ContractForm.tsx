@@ -110,7 +110,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
             <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors cursor-pointer"
             >
                 <MdEdit className="w-3.5 h-3.5" />
                 <span>Edit Contract</span>
@@ -125,9 +125,9 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                             {loading && <Loader />}
                             
                             {/* Modal Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/20">
+                            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-primary/5">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                                    <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
                                         <MdReceipt className="w-5 h-5" />
                                     </div>
                                     <div>
@@ -157,7 +157,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                                 key={period}
                                                 className={`py-2 text-xs font-bold rounded-xl transition-all capitalize ${
                                                     invoicePeriod === period 
-                                                        ? "bg-white text-indigo-600 shadow-sm border border-slate-200/80" 
+                                                        ? "bg-white text-primary shadow-sm border border-slate-200/80" 
                                                         : "text-slate-600 hover:text-slate-900"
                                                 }`}
                                                 onClick={() => setInvoicePeriod(period)}
@@ -181,7 +181,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                                     key={option}
                                                     className={`py-2 text-xs font-bold rounded-xl transition-all ${
                                                         vatOption === option 
-                                                            ? "bg-white text-indigo-600 shadow-sm border border-slate-200/80" 
+                                                            ? "bg-white text-primary shadow-sm border border-slate-200/80" 
                                                             : "text-slate-600 hover:text-slate-900"
                                                     }`}
                                                     onClick={() => setVatOption(option)}
@@ -203,7 +203,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                                     key={option}
                                                     className={`py-2 text-xs font-bold rounded-xl transition-all ${
                                                         storageOption === option 
-                                                            ? "bg-white text-indigo-600 shadow-sm border border-slate-200/80" 
+                                                            ? "bg-white text-primary shadow-sm border border-slate-200/80" 
                                                             : "text-slate-600 hover:text-slate-900"
                                                     }`}
                                                     onClick={() => setStorageOption(option)}
@@ -225,7 +225,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                             type="button"
                                             className={`py-2 text-xs font-bold rounded-xl transition-all ${
                                                 invoicePerVolume 
-                                                    ? "bg-white text-indigo-600 shadow-sm border border-slate-200/80" 
+                                                    ? "bg-white text-primary shadow-sm border border-slate-200/80" 
                                                     : "text-slate-600 hover:text-slate-900"
                                             }`}
                                             onClick={() => setInvoicePerVolume(true)}
@@ -236,7 +236,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                             type="button"
                                             className={`py-2 text-xs font-bold rounded-xl transition-all ${
                                                 !invoicePerVolume 
-                                                    ? "bg-white text-indigo-600 shadow-sm border border-slate-200/80" 
+                                                    ? "bg-white text-primary shadow-sm border border-slate-200/80" 
                                                     : "text-slate-600 hover:text-slate-900"
                                             }`}
                                             onClick={() => setInvoicePerVolume(false)}
@@ -254,8 +254,8 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                         </label>
                                         <select
                                             className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                                                errors.vatPercentage ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                                                errors.vatPercentage ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                                             {...register("vatPercentage", { required: "VAT is required" })}
                                         >
                                             <option value="">Select VAT</option>
@@ -274,8 +274,8 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                             type="number"
                                             min={0}
                                             className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                                                errors.price ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                                                errors.price ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                                            } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                                             {...register("price", { required: "Price is required" })}
                                             placeholder="e.g. 150"
                                         />
@@ -287,7 +287,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                             Sales Group
                                         </label>
                                         <select
-                                            className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                                            className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                                             {...register("salesGroup")}
                                         >
                                             <option value="">Select Sales Group</option>
@@ -302,7 +302,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                             Associated Job
                                         </label>
                                         <select
-                                            className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                                            className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                                             {...register("storedForProject")}
                                         >
                                             <option value="">Select Job</option>
@@ -318,7 +318,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                         </label>
                                         <input
                                             type="text"
-                                            className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                                            className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                                             {...register("invoiceReference")}
                                             placeholder="Enter customer or job reference..."
                                         />
@@ -361,7 +361,7 @@ const ContractForm: React.FC<any> = ({ handler, storageData }) => {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+                                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer"
                                     >
                                         Save Contract
                                     </button>

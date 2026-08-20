@@ -1,12 +1,23 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import Logo from './Logo';
+import Avatar from './Avatar';
 import { UserContext } from './UserContext';
-import { uniqBy } from 'lodash'; // Use this to ensure unique messages
+import { uniqBy } from 'lodash';
 import axios from 'axios';
 import Contact from './Contact';
 import { chatApiPath, imageUrl } from '../apiPath';
 import { EmailContext } from './EmailProvider/EmailContext';
 import { toast } from 'react-toastify';
+import {
+  MdSearch,
+  MdSend,
+  MdAttachFile,
+  MdInsertDriveFile,
+  MdChat,
+  MdRefresh,
+  MdClose,
+  MdPeopleOutline
+} from 'react-icons/md';
 
 interface User {
   _id: string;
@@ -30,20 +41,22 @@ interface MessagesPerUser {
 
 export default function Chat() {
   axios.defaults.baseURL = chatApiPath;
-  // axios.defaults.withCredentials = true;
   const token = localStorage.getItem('token');
   axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  // const [ws, setWs] = useState<WebSocket | null>(null);
+
   const [onlinePeople, setOnlinePeople] = useState<any>({});
   const [offlinePeople, setOfflinePeople] = useState<Record<string, User>>({});
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [newMessageText, setNewMessageText] = useState<string>('');
   const [messagesPerUser, setMessagesPerUser] = useState<MessagesPerUser>({});
   const [unreadMessages, setUnreadMessages] = useState<UnreadMessages>({});
-  const { id, ws ,connectToWs} = useContext(UserContext) as {
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterMode, setFilterMode] = useState<'all' | 'online'>('all');
+
+  const { id, ws, connectToWs } = useContext(UserContext) as {
     ws: any;
     id: string;
-    connectToWs:any;
+    connectToWs: any;
   };
   const { fetchUnreadMessages } = useContext(EmailContext) as {
     fetchUnreadMessages: () => Promise<void>;
@@ -54,12 +67,14 @@ export default function Chat() {
 
   useEffect(() => {
     requestNotificationPermission();
-    ws.addEventListener('message', handleMessage);
+    if (ws) {
+      ws.addEventListener('message', handleMessage);
+    }
   }, [selectedUserId]);
 
-  useEffect(()=>{
-    connectToWs()
-  },[])
+  useEffect(() => {
+    connectToWs();
+  }, []);
 
   function requestNotificationPermission() {
     if (Notification.permission !== 'granted') {
@@ -68,36 +83,39 @@ export default function Chat() {
   }
 
   async function handleMessage(ev: MessageEvent) {
-    const messageData = JSON.parse(ev.data);
-    if ('online' in messageData) {
-      showOnlinePeople(messageData.online);
-    } else if ('text' in messageData) {
-      if (messageData.sender == selectedUserId) {
-        // Append only unique messages to the current user
-        setMessagesPerUser((prev) => {
-          const updatedMessages = [
-            ...(prev[selectedUserId!] || []),
-            messageData,
-          ];
-          return {
-            ...prev,
-            [selectedUserId!]: uniqBy(updatedMessages, '_id'), // Ensure messages are unique
-          };
-        });
-        await axios.put(`/messages/${messageData._id}/markAsRead`);
-      } else {
-        handleUnreadMessage(messageData);
+    try {
+      const messageData = JSON.parse(ev.data);
+      if ('online' in messageData) {
+        showOnlinePeople(messageData.online);
+      } else if ('text' in messageData) {
+        if (messageData.sender === selectedUserId) {
+          setMessagesPerUser((prev) => {
+            const updatedMessages = [
+              ...(prev[selectedUserId!] || []),
+              messageData,
+            ];
+            return {
+              ...prev,
+              [selectedUserId!]: uniqBy(updatedMessages, '_id'),
+            };
+          });
+          await axios.put(`/messages/${messageData._id}/markAsRead`);
+        } else {
+          handleUnreadMessage(messageData);
+        }
       }
+    } catch (e) {
+      console.error("Error processing incoming WebSocket message", e);
     }
   }
 
   function showOnlinePeople(peopleArray: User[]) {
-    const onlinePeople: Record<string, { username: string; _id: string }> = {};
-    const uniqueUsers = uniqBy(peopleArray, 'userId');
+    const onlinePeopleObj: Record<string, { username: string; _id: string }> = {};
+    const uniqueUsers: User[] = uniqBy(peopleArray, 'userId');
     uniqueUsers.forEach(({ userId, username }) => {
-      onlinePeople[userId] = { username, _id: userId };
+      onlinePeopleObj[userId] = { username, _id: userId };
     });
-    setOnlinePeople(onlinePeople);
+    setOnlinePeople(onlinePeopleObj);
     const updatedOfflinePeople = { ...totalPeopleRef.current };
     uniqueUsers.forEach(({ userId }) => {
       delete updatedOfflinePeople[userId];
@@ -121,15 +139,14 @@ export default function Chat() {
   }
 
   function showNotification(senderId: string, messageText: string) {
-    // let senderName = totalPeopleRef.current[senderId]?.username || offlinePeople[senderId]?.username || 'unknown';
-    if (Notification.permission == 'granted') {
+    if (Notification.permission === 'granted') {
       new Notification("New message", {
-        body: `New message : ${messageText}`,
+        body: `New message: ${messageText}`,
         icon: 'https://t4.ftcdn.net/jpg/00/98/26/11/360_F_98261159_Po5JS7ds82XaePJIsG1MiEtHRzOeUPNj.jpg'
       });
     }    
     setTimeout(() => {
-      toast.info(`New message : ${messageText}`, {
+      toast.info(`New message: ${messageText}`, {
         position: "top-right",
         autoClose: 2000,
         toastId: senderId,
@@ -137,10 +154,11 @@ export default function Chat() {
     }, 1);
   }
 
-  function sendMessage(ev: React.FormEvent<HTMLFormElement>, file?: object) {
-    ev.preventDefault();
+  function sendMessage(ev?: React.FormEvent<HTMLFormElement>, file?: object) {
+    if (ev) ev.preventDefault();
+    if (!newMessageText.trim() && !file) return;
+
     if (ws && ws.readyState === WebSocket.OPEN) {
-      // Check if WebSocket is open
       const messageData = {
         recipient: selectedUserId,
         sender: id,
@@ -151,12 +169,12 @@ export default function Chat() {
     } else {
       console.warn('WebSocket connection is not open yet. Message not sent.');
     }
-    // Your existing code for handling messages
+
     if (file) {
       axios.get(`/messages/${selectedUserId}`).then((res) => {
         setMessagesPerUser((prev: any) => ({
           ...prev,
-          [selectedUserId!]: uniqBy(res.data, '_id'), // Ensure uniqueness after fetching
+          [selectedUserId!]: uniqBy(res.data, '_id'),
         }));
       });
     } else {
@@ -169,16 +187,10 @@ export default function Chat() {
             recipient: selectedUserId!,
             _id: Date.now().toString(),
           },
-          {
-            text: newMessageText,
-            sender: id!,
-            recipient: selectedUserId!,
-            _id: Date.now().toString(),
-          },
         ];
         return {
           ...prev,
-          [selectedUserId!]: uniqBy(updatedMessages, '_id'), // Ensure uniqueness when sending new message
+          [selectedUserId!]: uniqBy(updatedMessages, '_id'),
         };
       });
       setNewMessageText('');
@@ -186,16 +198,31 @@ export default function Chat() {
   }
 
   function sendFile(ev: any) {
+    const file = ev.target.files?.[0];
+    if (!file) return;
     const reader = new FileReader();
-    const file = ev.target.files![0];
     reader.readAsDataURL(file);
     reader.onload = () => {
-      sendMessage(ev, {
+      sendMessage(undefined, {
         name: file.name,
         data: reader.result,
       });
     };
   }
+
+  const refreshMessages = () => {
+    if (selectedUserId) {
+      axios.get(`/messages/${selectedUserId}`).then((res) => {
+        setMessagesPerUser((prev: any) => ({
+          ...prev,
+          [selectedUserId!]: uniqBy(res.data, '_id'),
+        }));
+        toast.success("Messages updated", { autoClose: 1000 });
+      }).catch(err => {
+        console.error(err);
+      });
+    }
+  };
 
   useEffect(() => {
     const div = divUnderMessages.current;
@@ -207,14 +234,14 @@ export default function Chat() {
   useEffect(() => {
     axios.get('/people').then((res) => {
       const offlinePeopleArr = res.data
-        .filter((p: User) => p._id != id)
+        .filter((p: User) => p._id !== id)
         .filter((p: User) => !Object.keys(onlinePeople).includes(p._id));
-      const offlinePeople: Record<string, User> = {};
+      const offlinePeopleMap: Record<string, User> = {};
       offlinePeopleArr.forEach((p: User) => {
-        offlinePeople[p._id] = p;
+        offlinePeopleMap[p._id] = p;
       });
-      totalPeopleRef.current = offlinePeople;
-      setOfflinePeople(offlinePeople);
+      totalPeopleRef.current = offlinePeopleMap;
+      setOfflinePeople(offlinePeopleMap);
     });
   }, []);
 
@@ -228,19 +255,17 @@ export default function Chat() {
             [selectedUserId!]: uniqBy(res.data, '_id'),
           }));
 
-          const unreadMessages = res.data.filter(
+          const unread = res.data.filter(
             (message: Message) =>
-              !message.read && message.sender == selectedUserId,
+              !message.read && message.sender === selectedUserId,
           );
-          const markAsReadPromises = unreadMessages.map((message: Message) =>
+          const markAsReadPromises = unread.map((message: Message) =>
             axios.put(`/messages/${message._id}/markAsRead`),
           );
 
           Promise.all(markAsReadPromises)
-            .then((responses) => {
-              if (responses) {
-                console.log('Messages marked as read:');
-              }
+            .then(() => {
+              // Read status updated
             })
             .catch((error) => {
               console.error('Error marking messages as read:', error);
@@ -261,12 +286,81 @@ export default function Chat() {
     }, 1000);
   }, [selectedUserId]);
 
+  // Combined and filtered people list
+  const onlineUserIds = Object.keys(onlinePeople).filter((userId) => userId !== id);
+  const offlineUserIds = Object.keys(offlinePeople);
+
+  const filteredOnlineUsers = onlineUserIds.filter((userId) =>
+    onlinePeople[userId]?.username?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const filteredOfflineUsers = offlineUserIds.filter((userId) =>
+    offlinePeople[userId]?.username?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedUserInfo = selectedUserId
+    ? onlinePeople[selectedUserId] || offlinePeople[selectedUserId]
+    : null;
+  const isSelectedUserOnline = selectedUserId ? onlineUserIds.includes(selectedUserId) : false;
+
   return (
-    <div className="flex bg-white" style={{ height: 'calc(100vh - 136px)' }}>
-      <div className="w-1/4 flex flex-col border border-white shadow h-full">
-        <div className="overflow-auto h-full">
-          <Logo />
-          {Object.keys(onlinePeople).filter((userId) => userId !== id).map((userId) => (
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col md:flex-row h-[calc(100vh-210px)] min-h-[580px]">
+      {/* Left Contacts Sidebar */}
+      <div className="w-full md:w-80 lg:w-96 flex flex-col border-r border-slate-200/80 bg-white shrink-0">
+        <Logo />
+
+        {/* Search Contact Bar */}
+        <div className="p-3 border-b border-slate-100 bg-white">
+          <div className="relative">
+            <MdSearch className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search contacts..."
+              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <MdClose className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Online / All Filter Pills */}
+          <div className="flex items-center gap-1.5 mt-2.5">
+            <button
+              type="button"
+              onClick={() => setFilterMode('all')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                filterMode === 'all'
+                  ? 'bg-primary text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+              }`}
+            >
+              All ({onlineUserIds.length + offlineUserIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('online')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                filterMode === 'online'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>Online ({onlineUserIds.length})</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Contacts List Container */}
+        <div className="overflow-y-auto flex-1 divide-y divide-slate-100/60 no-scrollbar">
+          {/* Online Users */}
+          {filteredOnlineUsers.map((userId) => (
             <Contact
               key={userId}
               id={userId}
@@ -277,7 +371,9 @@ export default function Chat() {
               unreadMessages={unreadMessages[userId]?.length || 0}
             />
           ))}
-          {Object.keys(offlinePeople).map((userId) => (
+
+          {/* Offline Users */}
+          {filterMode === 'all' && filteredOfflineUsers.map((userId) => (
             <Contact
               key={userId}
               id={userId}
@@ -288,76 +384,147 @@ export default function Chat() {
               unreadMessages={unreadMessages[userId]?.length || 0}
             />
           ))}
+
+          {filteredOnlineUsers.length === 0 && (filterMode === 'online' || filteredOfflineUsers.length === 0) && (
+            <div className="py-12 px-4 text-center text-slate-400">
+              <MdPeopleOutline className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-xs font-semibold text-slate-600">No contacts found</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Try searching with a different name</p>
+            </div>
+          )}
         </div>
       </div>
-      <div className="flex flex-col w-3/4 p-2 bg-white border border-gray shadow">
-        <div className="flex-grow">
-          {!selectedUserId && (
-            <div className="flex h-full flex-grow items-center justify-center">
-              <div className="text-black text-lg font-medium">
-                &larr; Select a person from the Sidebar
-              </div>
+
+      {/* Right Chat Messaging Area */}
+      <div className="flex flex-col flex-1 bg-slate-50/50 relative overflow-hidden">
+        {!selectedUserId ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center text-3xl mb-4 shadow-xs">
+              <MdChat />
             </div>
-          )}
-          {selectedUserId && (
-            <div className="relative h-full">
-              <div className="overflow-y-auto absolute top-0 left-0 right-0 bottom-2">
-                {messagesPerUser[selectedUserId]?.map((message: Message) => (
-                  <div
-                    key={message._id}
-                    className={
-                      message.sender === id ? 'text-right' : 'text-left'
-                    }
-                  >
-                    <div
-                      className={`text-left inline-block px-5 py-2 my-1 rounded-md text-lg font-medium ${message.sender === id
-                        ? 'bg-sky-700 text-white'
-                        : 'bg-success text-white'
-                        }`}
-                    >
-                      {message.text}
-                      {message.file && (
-                        <div>
-                          <a
-                            target="_blank"
-                            className="flex items-center gap-1 border-b"
-                            href={imageUrl + '/uploads/' + message.file}
-                          >
-                            {message.file}
-                          </a>
-                        </div>
-                      )}
-                    </div>
+            <h3 className="text-base font-bold text-slate-800 tracking-tight">
+              Select a conversation to start chatting
+            </h3>
+            <p className="text-xs text-slate-500 max-w-sm mt-1">
+              Choose a team member from the left sidebar to view message history, exchange real-time updates and share attachments.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Conversation Header */}
+            <div className="px-5 py-3.5 border-b border-slate-200/80 bg-white flex items-center justify-between shrink-0 shadow-2xs">
+              <div className="flex items-center gap-3">
+                <Avatar
+                  online={isSelectedUserOnline}
+                  username={selectedUserInfo?.username}
+                  userId={selectedUserId}
+                  size="md"
+                />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    {selectedUserInfo?.username || 'Team Member'}
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-2 h-2 rounded-full ${isSelectedUserOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                    <span className={`text-xs font-medium ${isSelectedUserOnline ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                      {isSelectedUserOnline ? 'Active Now' : 'Offline'}
+                    </span>
                   </div>
-                ))}
-                <div ref={divUnderMessages}></div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={refreshMessages}
+                  className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors cursor-pointer"
+                  title="Refresh Conversation"
+                >
+                  <MdRefresh className="w-5 h-5" />
+                </button>
               </div>
             </div>
-          )}
-        </div>
-        {selectedUserId && (
-          <form className="flex gap-2" onSubmit={sendMessage}>
-            <input
-              type="text"
-              value={newMessageText}
-              onChange={(ev) => setNewMessageText(ev.target.value)}
-              placeholder="Type your message here"
-              className="bg-gray border border-blue outline-none font-medium p-3 flex-grow rounded"
-            />
-            <label className="p-3 text-gray-600 rounded border border-blue cursor-pointer">
-              <input type="file" className="hidden" onChange={sendFile} />
-              📁
-            </label>
-            <button
-              type="submit"
-              className="bg-sky-900 p-3 font-medium text-white rounded"
-            >
-              Send
-            </button>
-          </form>
+
+            {/* Messages Feed */}
+            <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-3">
+              {(!messagesPerUser[selectedUserId] || messagesPerUser[selectedUserId].length === 0) ? (
+                <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 py-12">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mb-2">
+                    <MdChat />
+                  </div>
+                  <p className="text-xs font-bold text-slate-600">No messages yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Send a message below to start the conversation!</p>
+                </div>
+              ) : (
+                messagesPerUser[selectedUserId]?.map((message: Message) => {
+                  const isSelf = message.sender === id;
+                  return (
+                    <div
+                      key={message._id}
+                      className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}
+                    >
+                      <div
+                        className={`max-w-[85%] sm:max-w-[70%] p-3.5 rounded-2xl text-xs sm:text-sm font-medium leading-relaxed shadow-xs ${
+                          isSelf
+                            ? 'bg-primary text-white rounded-tr-xs shadow-primary/10'
+                            : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs'
+                        }`}
+                      >
+                        {message.text && <div>{message.text}</div>}
+                        {message.file && (
+                          <div className={`mt-2 pt-2 border-t ${isSelf ? 'border-white/20' : 'border-slate-100'}`}>
+                            <a
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`inline-flex items-center gap-1.5 text-xs font-bold underline transition-opacity hover:opacity-80 ${
+                                isSelf ? 'text-white' : 'text-primary'
+                              }`}
+                              href={`${imageUrl}/uploads/${message.file}`}
+                            >
+                              <MdInsertDriveFile className="text-sm" />
+                              <span className="truncate max-w-[200px]">{message.file}</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={divUnderMessages} />
+            </div>
+
+            {/* Message Input Footer */}
+            <form onSubmit={sendMessage} className="p-3 sm:p-4 bg-white border-t border-slate-200/80 flex items-center gap-2.5 shrink-0">
+              <label
+                className="p-2.5 rounded-xl border border-slate-200 hover:border-primary/40 hover:bg-primary/5 text-slate-500 hover:text-primary transition-all cursor-pointer shrink-0"
+                title="Attach Document or Image"
+              >
+                <input type="file" className="hidden" onChange={sendFile} />
+                <MdAttachFile className="w-5 h-5" />
+              </label>
+
+              <input
+                type="text"
+                value={newMessageText}
+                onChange={(ev) => setNewMessageText(ev.target.value)}
+                placeholder="Type a message here..."
+                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+              />
+
+              <button
+                type="submit"
+                disabled={!newMessageText.trim()}
+                className="px-5 py-2.5 bg-primary hover:bg-opacity-90 disabled:opacity-40 text-white rounded-xl font-bold text-xs sm:text-sm shadow-sm shadow-primary/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0"
+              >
+                <span>Send</span>
+                <MdSend className="w-4 h-4" />
+              </button>
+            </form>
+          </>
         )}
       </div>
     </div>
-
   );
 }
+

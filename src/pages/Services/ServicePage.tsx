@@ -1,14 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
-import { Button, Modal, Typography, Box, IconButton } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
+import { Modal, Box } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import Loader from '../../common/Loader';
 import IconPicker from './IconPicker';
+import {
+  MdOutlineDesignServices,
+  MdAdd,
+  MdEdit,
+  MdDeleteOutline,
+  MdClose,
+  MdSearch,
+  MdAttachMoney,
+  MdCategory,
+  MdDriveFileRenameOutline,
+  MdSave,
+  MdWarningAmber
+} from 'react-icons/md';
 
 const ServicePage: React.FC = () => {
   const {
@@ -19,13 +29,15 @@ const ServicePage: React.FC = () => {
     reset,
     formState: { errors },
   } = useForm();
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<any[]>([]);
   const [removeicon, setremoveIcon] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedSalesGroup, setSelectedSalesGroup] = useState<any>(null);
- 
+
   const openModal = (group: any) => {
     setSelectedSalesGroup(group);
     setremoveIcon(false);
@@ -42,6 +54,7 @@ const ServicePage: React.FC = () => {
       });
     }
   };
+
   const notify = (message: string) => toast.success(message);
   const notifyError = (message: string) =>
     toast.error(message, {
@@ -66,58 +79,49 @@ const ServicePage: React.FC = () => {
   const fetchSalesGroups = async () => {
     try {
       const response = await axios.get(`${apiPath}/api/services`);
-      const table = $('#services').DataTable();
-      if (table) {
-        table.destroy();
-      }
-      setData(response.data);
-      setTimeout(() => {
-        $('#services').DataTable();
-      }, 0);
+      setData(response.data || []);
     } catch (err: any) {
-      notifyError(`Failed to fetch: ${err.message}`);
+      notifyError(`Failed to fetch services: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-
-
   const onSubmit = async (formData: any) => {
-    setLoading(true);
+    setSaving(true);
     try {
       if (selectedSalesGroup) {
         await axios.put(
           `${apiPath}/api/services/${selectedSalesGroup._id}`,
           formData,
         );
-        notify('item updated successfully');
+        notify('Service updated successfully');
       } else {
         await axios.post(`${apiPath}/api/services`, {
           ...formData,
           type: 'service',
         });
-        notify('item saved successfully');
+        notify('New service created successfully');
       }
       closeModal();
       fetchSalesGroups();
     } catch (error: any) {
-      console.log('error', error);
-      notifyError(`${error?.response?.data?.error}`);
+      notifyError(`Error saving service: ${error.message}`);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const deleteSalesGroup = async () => {
+    if (!selectedSalesGroup) return;
     setLoading(true);
     try {
       await axios.delete(`${apiPath}/api/services/${selectedSalesGroup._id}`);
+      notify('Service deleted successfully');
       closeDeleteModal();
-      notify('item Delete successfully');
       fetchSalesGroups();
     } catch (error: any) {
-      notifyError(`Error deleting : ${error.message}`);
+      notifyError(`Error deleting: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -127,267 +131,304 @@ const ServicePage: React.FC = () => {
     fetchSalesGroups();
   }, []);
 
-  return (
-    <div>
-      {loading && <Loader />}
-      <Button
-        variant="contained"
-        color="primary"
-        startIcon={<AddIcon />}
-        onClick={() => openModal(null)}
-        style={{ marginBottom: '20px' }}
-      >
-        New Service
-      </Button>
+  const filteredServices = data.filter((item: any) => {
+    const query = searchTerm.toLowerCase();
+    return (
+      (item.serviceName || '').toLowerCase().includes(query) ||
+      (item.serviceTypeName || '').toLowerCase().includes(query)
+    );
+  });
 
-      <table id="services" className="w-full">
-        <thead>
-          <tr>
-            <th className="border-b">Name</th>
-            <th className="border-b">Service Charge</th>
-            <th className="border-b">Icon</th>
-            <th className="border-b">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data &&
-            data.map((group: any) => (
-              <tr key={group._id}>
-                <td
-                  className="border-b cursor-pointer p-0 text-lg font-medium"
-                  onClick={() => openModal(group)}
-                >
-                  {group.serviceName}
-                </td>
-                <td
-                  className="border-b cursor-pointer p-0 text-lg font-medium"
-                  onClick={() => openModal(group)}
-                >
-                  {group.price} $
-                </td>
-                <td
-                  className="border-b cursor-pointer p-0"
-                  onClick={() => openModal(group)}
-                >
-                  <div
-                    style={{
-                      width: '35px',
-                      height: '35px',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      overflow: 'hidden',
-                      padding: '2px',
-                    }}
-                    dangerouslySetInnerHTML={{ __html: group?.icon }}
-                  />
-                </td>
-                <td className="border-b p-0 flex gap-4">
-                  <IconButton onClick={() => openDeleteModal(group)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </td>
+  return (
+    <div className="space-y-6">
+      {loading && <Loader />}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-2/70 dark:bg-meta-4/20 p-4 rounded-2xl border border-stroke dark:border-strokedark">
+        <div className="relative flex-1 max-w-md">
+          <MdSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xl" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search services by name or category..."
+            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-xs sm:text-sm font-medium"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => openModal(null)}
+          className="flex items-center gap-2 bg-primary hover:bg-opacity-90 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer self-start sm:self-auto text-xs sm:text-sm"
+        >
+          <MdAdd className="text-lg" />
+          <span>New Service</span>
+        </button>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-stroke dark:border-strokedark bg-gray-2/50 dark:bg-meta-4/30 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <th className="py-3.5 px-5">Icon</th>
+                <th className="py-3.5 px-5">Service Name</th>
+                <th className="py-3.5 px-5">Category / Type</th>
+                <th className="py-3.5 px-5">Rate / Fee</th>
+                <th className="py-3.5 px-5 text-right">Actions</th>
               </tr>
-            ))}
-        </tbody>
-      </table>
+            </thead>
+            <tbody className="divide-y divide-stroke dark:divide-strokedark text-sm">
+              {filteredServices.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-10 text-center text-body dark:text-bodydark text-sm">
+                    No services found. Click "New Service" to create one.
+                  </td>
+                </tr>
+              ) : (
+                filteredServices.map((group: any) => (
+                  <tr
+                    key={group._id}
+                    className="hover:bg-gray-2/40 dark:hover:bg-meta-4/20 transition-colors"
+                  >
+                    <td className="py-3.5 px-5">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center p-1.5 overflow-hidden text-primary shrink-0">
+                        {group?.icon ? (
+                          <div
+                            className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current"
+                            dangerouslySetInnerHTML={{ __html: group.icon }}
+                          />
+                        ) : (
+                          <MdOutlineDesignServices className="text-xl" />
+                        )}
+                      </div>
+                    </td>
+
+                    <td
+                      className="py-3.5 px-5 font-bold text-black dark:text-white cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => openModal(group)}
+                    >
+                      {group.serviceName || 'Unnamed Service'}
+                    </td>
+
+                    <td className="py-3.5 px-5">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-2 dark:bg-meta-4 text-slate-700 dark:text-slate-200 border border-stroke dark:border-strokedark">
+                        {group.serviceTypeName || 'Standard'}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-5">
+                      <span className="font-extrabold text-black dark:text-white text-sm">
+                        ${group.price || 0}
+                      </span>
+                    </td>
+
+                    <td className="py-3.5 px-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openModal(group)}
+                          className="p-2 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
+                          title="Edit Service"
+                        >
+                          <MdEdit className="text-base" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openDeleteModal(group)}
+                          className="p-2 text-slate-500 hover:text-meta-1 hover:bg-meta-1/10 rounded-xl transition-colors cursor-pointer"
+                          title="Delete Service"
+                        >
+                          <MdDeleteOutline className="text-base" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <Modal open={isModalOpen} onClose={closeModal}>
-        <div className="flex items-center justify-center min-h-screen text-black">
-          <div className="text-lg bg-white px-6 py-4 rounded shadow-md max-w-lg w-full mx-auto">
-            <IconButton
+        <Box className="fixed inset-0 flex items-center justify-center p-4 z-99999 outline-none">
+          <div className="bg-white dark:bg-boxdark rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-stroke dark:border-strokedark relative max-h-[90vh] overflow-y-auto">
+            <button
+              type="button"
               onClick={closeModal}
-              className="absolute top-0"
-              style={{ left: '92%' }}
+              className="absolute top-5 right-5 text-slate-400 hover:text-black dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-meta-4 transition-colors cursor-pointer"
             >
-              <CloseIcon />
-            </IconButton>
-            <Typography
-              variant="h5"
-              component="h2"
-              marginTop={-4}
-              paddingBottom={2}
-              color={'blue'}
-            >
-              {selectedSalesGroup ? 'Edit Service' : 'New Service'}
-            </Typography>
-            <form
-              onSubmit={handleSubmit(onSubmit)}
-              className="space-y-6 overflow-auto p-1"
-            >
-              <div className="flex flex-col">
-                <label htmlFor="serviceName" className="font-medium mb-2">
-                  Service Name *
+              <MdClose className="text-xl" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5 border-b border-stroke dark:border-strokedark pb-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xl shrink-0">
+                <MdOutlineDesignServices />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-black dark:text-white">
+                  {selectedSalesGroup ? 'Edit Service Offering' : 'Create New Service'}
+                </h3>
+                <p className="text-xs text-body dark:text-bodydark">
+                  Define service pricing and customer catalogue icon
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1">
+                  <MdDriveFileRenameOutline className="text-slate-400 text-sm" />
+                  Service Name <span className="text-meta-1">*</span>
                 </label>
                 <input
                   {...register('serviceName', {
                     required: 'Service Name is required',
                   })}
-                  id="serviceName"
-                  type="text"
-                  placeholder="Enter service name"
-                  className={`border p-2 rounded focus:outline-none focus:ring focus:ring-blue ${
-                    errors.serviceName ? 'border-red-500' : 'border-gray'
-                  }`}
+                  placeholder="e.g. Premium Moving Lift Support"
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
                 />
                 {errors.serviceName && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.serviceName.message}
+                  <p className="text-meta-1 text-xs mt-1">
+                    {errors.serviceName.message as string}
                   </p>
                 )}
               </div>
-              <div className="flex flex-col">
-                <label htmlFor="serviceTypeName" className="font-medium mb-2">
-                  Service Type *
+
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1">
+                  <MdCategory className="text-slate-400 text-sm" />
+                  Service Type / Category <span className="text-meta-1">*</span>
                 </label>
                 <input
                   {...register('serviceTypeName', {
-                    required: 'Service Name is required',
+                    required: 'Service Type is required',
                   })}
-                  id="serviceTypeName"
-                  type="text"
-                  placeholder="Enter service type"
-                  className={`border p-2 rounded focus:outline-none focus:ring focus:ring-blue ${
-                    errors.serviceTypeName ? 'border-red-500' : 'border-gray'
-                  }`}
+                  placeholder="e.g. Lifting & Heavy Transport"
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
                 />
-                {/* <select
-                                    {...register('serviceTypeName', {
-                                        required: 'Service Type is required',
-                                    })}
-                                    id="serviceTypeName"
-                                    className={`border p-2 rounded focus:outline-none focus:ring focus:ring-blue-300 ${errors.serviceTypeName ? 'border-red-500' : 'border-gray'
-                                        }`}
-                                >
-                                    <option value="" disabled>
-                                        Select a service type
-                                    </option>
-                                    <option value="movingLift">Moving Lift</option>
-                                    <option value="certificate">Warranty Certificate</option>
-                                    <option value="movingPackage">Moving Package</option>
-                                    <option value="packing">Packing</option>
-                                    <option value="unpacking">Unpacking</option>
-                                    <option value="assembling">Assembling</option>
-                                    <option value="disassembling">Disassembling</option>
-                                    <option value="storage">Storage</option>
-                                    <option value="insurance">Insurance</option>
-                                </select> */}
-
                 {errors.serviceTypeName && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.serviceTypeName.message}
+                  <p className="text-meta-1 text-xs mt-1">
+                    {errors.serviceTypeName.message as string}
                   </p>
                 )}
               </div>
 
-              {/* Service Charge Amount */}
-              <div className="flex flex-col">
-                <label htmlFor="price" className="font-medium mb-2">
-                  Service Charge Amount
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1">
+                  <MdAttachMoney className="text-slate-400 text-sm" />
+                  Service Charge Amount ($) <span className="text-meta-1">*</span>
                 </label>
                 <input
                   {...register('price', {
                     required: 'Service Charge Amount is required',
                     valueAsNumber: true,
                   })}
-                  id="price"
                   type="number"
-                  placeholder="Enter service charge amount"
-                  className={`border p-2 rounded focus:outline-none focus:ring focus:ring-blue ${
-                    errors.price ? 'border-red-500' : 'border-gray'
-                  }`}
+                  step="0.01"
+                  placeholder="e.g. 150.00"
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
                 />
                 {errors.price && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.price.message}
+                  <p className="text-meta-1 text-xs mt-1">
+                    {errors.price.message as string}
                   </p>
                 )}
               </div>
 
-              {/* Service Icon */}
-              {  selectedSalesGroup && !removeicon ? 
-              <div className="flex flex-col ">
-              
-                  <label htmlFor="price" className="font-medium mb-2">
-                    Icon
-                  </label>
-                    <div className='flex gap-2'>
-                  <div
-                    style={{
-                      width: '80px',
-                      height: '80px',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      overflow: 'hidden',
-                      padding: '2px',
-                    }}
-                    dangerouslySetInnerHTML={{
-                      __html: selectedSalesGroup?.icon,
-                    }}
-                  />
-                  
-                  <div className='flex items-center cursor-pointer text-blue'
-                    onClick={() => setremoveIcon(true)}
-                  >
-                {' Change '}
+              <div className="pt-2">
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5">
+                  Service Representation Icon
+                </label>
+                {selectedSalesGroup && !removeicon && selectedSalesGroup?.icon ? (
+                  <div className="flex items-center gap-3 p-3 bg-gray-2 dark:bg-meta-4/30 rounded-xl border border-stroke dark:border-strokedark">
+                    <div
+                      className="w-12 h-12 bg-white dark:bg-boxdark rounded-lg border border-stroke dark:border-strokedark p-2 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full text-primary"
+                      dangerouslySetInnerHTML={{
+                        __html: selectedSalesGroup.icon,
+                      }}
+                    />
+                    <div>
+                      <p className="text-xs font-semibold text-black dark:text-white">
+                        Current SVG Icon Assigned
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setremoveIcon(true)}
+                        className="text-xs text-primary font-bold hover:underline mt-0.5 cursor-pointer"
+                      >
+                        Change Icon
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <IconPicker
+                    setValue={setValue}
+                    register={register}
+                    control={control}
+                    errors={errors}
+                  />
+                )}
               </div>
-            : <div className="">
-                <IconPicker
-                  setValue={setValue}
-                  register={register}
-                
-                  control={control}
-                  errors={errors}
-                />
-              </div>
-}
-              {/* Submit Button */}
-              <div className="flex justify-end mt-4">
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-stroke dark:border-strokedark">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-gray-2 dark:hover:bg-strokedark transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="bg-primary border border-1 uppercase border-success shadow-lg text-white font-medium px-6 py-1 rounded hover:bg-blue focus:outline-none"
+                  disabled={saving}
+                  className="flex items-center gap-2 bg-primary hover:bg-opacity-90 text-white font-semibold py-2.5 px-6 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {selectedSalesGroup ? 'Update' : 'Submit'}
+                  <MdSave className="text-base" />
+                  {saving ? 'Saving...' : selectedSalesGroup ? 'Update Service' : 'Create Service'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </Box>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>
-        <div className="flex items-center justify-center min-h-screen">
-          <Box className="bg-white p-10 rounded shadow-md max-w-md mx-auto">
-            <div className="flex justify-between mb-5">
-              <Typography variant="h5" component="h2" color={'blue'}>
-                Confirm Delete
-              </Typography>
-              <IconButton onClick={closeDeleteModal}>
-                <CloseIcon />
-              </IconButton>
+        <Box className="fixed inset-0 flex items-center justify-center p-4 z-99999 outline-none">
+          <div className="bg-white dark:bg-boxdark rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-stroke dark:border-strokedark space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 rounded-2xl bg-meta-1/10 text-meta-1 flex items-center justify-center text-2xl">
+              <MdWarningAmber />
             </div>
-            <Typography marginBottom={2} variant="h6">
-              Are you sure you want to delete the item that named "
-              {selectedSalesGroup?.serviceTypeName}"?
-            </Typography>
-            <Box className="flex justify-end" style={{ gap: '10px' }}>
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={deleteSalesGroup}
+            <div>
+              <h4 className="text-lg font-bold text-black dark:text-white">
+                Delete Service
+              </h4>
+              <p className="text-xs text-body dark:text-bodydark mt-1 leading-relaxed">
+                Are you sure you want to delete service{' '}
+                <span className="font-bold text-black dark:text-white">
+                  "{selectedSalesGroup?.serviceName || selectedSalesGroup?.serviceTypeName}"
+                </span>
+                ? This will remove it from future quotation packages.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-gray-2 dark:hover:bg-strokedark transition-colors cursor-pointer"
               >
-                Yes
-              </Button>
-              <Button variant="outlined" onClick={closeDeleteModal}>
-                No
-              </Button>
-            </Box>
-          </Box>
-        </div>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteSalesGroup}
+                className="px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-meta-1 hover:bg-opacity-90 text-white shadow-md shadow-meta-1/25 transition-all cursor-pointer"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </Box>
       </Modal>
     </div>
   );

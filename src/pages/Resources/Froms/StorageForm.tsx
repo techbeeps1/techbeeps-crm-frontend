@@ -125,7 +125,7 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
       <button
         onClick={handleOpen}
         type="button"
-        className={data ? "inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors" : "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"}
+        className={data ? "inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors" : "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all"}
       >
         {data ? (
           <>
@@ -156,9 +156,9 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
         {loading && <Loader />}
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/20">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-primary/5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
               <MdWarehouse className="w-5 h-5" />
             </div>
             <div>
@@ -194,8 +194,8 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                     type="text"
                     placeholder="e.g. ST-101"
                     className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                      errors.storageCode ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                      errors.storageCode ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                   />
                 )}
               />
@@ -219,8 +219,8 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                   <select
                     {...field}
                     className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                      errors.storageType ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                      errors.storageType ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                   >
                     <option value="">Select Type</option>
                     <option value="Container">Container</option>
@@ -265,8 +265,8 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                     }}
                     placeholder="e.g. 25"
                     className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                      errors.cubicMeter ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                      errors.cubicMeter ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                   />
                 )}
               />
@@ -291,7 +291,7 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                       onClick={() => field.onChange(true)}
                       className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${
                         field.value 
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                          ? 'bg-primary text-white border-primary shadow-xs' 
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -308,7 +308,7 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                       onClick={() => field.onChange(false)}
                       className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${
                         !field.value 
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                          ? 'bg-primary text-white border-primary shadow-xs' 
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -334,8 +334,8 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                   <select
                     {...field}
                     className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                      errors.warehouse ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                      errors.warehouse ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                   >
                     <option value="">Select Warehouse</option>
                     {warehousefilter &&
@@ -367,8 +367,8 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                   <select
                     {...field}
                     className={`block w-full px-3.5 py-2.5 text-sm bg-white border ${
-                      errors.storageLocation ? 'border-red-500' : 'border-slate-300 focus:border-indigo-500'
-                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800`}
+                      errors.storageLocation ? 'border-red-500' : 'border-slate-300 focus:border-primary'
+                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800`}
                   >
                     <option value="">Select Storage Location</option>
                     {storageLocation &&
@@ -399,7 +399,7 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all"
+              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer"
             >
               {data ? 'Update Storage' : 'Create Storage'}
             </button>

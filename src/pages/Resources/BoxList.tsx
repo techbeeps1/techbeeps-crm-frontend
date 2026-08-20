@@ -1,21 +1,40 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
-import {
-    Button,
-    Modal,
-    Typography,
-    Box,
-    IconButton, Tabs, Tab,
-} from '@mui/material';
+import { Dialog, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import Loader from '../../common/Loader';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
 import BoxFrom from './Froms/BoxFrom';
 import Supplier from './Froms/Supplier';
 import StockForm from './Froms/StockForm';
 import OrderList from './OrderList';
+import { 
+    MdAllInbox, 
+    MdLayers, 
+    MdDeleteOutline, 
+    MdSearch, 
+    MdAttachMoney, 
+    MdStraighten, 
+    MdOutlineViewInAr,
+    MdWarningAmber,
+    MdClose,
+    MdBusiness,
+    MdInbox,
+    MdShoppingCart
+} from 'react-icons/md';
+
+const avatarColors = [
+    'bg-primary text-white',
+    'bg-blue-600 text-white',
+    'bg-emerald-600 text-white',
+    'bg-amber-600 text-white',
+    'bg-rose-600 text-white',
+    'bg-indigo-600 text-white',
+    'bg-teal-600 text-white',
+];
+
+const getAvatarBg = (index: number) => avatarColors[index % avatarColors.length];
 
 const BoxList: React.FC<{ type: string }> = ({ type }) => {
     const [data, setData] = useState<any>([]);
@@ -25,26 +44,22 @@ const BoxList: React.FC<{ type: string }> = ({ type }) => {
     const [isDeleteModalOpen, setDeleteModalOpen] = useState<boolean>(false);
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
     const [tabIndex, setTabIndex] = useState<number>(0);
+    const [searchTerm, setSearchTerm] = useState<string>('');
+
+    const isBox = type === 'Box';
+    const MainIcon = isBox ? MdAllInbox : MdLayers;
 
     const notify = (message: string) => toast.success(message);
     const notifyError = (message: string) => toast.error(message, {
         autoClose: 2000,
     });
 
-    const handleChange = (event: any, newValue: any) => {
-        event.preventDefault();
-        setTabIndex(newValue);
-    };
-
     const handleAllData = async () => {
         setLoading(true);
         try {
             const response = await axios.get(`${apiPath}/api/box?type=${type}`);
-            setData(response["data"]);
-            setTimeout(() => {
-                $(`#${type}`).DataTable();
-            }, 0);
-            setSelectedStaff(null)
+            setData(response["data"] || []);
+            setSelectedStaff(null);
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || "Something went wrong. Please try again.";
             notifyError(errorMessage);
@@ -54,7 +69,8 @@ const BoxList: React.FC<{ type: string }> = ({ type }) => {
         }
     };
 
-    const openDeleteModal = (agent: any) => {
+    const openDeleteModal = (agent: any, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         setSelectedAgent(agent);
         setDeleteModalOpen(true);
     };
@@ -65,13 +81,13 @@ const BoxList: React.FC<{ type: string }> = ({ type }) => {
     };
 
     const confirmDelete = async () => {
-        setLoading(true)
+        setLoading(true);
         try {
             const response = await axios.delete(`${apiPath}/api/box/${selectedAgent._id}`);
-            if (response.status == 200) {
-                notify("Data Deleted successfully!");
-                handleAllData()
-                setSelectedStaff(null)
+            if (response.status === 200) {
+                notify(`${type} item deleted successfully!`);
+                handleAllData();
+                setSelectedStaff(null);
             }
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || "Something went wrong. Please try again.";
@@ -80,170 +96,384 @@ const BoxList: React.FC<{ type: string }> = ({ type }) => {
             closeDeleteModal();
             setLoading(false);
         }
-    }
-    const materilHandlers = async (Formdata: any) => {
-        setLoading(true)
-        let path = `${apiPath}/api/box/${Formdata?._id}`;
+    };
+
+    const materilHandlers = async (formdata: any) => {
+        setLoading(true);
+        let path = `${apiPath}/api/box/${formdata?._id}`;
         try {
-            const response = await axios.post(path, Formdata);
+            const response = await axios.post(path, formdata);
             if (response.status === 201 || response.status === 200) {
-                notify("Request successfully!");
-                handleAllData()
+                notify("Supplier details updated successfully!");
+                handleAllData();
+                setSelectedStaff(formdata);
             }
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || "Something went wrong. Please try again.";
             notifyError(errorMessage);
-            console.log(error)
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     };
 
     useEffect(() => {
         handleAllData();
-    }, []);
+    }, [type]);
 
-    if (loading) {
+    const filteredData = useMemo(() => {
+        if (!searchTerm.trim()) return data;
+        const query = searchTerm.toLowerCase();
+        return data.filter((item: any) => 
+            item.name?.toLowerCase().includes(query)
+        );
+    }, [data, searchTerm]);
+
+    const tabs = [
+        { label: `${type} Specs`, icon: MainIcon },
+        { label: 'Suppliers', icon: MdBusiness },
+        { label: 'Received', icon: MdInbox },
+        { label: 'Orders', icon: MdShoppingCart },
+    ];
+
+    if (loading && data.length === 0) {
         return <Loader />;
     }
     if (error) {
-        return <div className="text-red-500 text-center p-4">{error}</div>;
+        return <div className="text-rose-500 text-center p-6 bg-rose-50 rounded-2xl border border-rose-200">{error}</div>;
     }
+
     return (
-        <div className="flex flex-col md:flex-row p-0 pt-2" style={{ justifyContent: "flex-start", minHeight: "85vh" }}>
-            <div className="md:w-1/2 bg-white p-4 overflow-auto">
-                <BoxFrom type={type} handler={handleAllData} />
-                <div className="rounded-sm mt-5 dark:border-strokedark dark:bg-boxdark">
-                    <table style={{ paddingTop: "30px" }} id={type} className="">
-                        <thead >
-                            <tr>
-                                <th className="border-b">Type/Name</th>
-                                <th className="border-b">Stock</th>
-                                <th className="border-b">Out</th>
-                                <th className="border-b">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.map((item: any, index: number) => (
-                                <tr key={index} onClick={() => setSelectedStaff(item)}>
-                                    <td style={{ padding: "15px 7px", cursor: "pointer" }} className="border-b font-bold">{item.name}</td>
-                                    <td style={{ padding: "15px 7px", cursor: "pointer" }} className="border-b font-bold">{item.currentStock}</td>
-                                    <td style={{ padding: "15px 7px", cursor: "pointer" }} className="border-b font-bold">{item.outstanding}</td>
-                                    <td style={{ padding: "15px 7px", cursor: "pointer" }} className="border-b font-bold"><span className={`${Number(item.currentStock) > 0 ? 'bg-sky-600' : "bg-danger"} rounded-2xl text-white px-2 py-1 shadow`}>{Number(item.currentStock) > 0 ? 'Normal' : "Attention"}</span></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>
-                        <Box className="bg-white p-6 rounded shadow-md max-w-md mx-auto mt-30">
-                            <IconButton
-                                onClick={closeDeleteModal}
-                                className="absolute top-0 right-3"
+        <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-xs border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white flex items-center justify-center shadow-md shadow-primary/20 text-2xl">
+                        <MainIcon />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">
+                            {isBox ? "Boxes Inventory" : "Materials Inventory"}
+                        </h2>
+                        <p className="text-xs sm:text-sm text-slate-500">
+                            {isBox 
+                                ? "Manage moving boxes, physical dimensions, rental & selling pricing" 
+                                : "Manage packing materials, stock levels, suppliers and purchase orders"}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {/* Search Bar */}
+                    <div className="relative flex-grow sm:w-64">
+                        <MdSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+                        <input
+                            type="text"
+                            placeholder={`Search ${type.toLowerCase()}...`}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                             >
-                                <CloseIcon />
-                            </IconButton>
-                            <Typography variant="h6" component="h2" className="mb-5" style={{ margin: "5px 0" }}>
-                                Confirm Delete
-                            </Typography>
-                            <Typography className="mb-4" style={{ margin: "5px 0" }}>
-                                Are you sure you want to delete {selectedAgent?.name}?
-                            </Typography>
-                            <Box className="flex justify-end" style={{ margin: "5px 0", display: "flex", gap: "10px" }}>
-                                <Button
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={confirmDelete}
-                                    className="mr-2"
-                                >
-                                    Yes
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    onClick={closeDeleteModal}
-                                >
-                                    No
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Modal>
+                                <MdClose className="text-sm" />
+                            </button>
+                        )}
+                    </div>
+
+                    <BoxFrom type={type} handler={handleAllData} />
                 </div>
             </div>
-            <div className="relative md:w-1/2 bg-white border-l shadow border-gray">
-                {selectedStaff &&
-                    // <div className="absolute top-0 right-0 left-0 bottom-0 h-full w-full overflow-y-auto transition-transform p-4">
-                        <div className={`${
-          selectedStaff
-            ? 'z-10 transition-all delay-400 ease-in-out top-0 right-0 left-full bottom-0'
-            : 'w-full  h-full shadow border-l border-gray'
-        } ${selectedStaff && '!left-0'} bg-white h-full overflow-auto `}
-      >
-                        <div className="flex justify-between items-center mb-3">
-                            <div style={{ textTransform: "uppercase" }} className="text-2xl font-bold mt-2">{selectedStaff.name}</div>
-                            <IconButton onClick={() => setSelectedStaff(null)} className=''>
-                                <CloseIcon />
-                            </IconButton>
+
+            {/* Split View Container: Table (Left) + Detail Drawer (Right) */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+                {/* Left Table Container */}
+                <div className={`bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden transition-all duration-300 ${
+                    selectedStaff ? 'lg:w-7/12 w-full' : 'w-full'
+                }`}>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                                    <th className="py-3.5 px-4 sm:px-6">{type} Type/Name</th>
+                                    <th className="py-3.5 px-4">In Stock</th>
+                                    <th className="py-3.5 px-4">Out / Outstanding</th>
+                                    <th className="py-3.5 px-4">Status</th>
+                                    <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-sm">
+                                {filteredData.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                                            <MainIcon className="text-4xl mx-auto mb-2 text-slate-300" />
+                                            <p className="font-medium text-slate-600">No {type.toLowerCase()} records found</p>
+                                            <p className="text-xs text-slate-400 mt-0.5">Add a new item to get started</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredData.map((item: any, index: number) => {
+                                        const isSelected = selectedStaff?._id === item._id;
+                                        const hasStock = Number(item.currentStock) > 0;
+                                        return (
+                                            <tr
+                                                key={item._id || index}
+                                                onClick={() => setSelectedStaff(item)}
+                                                className={`group transition-all duration-150 cursor-pointer ${
+                                                    isSelected
+                                                        ? 'bg-primary/5 border-l-4 border-l-primary'
+                                                        : 'hover:bg-slate-50/80'
+                                                }`}
+                                            >
+                                                {/* Name with Avatar */}
+                                                <td className="py-3.5 px-4 sm:px-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-lg ${getAvatarBg(index)} flex items-center justify-center font-bold text-xs shadow-xs`}>
+                                                            {item.name ? item.name.slice(0, 2).toUpperCase() : 'BX'}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-slate-800 group-hover:text-primary transition-colors">
+                                                                {item.name}
+                                                            </div>
+                                                            <div className="text-xs text-slate-400">
+                                                                {item.length}×{item.width}×{item.height} cm
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                {/* Stock */}
+                                                <td className="py-3.5 px-4">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold ${
+                                                        hasStock ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                                                    }`}>
+                                                        {item.currentStock || 0} units
+                                                    </span>
+                                                </td>
+
+                                                {/* Outstanding */}
+                                                <td className="py-3.5 px-4 text-slate-600 font-medium text-xs">
+                                                    <span className="px-2 py-0.5 bg-slate-100 rounded-md">
+                                                        {item.outstanding || 0} units
+                                                    </span>
+                                                </td>
+
+                                                {/* Status Pill */}
+                                                <td className="py-3.5 px-4">
+                                                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                                                        hasStock
+                                                            ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                                            : 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                                    }`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${hasStock ? 'bg-blue-500' : 'bg-rose-500'}`} />
+                                                        {hasStock ? 'Normal' : 'Attention'}
+                                                    </span>
+                                                </td>
+
+                                                {/* Actions */}
+                                                <td className="py-3.5 px-4 sm:px-6 text-right">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => openDeleteModal(item, e)}
+                                                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                                        title={`Delete ${type}`}
+                                                    >
+                                                        <MdDeleteOutline className="text-lg" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Right Detail Drawer */}
+                {selectedStaff && (
+                    <div className="lg:w-5/12 w-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden sticky top-20">
+                        {/* Drawer Header */}
+                        <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-primary/5 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm shadow-primary/20">
+                                    {selectedStaff.name ? selectedStaff.name.slice(0, 2).toUpperCase() : 'BX'}
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-800 uppercase tracking-tight">
+                                        {selectedStaff.name}
+                                    </h3>
+                                    <span className="text-xs text-primary font-semibold">
+                                        {type} Inventory Detail
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => openDeleteModal(selectedStaff)}
+                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                                    title={`Delete ${type}`}
+                                >
+                                    <MdDeleteOutline className="text-xl" />
+                                </button>
+                                <button
+                                    onClick={() => setSelectedStaff(null)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                                    title="Close Panel"
+                                >
+                                    <MdClose className="text-xl" />
+                                </button>
+                            </div>
                         </div>
-                        <Tabs value={tabIndex} onChange={handleChange} variant="standard">
-                            <Tab label={type} sx={{ fontSize: '1rem' }} />
-                            <Tab label="Suppliers" sx={{ fontSize: '1rem' }} />
-                            <Tab label="Received" sx={{ fontSize: '1rem' }} />
-                            <Tab label="Orders" sx={{ fontSize: '1rem' }} />
-                        </Tabs>
-                        <div className="p-4">
+
+                        {/* Modern Tab Bar */}
+                        <div className="px-5 pt-3 border-b border-slate-100 flex gap-2 overflow-x-auto no-scrollbar">
+                            {tabs.map((tab, idx) => {
+                                const TabIcon = tab.icon;
+                                const isActive = tabIndex === idx;
+                                return (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => setTabIndex(idx)}
+                                        className={`flex items-center gap-1.5 pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                                            isActive
+                                                ? 'border-primary text-primary'
+                                                : 'border-transparent text-slate-500 hover:text-slate-700'
+                                        }`}
+                                    >
+                                        <TabIcon className="text-sm" />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Tab Contents */}
+                        <div className="p-5 max-h-[calc(100vh-280px)] overflow-y-auto space-y-5">
+                            {/* Tab 0: Specifications */}
                             {tabIndex === 0 && (
-                                <div className="">
-                                    {selectedStaff.inventorySuppliers.length > 0 && 
-                                    <StockForm handleAllData={handleAllData} supplier={selectedStaff} />}
-                                    <div className="flex justify-between mb-3">
-                                        <h2 className="text-xl font-bold mb-2 me-4">{type} specifications</h2>
-                                        <DeleteIcon onClick={() => openDeleteModal(selectedStaff)} />
-                                    </div>
-                                    <div className='w-2/3 max-w-full'>
-                                        <div className="flex justify-between mb-2">
-                                            <p className="text-lg font-medium">Name/Type:</p>
-                                            <p className="text-lg font-bold text-start">{selectedStaff?.name}</p>
+                                <div className="space-y-4">
+                                    {selectedStaff.inventorySuppliers && selectedStaff.inventorySuppliers.length > 0 && (
+                                        <StockForm handleAllData={handleAllData} supplier={selectedStaff} />
+                                    )}
+
+                                    {/* Pricing Card */}
+                                    <div className="bg-slate-50/70 rounded-xl border border-slate-200/80 p-4 space-y-3">
+                                        <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider border-b border-slate-200/60 pb-2">
+                                            <MdAttachMoney className="text-primary text-base" />
+                                            <span>Pricing Information</span>
                                         </div>
-                                        <div className="flex justify-between mb-2">
-                                            <p className="text-lg font-medium">Rental Price :</p>
-                                            <p className="text-lg font-bold text-start">{selectedStaff?.rentalPrice}</p>
-                                        </div>
-                                        <div className="flex justify-between mb-2">
-                                            <p className="text-lg font-medium">Selling Price :</p>
-                                            <p className="text-lg font-bold text-start ">{selectedStaff?.sellingPrice}</p>
-                                        </div>
-                                    </div>
-                                    <hr className='text-gray my-2' />
-                                    <div className='w-2/3 max-w-full'>
-                                        <div className="flex justify-between mb-2">
-                                            <p className="text-lg font-medium">Dimensions :</p>
-                                            <p className="text-lg font-bold text-start ">{`${selectedStaff?.length}cm x ${selectedStaff?.width}cm x ${selectedStaff?.height}cm `}</p>
-                                        </div>
-                                        <div className="flex justify-between mb-2">
-                                            <p className="text-lg font-medium">Contents :</p>
-                                            <p className="text-lg font-bold text-start">
-                                                {`${selectedStaff?.cubicMeter?.toFixed(3)}`}m<sup>3</sup>
-                                            </p>
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div>
+                                                <span className="text-slate-400 block font-medium mb-0.5">Rental Price</span>
+                                                <span className="font-bold text-slate-800 text-sm">
+                                                    ${selectedStaff?.rentalPrice || '0.00'}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-400 block font-medium mb-0.5">Selling Price</span>
+                                                <span className="font-bold text-slate-800 text-sm">
+                                                    ${selectedStaff?.sellingPrice || '0.00'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="mt-5">
+
+                                    {/* Dimensions Card */}
+                                    <div className="bg-slate-50/70 rounded-xl border border-slate-200/80 p-4 space-y-3">
+                                        <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider border-b border-slate-200/60 pb-2">
+                                            <MdStraighten className="text-primary text-base" />
+                                            <span>Dimensions & Volume</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div>
+                                                <span className="text-slate-400 block font-medium mb-0.5">Length × Width × Height</span>
+                                                <span className="font-bold text-slate-800 text-sm">
+                                                    {selectedStaff?.length} × {selectedStaff?.width} × {selectedStaff?.height} cm
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-slate-400 block font-medium mb-0.5">Cubic Volume</span>
+                                                <span className="font-bold text-slate-800 text-sm">
+                                                    {selectedStaff?.cubicMeter ? Number(selectedStaff.cubicMeter).toFixed(3) : '—'} m³
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Edit Detail Button */}
+                                    <div className="pt-2 flex justify-end">
                                         <BoxFrom type={type} handler={handleAllData} data={selectedStaff} />
                                     </div>
                                 </div>
                             )}
+
+                            {/* Tab 1: Suppliers */}
                             {tabIndex === 1 && (
                                 <Supplier materilHandlers={materilHandlers} material={selectedStaff} />
                             )}
+
+                            {/* Tab 2: Received */}
                             {tabIndex === 2 && (
-                                <OrderList type='Register' material={selectedStaff._id}/>
+                                <OrderList type="Register" material={selectedStaff._id} />
                             )}
+
+                            {/* Tab 3: Orders */}
                             {tabIndex === 3 && (
-                                <OrderList type='Order' material={selectedStaff._id}/>
+                                <OrderList type="Order" material={selectedStaff._id} />
                             )}
                         </div>
-                    </div>}
+                    </div>
+                )}
             </div>
+
+            {/* Modern Delete Confirmation Dialog */}
+            <Dialog
+                open={isDeleteModalOpen}
+                onClose={closeDeleteModal}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: "16px",
+                        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                    }
+                }}
+            >
+                <div className="p-6 bg-white flex flex-col items-center text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-3xl mb-4">
+                        <MdWarningAmber />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">
+                        Confirm {type} Deletion
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 mb-6">
+                        Are you sure you want to delete <span className="font-bold text-slate-800">{selectedAgent?.name}</span>? This item will be permanently removed.
+                    </p>
+                    <div className="flex gap-3 w-full">
+                        <button
+                            type="button"
+                            onClick={closeDeleteModal}
+                            className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={confirmDelete}
+                            className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm shadow-sm shadow-rose-200 transition-all cursor-pointer"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </Dialog>
         </div>
     );
 };
 
 export default BoxList;
+

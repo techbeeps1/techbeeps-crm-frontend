@@ -2,10 +2,20 @@ import React, { useEffect, useState } from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import axios from "axios";
 import CloseIcon from '@mui/icons-material/Close';
-import EditIcon from '@mui/icons-material/Edit';
-
-import { Dialog, DialogTitle, IconButton, DialogContent, DialogActions, Button } from "@mui/material";
+import { Dialog, DialogContent, DialogActions, IconButton } from "@mui/material";
 import { apiPath } from "../../../../apiPath";
+import { 
+    MdBusiness, 
+    MdPhone, 
+    MdSmartphone, 
+    MdEmail, 
+    MdLanguage, 
+    MdLocationOn, 
+    MdAttachMoney, 
+    MdAdd, 
+    MdEdit, 
+    MdCheck 
+} from "react-icons/md";
 
 type SupplierFormInputs = {
     name: string;
@@ -21,33 +31,55 @@ type SupplierFormInputs = {
     zipCode: string;
     country: string;
     city: string;
-    purchasePrice: string
+    purchasePrice: string;
     type: string;
-    supplier:string;
+    supplier: string;
+};
+
+const initialSupplierValues: SupplierFormInputs = {
+    name: "",
+    website: "",
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
+    mobileNumber: "",
+    emailAddress: "",
+    houseNumber: "",
+    streetName: "",
+    addition: "",
+    zipCode: "",
+    country: "",
+    city: "",
+    purchasePrice: "",
+    type: "new",
+    supplier: "",
 };
 
 const Supplier: React.FC<any> = ({ material, materilHandlers }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [data, setData] = useState<any>([]);
-    const [editForm, setEditForm] = useState<any>()
-    const { register, handleSubmit, reset, watch, formState: { errors }, control } = useForm<SupplierFormInputs>();
+    const [editForm, setEditForm] = useState<any>();
+    const { register, handleSubmit, reset, watch, formState: { errors }, control } = useForm<SupplierFormInputs>({
+        defaultValues: initialSupplierValues,
+    });
 
-    let type = watch('type')
+    let type = watch('type');
 
-    const onSubmit: SubmitHandler<SupplierFormInputs> = async (data) => {
-        let path = `${apiPath}/api/supplier`
-        if (editForm){
-            path = `${apiPath}/api/supplier/${editForm.supplier._id}`
+    const onSubmit: SubmitHandler<SupplierFormInputs> = async (formData) => {
+        let path = `${apiPath}/api/supplier`;
+        if (editForm) {
+            path = `${apiPath}/api/supplier/${editForm.supplier._id}`;
         }
         try {
-            if (type === 'new' || editForm ) {
-                const response = await axios.post(path, data);
-                await materilHandlers({ ...material, supplier: response.data?._id, purchasePrice: data.purchasePrice })
+            if (type === 'new' || editForm) {
+                const response = await axios.post(path, formData);
+                await materilHandlers({ ...material, supplier: response.data?._id, purchasePrice: formData.purchasePrice });
             } else {
-                await materilHandlers({ ...material, ...data })
+                await materilHandlers({ ...material, ...formData });
             }
-            reset();
+            reset(initialSupplierValues);
             setIsOpen(false);
+            setEditForm(null);
         } catch (error) {
             console.error("Error creating supplier:", error);
             alert("Failed to create supplier.");
@@ -57,311 +89,455 @@ const Supplier: React.FC<any> = ({ material, materilHandlers }) => {
     const handleAllData = async () => {
         try {
             const response = await axios.get(`${apiPath}/api/supplier`);
-            setData(response["data"]);
+            setData(response["data"] || []);
         } catch (err: any) {
-            console.log(err)
+            console.log(err);
         }
     };
-    // const deleteHandler = async (id) => {
-    //     try {
-    //         const response = await axios.delete(`${apiPath}/api/supplier/${id}`);
-    //         alert('Successfully deleted')
-    //     } catch (err: any) {
-    //         console.log(err)
-    //     }
-    // };
+
     useEffect(() => {
-        handleAllData()
-    }, [])
+        handleAllData();
+    }, []);
 
     useEffect(() => {
         if (editForm) {
-            reset({ ...editForm?.supplier, ...editForm });
+            reset({ ...initialSupplierValues, ...editForm?.supplier, ...editForm });
         } else {
-            reset((fields) => Object.keys(fields).reduce((acc, key) => ({ ...acc, [key]: null }), {}));
+            reset(initialSupplierValues);
         }
     }, [editForm, reset]);
-    
+
+    const handleClose = () => {
+        setIsOpen(false);
+        setEditForm(null);
+    };
 
     return (
-        <div>
-            <div className="flex justify-between mb-3">
-                <h2 className="text-xl font-bold mb-2 me-4">Suppilers</h2>
+        <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                        Assigned Suppliers
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                        Suppliers providing inventory for this item
+                    </p>
+                </div>
                 <button
-                    onClick={() => setIsOpen(true)}
-                    className="flex justify-center items-center h-10 w-10 text-xl font-bold text-red-600 border border-red-600 rounded-full hover:bg-primary hover:text-white transition duration-300"
-                >+</button>
+                    type="button"
+                    onClick={() => { setEditForm(null); setIsOpen(true); }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-opacity-90 rounded-xl transition-all shadow-xs cursor-pointer"
+                >
+                    <MdAdd className="text-base" />
+                    <span>Add Supplier</span>
+                </button>
             </div>
-            {material?.inventorySuppliers && material?.inventorySuppliers.map((item: any) =>
-                <>
-                    <div className='relative max-w-full border border-gray p-3 mb-2 shadow'>
-                        <div className="absolute top-1 right-1">
-                            <IconButton onClick={() => { setIsOpen(true); setEditForm(item) }}>
-                                <EditIcon />
-                            </IconButton>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <p className="w-full text-lg font-medium">Name :</p>
-                            <p className="w-full text-lg font-bold text-start">{item.supplier?.name}</p>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <p className="w-full text-lg font-medium">Purchase price :</p>
-                            <p className="w-full text-lg font-bold text-start">{item.purchasePrice} $</p>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <p className="w-full text-lg font-medium">Phone Number :</p>
-                            <p className="w-full text-lg font-bold text-start">{item.supplier?.phoneNumber}</p>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <p className="w-full text-lg font-medium">Mobile Number :</p>
-                            <p className="w-full text-lg font-bold text-start">{item.supplier?.mobileNumber}</p>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <p className="w-full text-lg font-medium">Email :</p>
-                            <p className="w-full text-lg font-bold text-start">{item.supplier?.emailAddress}</p>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <p className="w-full text-lg font-medium">Website :</p>
-                            <p className="w-full text-lg font-bold text-start">{item.supplier?.website}</p>
-                        </div>
-                        <div className="flex justify-between mb-1">
-                            <p className="w-full text-lg font-medium">Address :</p>
-                            <p className="w-full text-lg font-bold text-start">{`${item.supplier?.houseNumber} ${item.supplier?.addition} ${item.supplier?.streetName} ${item.supplier?.city} ${item.supplier?.zipCode} ${item.supplier?.country}`}</p>
-                        </div>
 
-                    </div>
-                </>
+            {/* Supplier Cards List */}
+            {material?.inventorySuppliers && material?.inventorySuppliers.length > 0 ? (
+                <div className="space-y-3">
+                    {material.inventorySuppliers.map((item: any, idx: number) => (
+                        <div
+                            key={idx}
+                            className="bg-white border border-slate-200/80 rounded-xl p-4 relative shadow-xs hover:border-primary/30 transition-all space-y-3"
+                        >
+                            {/* Card Top */}
+                            <div className="flex items-center justify-between pr-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                                        <MdBusiness className="text-lg" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-slate-800">
+                                            {item.supplier?.name || "Unknown Supplier"}
+                                        </h4>
+                                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-0.5">
+                                            <MdAttachMoney className="text-xs" />
+                                            Purchase Price: ${item.purchasePrice || '0.00'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setEditForm(item); setIsOpen(true); }}
+                                    className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors cursor-pointer absolute top-3 right-3"
+                                    title="Edit Supplier"
+                                >
+                                    <MdEdit className="text-base" />
+                                </button>
+                            </div>
+
+                            {/* Contact Details Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-1 border-t border-slate-100">
+                                {item.supplier?.phoneNumber && (
+                                    <div className="flex items-center gap-1.5">
+                                        <MdPhone className="text-slate-400 text-sm" />
+                                        <span>{item.supplier.phoneNumber}</span>
+                                    </div>
+                                )}
+                                {item.supplier?.mobileNumber && (
+                                    <div className="flex items-center gap-1.5">
+                                        <MdSmartphone className="text-slate-400 text-sm" />
+                                        <span>{item.supplier.mobileNumber}</span>
+                                    </div>
+                                )}
+                                {item.supplier?.emailAddress && (
+                                    <div className="flex items-center gap-1.5">
+                                        <MdEmail className="text-slate-400 text-sm" />
+                                        <span className="truncate">{item.supplier.emailAddress}</span>
+                                    </div>
+                                )}
+                                {item.supplier?.website && (
+                                    <div className="flex items-center gap-1.5">
+                                        <MdLanguage className="text-slate-400 text-sm" />
+                                        <span className="truncate text-primary font-medium">{item.supplier.website}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Address */}
+                            {(item.supplier?.streetName || item.supplier?.city) && (
+                                <div className="flex items-start gap-1.5 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
+                                    <MdLocationOn className="text-slate-400 text-sm shrink-0 mt-0.5" />
+                                    <span>
+                                        {item.supplier?.houseNumber} {item.supplier?.addition || ""} {item.supplier?.streetName}, {item.supplier?.city} {item.supplier?.zipCode} {item.supplier?.country}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <MdBusiness className="text-3xl mx-auto text-slate-300 mb-1" />
+                    <p className="text-xs font-semibold text-slate-600">No suppliers assigned yet</p>
+                    <p className="text-[11px] text-slate-400">Add a supplier to enable stock ordering</p>
+                </div>
             )}
 
-            <Dialog open={isOpen} onClose={() => { setIsOpen(false), setEditForm(null) }} maxWidth="sm" fullWidth>
-                <DialogTitle>
-                    <div className="flex justify-between p-3">
-                        <span className="text-2xl font-bold text-primary">{editForm ? 'Update': 'Create New'} Supplier</span>
-                        <IconButton onClick={() => { setIsOpen(false), setEditForm(null) }}>
-                            <CloseIcon />
+            {/* Add / Edit Supplier Dialog */}
+            <Dialog
+                open={isOpen}
+                onClose={handleClose}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: "16px",
+                        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                        overflow: "hidden",
+                    }
+                }}
+            >
+                <div className="bg-white flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                                <MdBusiness className="text-xl" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">
+                                    {editForm ? "Update Supplier" : "Link Supplier"}
+                                </h3>
+                                <p className="text-xs text-slate-500">
+                                    Assign a supplier and configure purchasing pricing
+                                </p>
+                            </div>
+                        </div>
+                        <IconButton onClick={handleClose} size="small" className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+                            <CloseIcon fontSize="small" />
                         </IconButton>
                     </div>
-                </DialogTitle>
-                <DialogContent>
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-3">
-                        {!editForm && <div className="mb-4 mt-3">
-                            <label className="block text-lg font-medium pb-2">Supplier ?</label>
-                            <div className="flex gap-4">
-                                <Controller
-                                    name='type'
-                                    rules={{ required: "field is a required field" }}
-                                    control={control}
-                                    render={({ field }) => (
-                                        <button
-                                            type="button"
-                                            {...field}
-                                            onClick={() => field.onChange('new')} // Set elevator to true
-                                            className={`px-10 py-3 w-full border border-gray rounded ${field.value === 'new' ? "bg-blue text-white" : "bg-white"}`}
+
+                    <form onSubmit={handleSubmit(onSubmit)}>
+                        <DialogContent className="px-6 py-5 space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
+                            {/* New vs Existing Supplier Toggle (Only if not editing) */}
+                            {!editForm && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                        Supplier Mode <span className="text-rose-500">*</span>
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Controller
+                                            name="type"
+                                            rules={{ required: "Select supplier type" }}
+                                            control={control}
+                                            defaultValue="new"
+                                            render={({ field }) => (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => field.onChange('new')}
+                                                    className={`py-2.5 px-4 rounded-xl font-semibold text-xs transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
+                                                        field.value === 'new'
+                                                            ? "bg-primary text-white border-primary shadow-xs"
+                                                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                                    }`}
+                                                >
+                                                    {field.value === 'new' && <MdCheck className="text-sm" />}
+                                                    <span>New Supplier</span>
+                                                </button>
+                                            )}
+                                        />
+                                        <Controller
+                                            name="type"
+                                            control={control}
+                                            render={({ field }) => (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => field.onChange('exist')}
+                                                    className={`py-2.5 px-4 rounded-xl font-semibold text-xs transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
+                                                        field.value === 'exist'
+                                                            ? "bg-primary text-white border-primary shadow-xs"
+                                                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                                    }`}
+                                                >
+                                                    {field.value === 'exist' && <MdCheck className="text-sm" />}
+                                                    <span>Existing Supplier</span>
+                                                </button>
+                                            )}
+                                        />
+                                    </div>
+                                    {errors.type && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.type.message)}</p>}
+                                </div>
+                            )}
+
+                            {/* Existing Supplier Option */}
+                            {type === 'exist' && !editForm && (
+                                <div className="space-y-4 pt-2">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Select Supplier <span className="text-rose-500">*</span>
+                                        </label>
+                                        <select
+                                            {...register("supplier", { required: "Supplier selection is required" })}
+                                            className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                         >
-                                            New Supplier
-                                        </button>
-                                    )}
-                                />
-                                <Controller
-                                    name='type'
-                                    control={control}
-                                    render={({ field }) => (
-                                        <button
-                                            type="button"
-                                            {...field}
-                                            onClick={() => field.onChange('exist')} // Set elevator to false
-                                            className={`px-10 py-3 border border-gray rounded w-full ${field.value === 'exist' ? "bg-blue text-white" : "bg-white"}`}>
-                                            Existing Supplier
-                                        </button>
-                                    )}
-                                />
-                            </div>
-                            {errors.type && <p className="text-red-500 text-sm">{errors.type.message}</p>}
+                                            <option value="">Choose Supplier</option>
+                                            {data && data.map((item: any) => (
+                                                <option key={item._id} value={item._id}>{item.name}</option>
+                                            ))}
+                                        </select>
+                                        {errors.supplier && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.supplier.message)}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Purchasing Price ($) <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            placeholder="0.00"
+                                            {...register("purchasePrice", { required: "Purchasing price is required" })}
+                                            className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        />
+                                        {errors.purchasePrice && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.purchasePrice.message)}</p>}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* New Supplier Form Fields */}
+                            {(type === 'new' || editForm) && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                                Company Name <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Company Name"
+                                                {...register("name", { required: "Name is required" })}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                            {errors.name && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.name.message)}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                                Purchasing Price ($) <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input
+                                                type="number"
+                                                step="any"
+                                                placeholder="0.00"
+                                                {...register("purchasePrice", { required: 'Purchasing price is required' })}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                            {errors.purchasePrice && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.purchasePrice.message)}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                            Website
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="https://example.com"
+                                            {...register("website")}
+                                            className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                                                First Name <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="First Name"
+                                                {...register("firstName", { required: "First Name is required" })}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                            {errors.firstName && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.firstName.message)}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                                                Last Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Last Name"
+                                                {...register("lastName")}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                                                Phone Number
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Phone Number"
+                                                {...register("phoneNumber")}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                                                Mobile Number
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Mobile Number"
+                                                {...register("mobileNumber")}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                            Email Address <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            type="email"
+                                            placeholder="supplier@company.com"
+                                            {...register("emailAddress", { required: "Email is required" })}
+                                            className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        />
+                                        {errors.emailAddress && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.emailAddress.message)}</p>}
+                                    </div>
+
+                                    {/* Address Details */}
+                                    <div className="pt-2 border-t border-slate-100">
+                                        <div className="grid grid-cols-2 gap-3 mb-3">
+                                            <div>
+                                                <label className="block text-xs font-medium text-slate-600 mb-1">House Number</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="House Number"
+                                                    {...register("houseNumber")}
+                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-slate-600 mb-1">Addition</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Addition"
+                                                    {...register("addition")}
+                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <label className="block text-xs font-medium text-slate-600 mb-1">Street Name</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Street Name"
+                                                {...register("streetName")}
+                                                className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="block text-xs font-medium text-slate-600 mb-1">ZIP Code</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="ZIP"
+                                                    {...register("zipCode")}
+                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-slate-600 mb-1">City</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="City"
+                                                    {...register("city")}
+                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-slate-600 mb-1">Country</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Country"
+                                                    {...register("country")}
+                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </DialogContent>
+
+                        {/* Actions */}
+                        <div className="px-6 py-4.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={handleClose}
+                                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-6 py-2.5 rounded-xl bg-primary hover:bg-opacity-90 text-white font-semibold text-sm shadow-sm shadow-primary/20 transition-all cursor-pointer"
+                            >
+                                {editForm ? "Update Supplier" : "Save Supplier"}
+                            </button>
                         </div>
-                        }
-
-                        {(type === 'new' || editForm) && (
-                            <>
-                                <div>
-                                    <label className="block text-md font-medium">Company Name</label>
-                                    <input
-                                        type="text"
-                                        {...register("name", { required: "Name is required" })}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                    {errors.name && <p className="text-red-500 text-md">{errors.name.message}</p>}
-                                </div>
-
-                                {/* Website */}
-                                <div>
-                                    <label className="block text-md font-medium">Website</label>
-                                    <input
-                                        type="text"
-                                        {...register("website")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-md font-medium">Purchasing Price</label>
-                                    <input
-                                        type="number"
-                                        {...register("purchasePrice", { required: 'purchasePrice is required' })}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                    {errors.purchasePrice && <p className="text-red-500 text-md">{errors.purchasePrice.message}</p>}
-                                </div>
-
-                                {/* First Name */}
-                                <div>
-                                    <label className="block text-md font-medium">First Name</label>
-                                    <input
-                                        type="text"
-                                        {...register("firstName", { required: "First Name is required" })}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                    {errors.firstName && <p className="text-red-500 text-md">{errors.firstName.message}</p>}
-                                </div>
-
-                                {/* Last Name */}
-                                <div>
-                                    <label className="block text-md font-medium">Last Name</label>
-                                    <input
-                                        type="text"
-                                        {...register("lastName")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-
-                                {/* Phone Number */}
-                                <div>
-                                    <label className="block text-md font-medium">Phone Number</label>
-                                    <input
-                                        type="text"
-                                        {...register("phoneNumber")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-
-                                {/* Mobile Number */}
-                                <div>
-                                    <label className="block text-md font-medium">Mobile Number</label>
-                                    <input
-                                        type="text"
-                                        {...register("mobileNumber")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-
-                                {/* Email Address */}
-                                <div>
-                                    <label className="block text-md font-medium">Email Address</label>
-                                    <input
-                                        type="email"
-                                        {...register("emailAddress", { required: "Email is required" })}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                    {errors.emailAddress && <p className="text-red-500 text-md">{errors.emailAddress.message}</p>}
-                                </div>
-
-                                {/* Address Fields */}
-                                <div>
-                                    <label className="block text-md font-medium">House Number</label>
-                                    <input
-                                        type="text"
-                                        {...register("houseNumber")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-md font-medium">Street Name</label>
-                                    <input
-                                        type="text"
-                                        {...register("streetName")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-md font-medium">Addition</label>
-                                    <input
-                                        type="text"
-                                        {...register("addition")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-md font-medium">ZIP Code</label>
-                                    <input
-                                        type="text"
-                                        {...register("zipCode")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-md font-medium">Country</label>
-                                    <input
-                                        type="text"
-                                        {...register("country")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-md font-medium">City</label>
-                                    <input
-                                        type="text"
-                                        {...register("city")}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                </div>
-                            </>
-                        )}
-                        {type === 'exist' && (
-                            <>
-                                <div>
-                                    <label className="block text-md font-medium">Supplier</label>
-                                    <select
-                                        {...register("supplier", { required: 'supplier is required' })}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    >   <option value="">select</option>
-                                        {data && data.map((item: any) =>
-                                            <option key={item._id} value={item._id}>{item.name}</option>
-                                        )}
-
-                                    </select>
-                                    {errors.supplier && <p className="text-red-500 text-md">{errors.supplier.message}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-md font-medium">Purchasing Price</label>
-                                    <input
-                                        type="number"
-                                        {...register("purchasePrice", { required: 'purchasePrice is required' })}
-                                        className="w-full px-3 py-2 border border-gray rounded"
-                                    />
-                                    {errors.purchasePrice && <p className="text-red-500 text-md">{errors.purchasePrice.message}</p>}
-                                </div>
-                            </>
-                        )}
-
-
                     </form>
-                </DialogContent>
-                <DialogActions>
-                    <div className="p-3 flex gap-3 mx-4">
-                        <Button onClick={() => setIsOpen(false)} variant="outlined" color="secondary">
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSubmit(onSubmit)}
-                            variant="contained"
-                            color="primary"
-                        >
-                            Submit
-                        </Button>
-                    </div>
-
-                </DialogActions>
+                </div>
             </Dialog>
         </div>
     );
 };
 
 export default Supplier;
+

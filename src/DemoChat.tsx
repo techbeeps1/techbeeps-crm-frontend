@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import Chat from './Chat.js';
+import Chat from './Chat';
 import { useNavigate } from 'react-router-dom';
 
-
-export default function Routes() {
+export default function DemoChat() {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
 
@@ -11,9 +10,12 @@ export default function Routes() {
     if (!token) {
       navigate('/auth/signin');
     }
-  }, [navigate]);
+  }, [navigate, token]);
 
   if (token) {
     return <Chat />;
   }
+
+  return null;
 }
+

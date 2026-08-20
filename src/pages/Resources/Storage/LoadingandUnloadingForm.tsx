@@ -120,7 +120,7 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
             <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors cursor-pointer"
             >
                 <MdOutlineSwapVert className="w-4 h-4" />
                 <span>Loading & Unloading</span>
@@ -135,9 +135,9 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
                             {loading && <Loader />}
                             
                             {/* Modal Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/20">
+                            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-primary/5">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                                    <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
                                         <MdInventory2 className="w-5 h-5" />
                                     </div>
                                     <div>
@@ -161,7 +161,7 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
                                     <div>
                                         <h4 className="text-sm font-bold text-slate-900">Stored Items & Handling</h4>
                                         <p className="text-xs text-slate-500">
-                                            Capacity filled: <span className="font-bold text-indigo-600">{totalVolume} m³</span> of {storageData?.cubicMeter} m³
+                                            Capacity filled: <span className="font-bold text-primary">{totalVolume} m³</span> of {storageData?.cubicMeter} m³
                                         </p>
                                     </div>
                                     <button
@@ -178,7 +178,7 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
                                             ReleasedByEmployee: null, 
                                             loadedByCustomer: false 
                                         })}
-                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors cursor-pointer"
                                     >
                                         <MdAdd className="w-4 h-4" />
                                         <span>Add Item Row</span>
@@ -296,7 +296,7 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
                                     </label>
                                     <input
                                         type="text"
-                                        className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-indigo-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium text-slate-800"
+                                        className="block w-full px-3.5 py-2.5 text-sm bg-white border border-slate-300 focus:border-primary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800"
                                         {...register("notes")}
                                         placeholder="Notes about loading or release..."
                                     />
@@ -316,7 +316,7 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
                                                     key={option}
                                                     className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
                                                         handlingCost === option 
-                                                            ? "bg-white text-indigo-600 shadow-sm" 
+                                                            ? "bg-white text-primary shadow-sm" 
                                                             : "text-slate-600 hover:text-slate-900"
                                                     }`}
                                                     onClick={() => setHandlingCost(option)}
@@ -391,7 +391,7 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
                                     <button
                                         type="submit"
                                         disabled={storageData?.cubicMeter < totalVolume}
-                                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all disabled:opacity-50"
+                                        className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                                     >
                                         Save Changes
                                     </button>
