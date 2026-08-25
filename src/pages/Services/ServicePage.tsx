@@ -143,6 +143,7 @@ const ServicePage: React.FC = () => {
     <div className="space-y-6">
       {loading && <Loader />}
 
+      {/* Action & Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-2/70 dark:bg-meta-4/20 p-4 rounded-2xl border border-stroke dark:border-strokedark">
         <div className="relative flex-1 max-w-md">
           <MdSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xl" />
@@ -165,6 +166,7 @@ const ServicePage: React.FC = () => {
         </button>
       </div>
 
+      {/* Service Table Card */}
       <div className="overflow-hidden rounded-2xl border border-stroke dark:border-strokedark bg-white dark:bg-boxdark shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -191,14 +193,14 @@ const ServicePage: React.FC = () => {
                     className="hover:bg-gray-2/40 dark:hover:bg-meta-4/20 transition-colors"
                   >
                     <td className="py-3.5 px-5">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center p-1.5 overflow-hidden text-primary shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-gray-2 dark:bg-meta-4/30 border border-stroke dark:border-strokedark flex items-center justify-center p-1.5 overflow-hidden text-black dark:text-white shrink-0">
                         {group?.icon ? (
                           <div
-                            className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current"
+                            className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current text-black dark:text-white"
                             dangerouslySetInnerHTML={{ __html: group.icon }}
                           />
                         ) : (
-                          <MdOutlineDesignServices className="text-xl" />
+                          <MdOutlineDesignServices className="text-xl text-black dark:text-white" />
                         )}
                       </div>
                     </td>
@@ -250,6 +252,7 @@ const ServicePage: React.FC = () => {
         </div>
       </div>
 
+      {/* New / Edit Service Modal */}
       <Modal open={isModalOpen} onClose={closeModal}>
         <Box className="fixed inset-0 flex items-center justify-center p-4 z-99999 outline-none">
           <div className="bg-white dark:bg-boxdark rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-stroke dark:border-strokedark relative max-h-[90vh] overflow-y-auto">
@@ -343,7 +346,7 @@ const ServicePage: React.FC = () => {
                 {selectedSalesGroup && !removeicon && selectedSalesGroup?.icon ? (
                   <div className="flex items-center gap-3 p-3 bg-gray-2 dark:bg-meta-4/30 rounded-xl border border-stroke dark:border-strokedark">
                     <div
-                      className="w-12 h-12 bg-white dark:bg-boxdark rounded-lg border border-stroke dark:border-strokedark p-2 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full text-primary"
+                      className="w-12 h-12 bg-white dark:bg-boxdark rounded-lg border border-stroke dark:border-strokedark p-2 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current text-black dark:text-white"
                       dangerouslySetInnerHTML={{
                         __html: selectedSalesGroup.icon,
                       }}
@@ -393,6 +396,7 @@ const ServicePage: React.FC = () => {
         </Box>
       </Modal>
 
+      {/* Delete Confirmation Modal */}
       <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>
         <Box className="fixed inset-0 flex items-center justify-center p-4 z-99999 outline-none">
           <div className="bg-white dark:bg-boxdark rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-stroke dark:border-strokedark space-y-4 animate-in fade-in zoom-in duration-200">

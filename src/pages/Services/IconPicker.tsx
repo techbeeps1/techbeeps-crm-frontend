@@ -83,7 +83,7 @@ const IconPicker: React.FC<IconPickerProps> = ({
             {svgCode ? (
               <div className="flex items-center gap-3">
                 <div
-                  className="w-12 h-12 rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark p-2 text-primary flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
+                  className="w-12 h-12 rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark p-2 text-black dark:text-white flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current"
                   dangerouslySetInnerHTML={{ __html: svgCode }}
                 />
                 <div className="text-left">
