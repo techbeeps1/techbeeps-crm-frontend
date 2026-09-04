@@ -229,14 +229,14 @@ const FurnitureType: React.FC = () => {
                   >
                     {/* Icon */}
                     <td className="py-3.5 px-5">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center p-1.5 overflow-hidden text-primary shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-gray-2 dark:bg-meta-4/30 border border-stroke dark:border-strokedark flex items-center justify-center p-1.5 overflow-hidden text-black dark:text-white shrink-0">
                         {group?.icon ? (
                           <div
-                            className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current"
+                            className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current text-black dark:text-white"
                             dangerouslySetInnerHTML={{ __html: group.icon }}
                           />
                         ) : (
-                          <MdOutlineChair className="text-xl" />
+                          <MdOutlineChair className="text-xl text-black dark:text-white" />
                         )}
                       </div>
                     </td>
