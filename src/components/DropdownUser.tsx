@@ -75,9 +75,8 @@ const DropdownUser = () => {
         </div>
 
         <KeyboardArrowDownIcon
-          className={`text-slate-400 transition-transform duration-300 ${
-            dropdownOpen ? 'rotate-180 text-primary' : ''
-          }`}
+          className={`text-slate-400 transition-transform duration-300 ${dropdownOpen ? 'rotate-180 text-primary' : ''
+            }`}
           style={{ fontSize: 20 }}
         />
       </button>
@@ -119,27 +118,7 @@ const DropdownUser = () => {
               </Link>
             </li>
 
-            <li>
-              <Link
-                to="/customers"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-primary transition-all"
-              >
-                <ContactsOutlinedIcon style={{ fontSize: 18 }} className="text-slate-400 group-hover:text-primary" />
-                <span>My Contacts</span>
-              </Link>
-            </li>
 
-            <li>
-              <Link
-                to="/settings"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-primary transition-all"
-              >
-                <SettingsOutlinedIcon style={{ fontSize: 18 }} className="text-slate-400 group-hover:text-primary" />
-                <span>Account Settings</span>
-              </Link>
-            </li>
           </ul>
 
           <div className="border-t border-slate-100 dark:border-slate-800 my-1" />

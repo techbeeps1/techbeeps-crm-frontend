@@ -16,6 +16,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { UserContext } from '../../UserContext';
 import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
@@ -45,6 +46,38 @@ const getInitials = (first, last, fallback) => {
   return 'IN';
 };
 
+const getStatusStyles = (status) => {
+  const s = String(status || 'Draft').toLowerCase();
+  if (s === 'paid') {
+    return {
+      badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      dot: 'bg-emerald-500',
+    };
+  }
+  if (s === 'sent') {
+    return {
+      badge: 'bg-sky-50 text-sky-700 border-sky-200',
+      dot: 'bg-sky-500',
+    };
+  }
+  if (s === 'overdue') {
+    return {
+      badge: 'bg-rose-50 text-rose-700 border-rose-200',
+      dot: 'bg-rose-500',
+    };
+  }
+  if (s === 'pending') {
+    return {
+      badge: 'bg-amber-50 text-amber-700 border-amber-200',
+      dot: 'bg-amber-500',
+    };
+  }
+  return {
+    badge: 'bg-slate-100 text-slate-700 border-slate-200',
+    dot: 'bg-slate-400',
+  };
+};
+
 const InvoiceList = ({ customerId }) => {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [invoiceData, setInvoiceData] = useState([]);
@@ -60,7 +93,8 @@ const InvoiceList = ({ customerId }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'index', direction: 'desc' });
 
   let navigate = useNavigate();
-  const { id } = useContext(UserContext);
+  const { id, role, userData, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
 
   const handleAllInvoice = async () => {
     try {
@@ -155,22 +189,25 @@ const InvoiceList = ({ customerId }) => {
       let valB = '';
 
       if (sortConfig.key === 'index') {
-        valA = a?.index || 0;
-        valB = b?.index || 0;
-        return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+        valA = String(a?.index || '');
+        valB = String(b?.index || '');
+        return sortConfig.direction === 'asc' 
+          ? valA.localeCompare(valB, undefined, { numeric: true }) 
+          : valB.localeCompare(valA, undefined, { numeric: true });
       } else if (sortConfig.key === 'name') {
         valA = a?.customer?.firstName ? `${a.customer.firstName} ${a.customer.lastName || ''}` : '';
         valB = b?.customer?.firstName ? `${b.customer.firstName} ${b.customer.lastName || ''}` : '';
-      } else if (sortConfig.key === 'email') {
-        valA = a?.customer?.email || '';
-        valB = b?.customer?.email || '';
-      } else if (sortConfig.key === 'contact') {
+      } else if (sortConfig.key === 'date') {
+        valA = new Date(a?.date || a?.createdAt || 0).getTime();
+        valB = new Date(b?.date || b?.createdAt || 0).getTime();
+        return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+      } else if (sortConfig.key === 'total') {
         valA = Number(a?.total || 0);
         valB = Number(b?.total || 0);
         return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
-      } else if (sortConfig.key === 'country') {
-        valA = a?.customer?.address?.[0]?.country || a?.Status || '';
-        valB = b?.customer?.address?.[0]?.country || b?.Status || '';
+      } else if (sortConfig.key === 'status') {
+        valA = a?.Status || '';
+        valB = b?.Status || '';
       }
 
       if (typeof valA === 'string') valA = valA.toLowerCase();
@@ -237,7 +274,7 @@ const InvoiceList = ({ customerId }) => {
               />
             </div>
 
-            {!customerId && (
+            {!customerId && isUserAdmin && (
               <button
                 onClick={() => navigate('/newinvoice')}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all whitespace-nowrap"
@@ -273,29 +310,29 @@ const InvoiceList = ({ customerId }) => {
                   </div>
                 </th>
                 <th
-                  onClick={() => handleSort('email')}
+                  onClick={() => handleSort('date')}
                   className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>EMAIL</span>
+                    <span>DATE</span>
                     <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
                   </div>
                 </th>
                 <th
-                  onClick={() => handleSort('contact')}
+                  onClick={() => handleSort('total')}
                   className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>CONTACT</span>
+                    <span>AMOUNT</span>
                     <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
                   </div>
                 </th>
                 <th
-                  onClick={() => handleSort('country')}
+                  onClick={() => handleSort('status')}
                   className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    <span>COUNTRY</span>
+                    <span>STATUS</span>
                     <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
                   </div>
                 </th>
@@ -311,9 +348,15 @@ const InvoiceList = ({ customerId }) => {
                     item?.index || 'INV'
                   );
                   const avatarBg = getAvatarBg(index);
-                  const countryName = item?.customer?.address?.[0]?.country || 
-                    item?.customer?.city || 
-                    (item?.Status ? `${item.Status}` : 'India');
+                  const customerName = item.customer 
+                    ? `${item.customer.firstName || ''} ${item.customer.lastName || ''}`.trim() 
+                    : `Invoice #${item?.index || ''}`;
+                  const customerSub = item?.customer?.email || item?.customer?.contact || item?.customer?.mobile || '';
+                  const invoiceDate = item?.date 
+                    ? new Date(item.date).toLocaleDateString('en-GB') 
+                    : (item?.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') : '-');
+                  const statusStyles = getStatusStyles(item?.Status || 'Sent');
+                  const statusText = item?.Status || 'Sent';
 
                   return (
                     <tr
@@ -333,50 +376,39 @@ const InvoiceList = ({ customerId }) => {
                             {initials}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-800 group-hover:text-primary transition-colors capitalize">
-                              {item.customer 
-                                ? `${item.customer.firstName || ''} ${item.customer.lastName || ''}`.trim() 
-                                : `Invoice #${item?.index || ''}`}
+                            <div className="font-semibold text-slate-800 group-hover:text-primary transition-colors capitalize text-xs sm:text-sm">
+                              {customerName}
                             </div>
+                            {customerSub && (
+                              <div className="text-[11px] text-slate-400 font-normal">
+                                {customerSub}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
 
-                      {/* EMAIL */}
+                      {/* DATE */}
                       <td className="py-3.5 px-4 text-slate-600">
-                        {item?.customer?.email ? (
-                          <div className="flex items-center gap-2">
-                            <EmailIcon style={{ fontSize: 16 }} className="text-slate-400" />
-                            <span className="truncate max-w-[180px]">{item.customer.email}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-slate-400 italic text-xs">
-                            <EmailIcon style={{ fontSize: 16 }} className="text-slate-300" />
-                            <span>{item?.date ? new Date(item.date).toLocaleDateString('en-GB') : 'No email'}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <CalendarTodayIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                          <span>{invoiceDate}</span>
+                        </div>
                       </td>
 
-                      {/* CONTACT / AMOUNT */}
+                      {/* AMOUNT */}
                       <td className="py-3.5 px-4 text-slate-600">
-                        {item?.customer?.contact || item?.customer?.mobile ? (
-                          <div className="flex items-center gap-2">
-                            <PhoneIcon style={{ fontSize: 16 }} className="text-slate-400" />
-                            <span>{item?.customer?.contact || item?.customer?.mobile}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
-                            <AttachMoneyIcon style={{ fontSize: 16 }} className="text-emerald-500 -mr-1" />
-                            <span>{Number(item.total || 0).toLocaleString()}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 font-bold text-slate-900 text-xs">
+                          <AttachMoneyIcon style={{ fontSize: 16 }} className="text-emerald-500 -mr-1" />
+                          <span>{Number(item.total || 0).toLocaleString()}</span>
+                        </div>
                       </td>
 
-                      {/* COUNTRY / STATUS */}
+                      {/* STATUS */}
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                          <PublicIcon style={{ fontSize: 14 }} className="text-slate-400" />
-                          <span>{countryName}</span>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${statusStyles.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${statusStyles.dot}`} />
+                          <span>{statusText}</span>
                         </span>
                       </td>
 
@@ -391,16 +423,18 @@ const InvoiceList = ({ customerId }) => {
                             <RemoveRedEyeIcon style={{ fontSize: 18 }} />
                           </button>
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDeleteModal(item);
-                            }}
-                            title="Delete Invoice"
-                            className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm cursor-pointer"
-                          >
-                            <DeleteIcon style={{ fontSize: 18 }} />
-                          </button>
+                          {isUserAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteModal(item);
+                              }}
+                              title="Delete Invoice"
+                              className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm cursor-pointer"
+                            >
+                              <DeleteIcon style={{ fontSize: 18 }} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

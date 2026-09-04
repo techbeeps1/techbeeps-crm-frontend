@@ -28,6 +28,7 @@ interface RoleOption {
 
 const roles: RoleOption[] = [
   { label: 'Dashboard', value: 'Dashboard' },
+  { label: 'Work', value: 'Work' },
   { label: 'Tasks', value: 'Tasks' },
   { label: 'Leads', value: 'Leads' },
   { label: 'To do', value: 'To do' },
@@ -36,11 +37,8 @@ const roles: RoleOption[] = [
   { label: 'Finance', value: 'Finance' },
   { label: 'Resources', value: 'Resources' },
   { label: 'HRM', value: 'HRM' },
-  { label: 'Communication', value: 'Communication' },
-  { label: 'Profile', value: 'Profile' },
   { label: 'Features', value: 'Features' },
   { label: 'Settings', value: 'Settings' },
-  { label: 'Notifications', value: 'Notifications' },
 ];
 
 const RoleSettings = () => {

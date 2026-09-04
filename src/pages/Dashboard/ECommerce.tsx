@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import Shortcuts from './Shortcuts.tsx';
+import StaffDashboard from './StaffDashboard.tsx';
+import { UserContext } from '../../UserContext.tsx';
 import PeopleIcon from '@mui/icons-material/People';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -46,6 +48,13 @@ interface TaskItem {
 }
 
 const ECommerce = () => {
+  const { userData, isAdmin, role }: any = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
+
+  if (!isUserAdmin) {
+    return <StaffDashboard />;
+  }
+
   const [customerCount, setCustomerCount] = useState<number>(0);
   const [leadCount, setLeadCount] = useState<number>(0);
   const [jobsList, setJobsList] = useState<JobItem[]>([]);

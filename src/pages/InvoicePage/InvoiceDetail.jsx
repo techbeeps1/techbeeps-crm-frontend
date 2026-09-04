@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
+import { UserContext } from '../../UserContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -24,6 +25,9 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [openPopup, setOpenPopup] = useState(false);
+
+  const { role, userData, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
 
   const downloadInvoice = async () => {
     setLoading(true);
@@ -191,7 +195,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
             <span>{data?.Status === 'Sent' ? 'Resend Invoice' : 'Send Invoice'}</span>
           </button>
 
-          {!data?.job && (
+          {isUserAdmin && !data?.job && (
             <LinkQuotePopup
               type="invoice"
               quotationData={data}
@@ -199,13 +203,15 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
             />
           )}
 
-          <button
-            onClick={() => navigate(`/invoice/${Id}`)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
-          >
-            <EditIcon fontSize="small" />
-            <span>Edit</span>
-          </button>
+          {isUserAdmin && (
+            <button
+              onClick={() => navigate(`/invoice/${Id}`)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+            >
+              <EditIcon fontSize="small" />
+              <span>Edit</span>
+            </button>
+          )}
         </div>
       </div>
 

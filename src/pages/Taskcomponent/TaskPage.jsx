@@ -22,6 +22,7 @@ import {
   Delete as DeleteIcon,
   RemoveRedEye as RemoveRedEyeIcon,
   Lock as LockIcon,
+  Groups as GroupsIcon,
 } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { UserContext } from '../../UserContext';
@@ -59,7 +60,8 @@ const TaskPage = ({ jobId }) => {
   const [roles, setRoles] = useState([]);
   const [customer, setCustomer] = useState([]);
   const [jobs, setjobs] = useState([]);
-  const { username, id, ws } = useContext(UserContext);
+  const { username, id, ws, role, userData, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
   const [filter, setFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
@@ -141,10 +143,35 @@ const TaskPage = ({ jobId }) => {
   const handleAlltask = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${apiPath}/api/task?scheduledFor=${filter}&jobId=${jobId || ''}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
       );
-      setData(response?.data || []);
+      const taskList = response?.data || [];
+      const userTasks = isUserAdmin
+        ? taskList
+        : taskList.filter((t) => {
+            const isDirect = (t.directMembers || []).some(
+              (m) => (m?._id || m) === id
+            );
+            const isTeam = (t.teamMembers || []).some(
+              (m) => (m?._id || m) === id
+            );
+            const isNameAssigned =
+              t.assignedTo &&
+              username &&
+              t.assignedTo.toLowerCase().includes(username.toLowerCase());
+            return isDirect || isTeam || isNameAssigned;
+          });
+
+      setData(userTasks);
+      if (selectedStaff?._id) {
+        const updated = userTasks.find((t) => t._id === selectedStaff._id);
+        if (updated) setSelectedStaff(updated);
+      }
     } catch (err) {
       setData([]);
       setError('Failed to fetch tasks. Please try again later.');
@@ -245,10 +272,28 @@ const TaskPage = ({ jobId }) => {
       currentJobData?.customer?._id ||
       (typeof currentJobData?.customer === 'string' ? currentJobData.customer : '');
 
+    // Resolve all selected team member IDs, teams, and direct members from roles
+    const selectedRoles = (roles || []).filter((r) => (formData.teamMembers || []).includes(r.value));
+    const selectedTeams = selectedRoles.filter((r) => r.type === 'Team').map((r) => r.value);
+    const selectedDirectMembers = selectedRoles.filter((r) => r.type === 'Member').map((r) => r.value);
+    const allMemberIds = [...new Set(selectedRoles.flatMap((r) => r.teamMembers || [r.value]))];
+    const assignedNames = selectedRoles.map((r) => r.label.trim()).filter(Boolean).join(', ');
+
     const payload = {
       ...formData,
+      teams: selectedTeams,
+      directMembers: selectedDirectMembers,
+      teamMembers: allMemberIds.length > 0 ? allMemberIds : (formData.teamMembers || []),
+      assignedTo: assignedNames || formData.assignedTo || '',
       ...(jobId ? { job: jobId, ...(custId ? { customer: custId } : {}) } : {}),
     };
+
+    if (!payload.job || payload.job === '') {
+      delete payload.job;
+    }
+    if (!payload.customer || payload.customer === '') {
+      delete payload.customer;
+    }
 
     try {
       let response = await axios.post(`${apiPath}/api/task`, payload);
@@ -278,9 +323,12 @@ const TaskPage = ({ jobId }) => {
     try {
       const response = await axios.get(`${apiPath}/api/teams`);
       let teams = (response['data'] || []).map((team) => ({
-        label: team.teamName,
+        label: (team.teamName || '').trim(),
         value: team._id,
-        teamMembers: team.members.map((item) => item._id),
+        type: 'Team',
+        category: 'Teams (Groups)',
+        memberCount: team.members?.length || 0,
+        teamMembers: (team.members || []).map((item) => (typeof item === 'object' ? item._id : item)),
       }));
       handleAllEmploye(teams);
     } catch (err) {
@@ -291,10 +339,12 @@ const TaskPage = ({ jobId }) => {
   const handleAllEmploye = async (teamsData) => {
     try {
       const response = await axios.get(`${apiPath}/user/all`);
-      let employees = (response['data'] || []).map((team) => ({
-        label: team.username,
-        value: team._id,
-        teamMembers: [team._id],
+      let employees = (response['data'] || []).map((user) => ({
+        label: (user.username || '').trim(),
+        value: user._id,
+        type: 'Member',
+        category: 'Individual Members',
+        teamMembers: [user._id],
       }));
       setRoles([...teamsData, ...employees]);
     } catch (err) {
@@ -345,7 +395,7 @@ const TaskPage = ({ jobId }) => {
 
   useEffect(() => {
     handleAlltask();
-  }, [filter]);
+  }, [filter, isUserAdmin, id, username]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -477,15 +527,17 @@ const TaskPage = ({ jobId }) => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={openEditModal}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
-                >
-                  <AddIcon style={{ fontSize: 18 }} />
-                  <span>New Task</span>
-                </button>
-              </div>
+              {isUserAdmin && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={openEditModal}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    <AddIcon style={{ fontSize: 18 }} />
+                    <span>New Task</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
@@ -638,10 +690,38 @@ const TaskPage = ({ jobId }) => {
 
                         <td className="py-3.5 px-4 text-slate-700 dark:text-slate-300">
                           {item?.assignedTo ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                              <PersonIcon style={{ fontSize: 14 }} className="text-slate-400" />
-                              <span>{item.assignedTo}</span>
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {item.assignedTo.split(',').map((name, i) => {
+                                const trimmed = name.trim();
+                                const lower = trimmed.toLowerCase();
+                                const isTeam =
+                                  (item?.teams || []).some((t) =>
+                                    (typeof t === 'object' ? t?.teamName : '').trim().toLowerCase() === lower
+                                  ) ||
+                                  (roles || []).some(
+                                    (r) => r.type === 'Team' && (r.label || '').trim().toLowerCase() === lower
+                                  );
+
+                                return (
+                                  <span
+                                    key={i}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                      isTeam
+                                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                    }`}
+                                  >
+                                    {isTeam ? (
+                                      <GroupsIcon style={{ fontSize: 13 }} className="text-indigo-600 dark:text-indigo-400" />
+                                    ) : (
+                                      <PersonIcon style={{ fontSize: 13 }} className="text-slate-400" />
+                                    )}
+                                    <span>{trimmed}</span>
+                                    {isTeam && <span className="text-[10px] opacity-75 font-normal">(Team)</span>}
+                                  </span>
+                                );
+                              })}
+                            </div>
                           ) : (
                             <span className="text-slate-400 italic text-xs">Unassigned</span>
                           )}
@@ -668,16 +748,18 @@ const TaskPage = ({ jobId }) => {
                               <RemoveRedEyeIcon style={{ fontSize: 18 }} />
                             </button>
 
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDeleteModal(item);
-                              }}
-                              title="Delete Task"
-                              className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-600 hover:text-white transition-all shadow-xs cursor-pointer"
-                            >
-                              <DeleteIcon style={{ fontSize: 18 }} />
-                            </button>
+                            {isUserAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDeleteModal(item);
+                                }}
+                                title="Delete Task"
+                                className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-rose-600 hover:text-white transition-all shadow-xs cursor-pointer"
+                              >
+                                <DeleteIcon style={{ fontSize: 18 }} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -868,24 +950,81 @@ const TaskPage = ({ jobId }) => {
                   <Controller
                     name="teamMembers"
                     control={control}
-                    render={({ field }) => (
-                      <Autocomplete
-                        multiple
-                        options={roles}
-                        getOptionLabel={(option) => option?.label || ''}
-                        isOptionEqualToValue={(option, val) => option?.value === (val?.value || val)}
-                        onChange={(_, data) => field.onChange(data.map((item) => item.value))}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            placeholder="Add assignees..."
-                            size="small"
-                            variant="outlined"
-                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '12px' } }}
-                          />
-                        )}
-                      />
-                    )}
+                    render={({ field }) => {
+                      const selectedOptions = (roles || []).filter((r) =>
+                        (field.value || []).includes(r.value)
+                      );
+                      return (
+                        <Autocomplete
+                          multiple
+                          options={roles || []}
+                          groupBy={(option) => option?.category || (option?.type === 'Team' ? 'Teams (Groups)' : 'Individual Members')}
+                          getOptionLabel={(option) => option?.label || ''}
+                          isOptionEqualToValue={(option, val) =>
+                            (option?.value || option) === (val?.value || val)
+                          }
+                          value={selectedOptions}
+                          onChange={(_, data) =>
+                            field.onChange(data.map((item) => item.value))
+                          }
+                          renderOption={(props, option) => (
+                            <li {...props} key={option.value} className="flex items-center justify-between px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                              <div className="flex items-center gap-2">
+                                {option.type === 'Team' ? (
+                                  <GroupsIcon style={{ fontSize: 18 }} className="text-indigo-600 dark:text-indigo-400" />
+                                ) : (
+                                  <PersonIcon style={{ fontSize: 18 }} className="text-slate-500" />
+                                )}
+                                <span className="font-semibold text-slate-800 dark:text-white">
+                                  {option.label}
+                                </span>
+                              </div>
+                              {option.type === 'Team' ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                  Team ({option.memberCount || 0})
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                  Member
+                                </span>
+                              )}
+                            </li>
+                          )}
+                          renderTags={(tagValue, getTagProps) =>
+                            tagValue.map((option, index) => {
+                              const isTeam = option?.type === 'Team';
+                              return (
+                                <span
+                                  {...getTagProps({ index })}
+                                  key={option.value || index}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold m-0.5 ${
+                                    isTeam
+                                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                  }`}
+                                >
+                                  {isTeam ? (
+                                    <GroupsIcon style={{ fontSize: 13 }} className="text-indigo-600 dark:text-indigo-400" />
+                                  ) : (
+                                    <PersonIcon style={{ fontSize: 13 }} className="text-slate-500" />
+                                  )}
+                                  <span>{option.label}</span>
+                                </span>
+                              );
+                            })
+                          }
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              placeholder={selectedOptions.length === 0 ? "Add assignees..." : ""}
+                              size="small"
+                              variant="outlined"
+                              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px', fontSize: '12px' } }}
+                            />
+                          )}
+                        />
+                      );
+                    }}
                   />
                 </div>
 

@@ -2,11 +2,9 @@ import React, { useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DemoChat from '../DemoChat';
 import NewsItems from './communicationModule/newsItems';
-import EmailComponent from './Emailpage/EmailComponent';
 import { EmailContext } from '../EmailProvider/EmailContext';
 import { 
   MdChatBubbleOutline, 
-  MdMailOutline, 
   MdArticle,
   MdForum
 } from 'react-icons/md';
@@ -22,8 +20,7 @@ const Communication: React.FC = () => {
 
   const getActiveTab = (): number => {
     const queryParams = new URLSearchParams(location.search);
-    if (queryParams.get('email') === 'true') return 1;
-    if (queryParams.get('news') === 'true') return 2;
+    if (queryParams.get('news') === 'true') return 1;
     return 0; // Default to Chat
   };
 
@@ -31,8 +28,7 @@ const Communication: React.FC = () => {
 
   const handleTabChange = (tabIndex: number): void => {
     if (tabIndex === 0) navigate('?chat=true');
-    if (tabIndex === 1) navigate('?email=true');
-    if (tabIndex === 2) navigate('?news=true');
+    if (tabIndex === 1) navigate('?news=true');
   };
 
   const tabs = [
@@ -45,13 +41,6 @@ const Communication: React.FC = () => {
     },
     {
       id: 1,
-      label: 'Email Messages',
-      shortLabel: 'Email',
-      icon: MdMailOutline,
-      desc: 'Customer correspondence',
-    },
-    {
-      id: 2,
       label: 'News Items',
       shortLabel: 'News',
       icon: MdArticle,
@@ -72,7 +61,7 @@ const Communication: React.FC = () => {
               Communication Center
             </h2>
             <p className="text-xs text-slate-500">
-              Manage team discussions, client email exchanges & internal news announcements
+              Manage team discussions & internal news announcements
             </p>
           </div>
         </div>
@@ -104,12 +93,10 @@ const Communication: React.FC = () => {
       {/* Active Tab View Content Container */}
       <div className="transition-all duration-200">
         {activeTab === 0 && <DemoChat />}
-        {activeTab === 1 && <EmailComponent />}
-        {activeTab === 2 && <NewsItems />}
+        {activeTab === 1 && <NewsItems />}
       </div>
     </div>
   );
 };
 
 export default Communication;
-

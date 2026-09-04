@@ -12,6 +12,7 @@ import {
   AttachMoney,
   CalendarMonth,
   Task,
+  AssignmentTurnedIn,
   KeyboardArrowDown,
   KeyboardArrowRight,
   Menu,
@@ -41,10 +42,10 @@ interface MenuItem {
 }
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
- const location = useLocation();
+  const location = useLocation();
 
-const { pathname, search } = location;
-  const { userData }: any = useContext(UserContext);
+  const { pathname, search } = location;
+  const { userData, isAdmin, hasAccess }: any = useContext(UserContext);
 
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
@@ -88,27 +89,27 @@ const { pathname, search } = location;
   }, [sidebarOpen]);
 
   const isRouteActive = (
-  path?: string
-) => {
-  if (!path) return false;
+    path?: string
+  ) => {
+    if (!path) return false;
 
-  // split query string
-  const [routePath, query] =
-    path.split('?');
+    // split query string
+    const [routePath, query] =
+      path.split('?');
 
-  // path match
-  if (pathname !== routePath) {
-    return false;
-  }
+    // path match
+    if (pathname !== routePath) {
+      return false;
+    }
 
-  // if no query param
-  if (!query) {
-    return search === '';
-  }
+    // if no query param
+    if (!query) {
+      return search === '';
+    }
 
-  // compare query string
-  return search === `?${query}`;
-};
+    // compare query string
+    return search === `?${query}`;
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -118,35 +119,41 @@ const { pathname, search } = location;
       icon: <Dashboard />,
     },
     {
-          label: 'Lead',
-          path: '/leads',
-          access: 'Leads',
-          icon: <UserGroupIcon className="h-5 w-5" />,
-        },
+      label: 'Work',
+      path: '/work',
+      access: 'Work',
+      icon: <AssignmentTurnedIn />,
+    },
     {
-          label: 'Customers',
-          path: '/customers',
-          access: 'Customer',
-          icon: <FaUsersCog />,
-        },
-          {
+      label: 'Lead',
+      path: '/leads',
+      access: 'Leads',
+      icon: <UserGroupIcon className="h-5 w-5" />,
+    },
+    {
+      label: 'Customers',
+      path: '/customers',
+      access: 'Customer',
+      icon: <FaUsersCog />,
+    },
+    {
       label: 'Valuation',
       path: '/intake',
-      access: 'Planning',
+      access: 'Jobs',
       icon: <HiOutlineDocumentAdd />,
     },
     {
-          label: 'Quotes',
-          path: '/quotes',
-          access: 'Finance',
-          icon: <AttachMoney />,
-        },
-    
+      label: 'Quotes',
+      path: '/quotes',
+      access: 'Finance',
+      icon: <AttachMoney />,
+    },
+
 
     {
       label: 'Jobs',
       path: '/jobs',
-      access: 'To do',
+      access: 'Jobs',
       icon: <ClipboardDocumentListIcon className="h-5 w-5" />,
     },
     {
@@ -155,12 +162,12 @@ const { pathname, search } = location;
       access: 'Planning',
       icon: <CalendarMonth />,
     },
-     {
-          label: 'Invoices',
-          path: '/invoices',
-          access: 'Finance',
-          icon: <LiaFileInvoiceSolid  className="h-5 w-5"  />,
-        },
+    {
+      label: 'Invoices',
+      path: '/invoices',
+      access: 'Finance',
+      icon: <LiaFileInvoiceSolid className="h-5 w-5" />,
+    },
     {
       label: 'Task',
       path: '/tasks',
@@ -168,7 +175,7 @@ const { pathname, search } = location;
       icon: <Task />,
     },
 
-  
+
 
 
     {
@@ -184,16 +191,26 @@ const { pathname, search } = location;
       access: 'HRM',
       icon: <FaUsersCog />,
     },
-
+    {
+      label: 'My Leaves',
+      path: '/my-leaves',
+      icon: <CalendarMonth />,
+    },
     {
       label: 'Communication',
       path: '/communication',
-      access: 'Communication',
       icon: <ChatBubbleLeftRightIcon className="h-5 w-5" />,
     },
-
-   
-
+    {
+      label: 'Notifications',
+      path: '/dropdownNotification',
+      icon: <Notifications />,
+    },
+    {
+      label: 'Profile',
+      path: '/profile',
+      icon: <FaUserCircle />,
+    },
     {
       label: 'Settings',
       icon: <Settings />,
@@ -204,28 +221,14 @@ const { pathname, search } = location;
           access: 'Settings',
           icon: <Settings />,
         },
-         {
-      label: 'Features',
-      path: '/data',
-      access: 'Features',
-      icon: <GiAutoRepair />,
-    },
-      
-         {
-      label: 'Profile',
-      path: '/profile',
-      access: 'Profile',
-      icon: <FaUserCircle />,
-    }
-      
+        {
+          label: 'Features',
+          path: '/data',
+          access: 'Features',
+          icon: <GiAutoRepair />,
+        },
       ],
     },
-      {
-          label: 'Notifications',
-          path: '/dropdownNotification',
-          access: 'Notifications',
-          icon: <Notifications />,
-        },
   ];
 
   const toggleMenu = (label: string) => {
@@ -298,8 +301,28 @@ const { pathname, search } = location;
 
             const parentActive = isParentActive(item.children);
 
-            if (item.access && !userData?.access?.includes(item.access))
+            const canAccess = (acc?: string) => {
+              if (!acc) return true;
+              const universalModules = ['Profile', 'Communication', 'Notifications', 'My Leaves', 'Leave', 'Leaves'];
+              if (universalModules.includes(acc)) return true;
+              if (isAdmin || userData?.role === 'Admin') return true;
+              if (typeof hasAccess === 'function') return hasAccess(acc);
+              const list = userData?.access || [];
+              if (acc === 'Jobs' || acc === 'To do') return list.includes('Jobs') || list.includes('To do');
+              return list.includes(acc);
+            };
+
+            const isUserAdmin = isAdmin || userData?.role === 'Admin';
+            if ((item.label === 'Work' || item.label === 'My Leaves' || item.path === '/my-leaves') && isUserAdmin)
               return null;
+
+            if (item.access && !canAccess(item.access))
+              return null;
+
+            if (hasChildren) {
+              const visibleChildren = item.children?.filter((child) => canAccess(child.access)) || [];
+              if (visibleChildren.length === 0) return null;
+            }
 
             return (
               <li key={item.label}>
@@ -313,11 +336,10 @@ const { pathname, search } = location;
                       ${isExpanded ? 'justify-between px-4' : 'justify-center'}
                       py-3 rounded-2xl transition-all duration-300
                       
-                      ${
-                        parentActive
+                      ${parentActive
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
                           : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                      }
+                        }
                     `}
                     >
                       <div className="flex items-center gap-3">
@@ -341,39 +363,33 @@ const { pathname, search } = location;
                     {/* Child Menu */}
                     {isExpanded && (
                       <div
-                        className={`overflow-hidden transition-all duration-300 ${
-                          openMenus.includes(item.label)
-                            ? 'max-h-[500px] mt-2'
-                            : 'max-h-0'
-                        }`}
+                        className={`overflow-hidden transition-all duration-300 ${openMenus.includes(item.label)
+                          ? 'max-h-[500px] mt-2'
+                          : 'max-h-0'
+                          }`}
                       >
                         <ul className="ml-4 border-l border-slate-700 pl-3 space-y-2">
                           {item.children
-                            ?.filter(
-                              (child) =>
-                                !child.access ||
-                                userData?.access?.includes(child.access),
-                            )
+                            ?.filter((child) => canAccess(child.access))
                             .map((child) => (
                               <li key={child.path}>
                                 <NavLink
                                   to={child.path!}
-                               className={() => {
-  const isActive =
-    isRouteActive(child.path);
+                                  className={() => {
+                                    const isActive =
+                                      isRouteActive(child.path);
 
-  return `
+                                    return `
     flex items-center gap-3
     px-4 py-2.5 rounded-xl
     transition-all duration-300
 
-    ${
-      isActive
-        ? 'bg-indigo-600 text-white shadow-md'
-        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-    }
+    ${isActive
+                                        ? 'bg-indigo-600 text-white shadow-md'
+                                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                      }
   `;
-}}
+                                  }}
                                 >
                                   {child.icon}
                                   {child.label}
@@ -390,17 +406,15 @@ const { pathname, search } = location;
                     className={({ isActive }) =>
                       `
                       flex items-center
-                      ${
-                        isExpanded
-                          ? 'gap-3 px-4 justify-start'
-                          : 'justify-center'
+                      ${isExpanded
+                        ? 'gap-3 px-4 justify-start'
+                        : 'justify-center'
                       }
                       py-3 rounded-2xl transition-all duration-300
                       
-                      ${
-                        isActive
-                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      ${isActive
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                       }
                     `
                     }

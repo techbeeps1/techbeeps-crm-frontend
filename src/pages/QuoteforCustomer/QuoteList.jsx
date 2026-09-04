@@ -25,6 +25,7 @@ import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
+import { UserContext } from '../../UserContext';
 
 const QuoteList = ({ customerId }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -42,6 +43,8 @@ const QuoteList = ({ customerId }) => {
   const [sortConfig, setSortConfig] = useState({ key: 'index', direction: 'desc' });
 
   const navigate = useNavigate();
+  const { role, userData, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
 
   const handleAllInvoice = async () => {
     try {
@@ -235,13 +238,15 @@ const QuoteList = ({ customerId }) => {
               Manage, send, and track customer quotation proposals
             </p>
           </div>
-          <button
-            onClick={() => navigate('/new_offer')}
-            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
-          >
-            <AddIcon fontSize="small" />
-            <span>New Offer</span>
-          </button>
+          {isUserAdmin && (
+            <button
+              onClick={() => navigate('/new_offer')}
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+            >
+              <AddIcon fontSize="small" />
+              <span>New Offer</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -499,26 +504,30 @@ const QuoteList = ({ customerId }) => {
           >
             <VisibilityIcon fontSize="small" className="text-blue-500" /> View Details
           </MenuItem>
-          <MenuItem
-            onClick={(e) => {
-              e.stopPropagation();
-              if (selectedAgent) navigate(`/offer/${selectedAgent._id}`);
-              handleClose();
-            }}
-            className="text-sm font-medium gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-meta-4"
-          >
-            <EditIcon fontSize="small" className="text-amber-500" /> Edit Offer
-          </MenuItem>
-          <MenuItem
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-              openDeleteModal();
-            }}
-            className="text-sm font-medium gap-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-          >
-            <DeleteIcon fontSize="small" /> Delete
-          </MenuItem>
+          {isUserAdmin && (
+            <MenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                if (selectedAgent) navigate(`/offer/${selectedAgent._id}`);
+                handleClose();
+              }}
+              className="text-sm font-medium gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-meta-4"
+            >
+              <EditIcon fontSize="small" className="text-amber-500" /> Edit Offer
+            </MenuItem>
+          )}
+          {isUserAdmin && (
+            <MenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClose();
+                openDeleteModal();
+              }}
+              className="text-sm font-medium gap-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+            >
+              <DeleteIcon fontSize="small" /> Delete
+            </MenuItem>
+          )}
         </Menu>
 
         {/* Table Footer: Entries per page & Pagination Controls */}

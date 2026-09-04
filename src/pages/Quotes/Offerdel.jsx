@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
+import { UserContext } from '../../UserContext';
 import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import SendIcon from '@mui/icons-material/Send';
@@ -22,6 +23,9 @@ const Offer = ({ data, notes, fetchInvoice }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [openPopup, setOpenPopup] = useState(false);
+
+  const { role, userData, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
 
   const notify = (message) => toast.success(message);
   const notifyError = (message) =>
@@ -209,7 +213,7 @@ const Offer = ({ data, notes, fetchInvoice }) => {
             <span>{data.Status === 'Sent' ? 'Resend Quotation' : 'Send Quotation'}</span>
           </button>
 
-          {!data.job && (
+          {isUserAdmin && !data.job && (
             <LinkQuotePopup
               type={'quotes'}
               quotationData={data}
@@ -217,14 +221,16 @@ const Offer = ({ data, notes, fetchInvoice }) => {
             />
           )}
 
-          <button
-            type="button"
-            onClick={() => navigate(`/offer/${Id}`)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition-all cursor-pointer"
-          >
-            <EditIcon fontSize="small" />
-            <span>Edit</span>
-          </button>
+          {isUserAdmin && (
+            <button
+              type="button"
+              onClick={() => navigate(`/offer/${Id}`)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition-all cursor-pointer"
+            >
+              <EditIcon fontSize="small" />
+              <span>Edit</span>
+            </button>
+          )}
 
           <button
             type="button"

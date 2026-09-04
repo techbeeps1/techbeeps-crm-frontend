@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
+import { UserContext } from '../../UserContext';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
 import {
@@ -23,6 +24,7 @@ import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { toast } from 'react-toastify';
 
 interface Customer {
   _id: string;
@@ -52,6 +54,8 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
   const [error, setError] = useState<string | null>(null);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState<boolean>(false);
   const [selectedStaff, setSelectedStaff] = useState<JobData | null>(null);
+  const { role, userData, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
   const params = new URLSearchParams(window.location.search);
   const value = [...params.keys()][0];
 
@@ -103,6 +107,24 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
       } finally {
         closeDeleteModal();
       }
+    }
+  };
+
+  const handleUpdateJobStatus = async (jobId: string, newStatus: string) => {
+    try {
+      const response = await axios.put(`${apiPath}/api/job-schedule/${jobId}`, {
+        status: newStatus,
+      });
+      if (response.status === 200) {
+        toast.success(`Job status updated to ${newStatus}`);
+        handleAllJob();
+        if (selectedStaff && selectedStaff._id === jobId) {
+          setSelectedStaff((prev: any) => ({ ...prev, status: newStatus }));
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to update job status:', err);
+      toast.error(err?.response?.data?.message || 'Failed to update job status');
     }
   };
 
@@ -209,10 +231,18 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
 
   const getStatusBadge = (status = '') => {
     const s = status.toUpperCase();
+    if (s === 'PENDING') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30">
+          <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#f59e0b' }}></span>
+          PENDING
+        </span>
+      );
+    }
     if (s === 'PROCESSING' || s === 'FIRST CONTACT') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-300 dark:border-purple-500/30">
+          <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#8b5cf6' }}></span>
           PROCESSING
         </span>
       );
@@ -220,15 +250,15 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
     if (s === 'EXECUTION' || s === 'IN PROGRESS') {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-white"></span>
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
           EXECUTION
         </span>
       );
     }
     if (s === 'COMPLETED') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#eff6ff] text-[#1d4ed8] dark:bg-blue/15 dark:text-blue border border-[#bfdbfe] dark:border-blue/30 shadow-xs">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }}></span>
           COMPLETED
         </span>
       );
@@ -236,8 +266,16 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
     if (s === 'CANCELLED') {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30">
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#f43f5e' }}></span>
           CANCELLED
+        </span>
+      );
+    }
+    if (s === 'DRAFT') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 dark:bg-slate-700/50 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: '#94a3b8' }}></span>
+          DRAFT
         </span>
       );
     }
@@ -277,9 +315,11 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
               </div>
 
               {/* Keeps NewJob component popup unchanged */}
-              <div>
-                <NewJob handler={handleAllJob} />
-              </div>
+              {isUserAdmin && (
+                <div>
+                  <NewJob handler={handleAllJob} />
+                </div>
+              )}
             </div>
           )}
 
@@ -363,7 +403,7 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
 
               {/* Status Filter Tabs */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-                {['ALL', 'PROCESSING', 'EXECUTION', 'COMPLETED', 'CANCELLED'].map((st) => (
+                {['ALL', 'PENDING', 'PROCESSING', 'EXECUTION', 'COMPLETED', 'CANCELLED', 'DRAFT'].map((st) => (
                   <button
                     key={st}
                     onClick={() => {

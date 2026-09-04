@@ -43,7 +43,6 @@ module.exports = {
       'meta-7': '#FF6766',
       'meta-8': '#F0950C',
       'meta-9': '#E5E7EB',
-      'blue'  : '#3d7cff',
       'blue-1': '#4470cf',
       'blue-2': '#8770ad',
       'rgb': '#b4afff',

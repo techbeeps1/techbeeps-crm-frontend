@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import moment from 'moment';
 import { Calendar, Views, View, momentLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { format } from 'date-fns';
+import { UserContext } from '../UserContext';
 
 import {
   Dialog,
@@ -29,6 +30,10 @@ import {
   PeopleAlt as PeopleAltIcon,
   WorkOutline as WorkOutlineIcon,
   CalendarMonth as CalendarMonthIcon,
+  Phone as PhoneIcon,
+  Home as HomeIcon,
+  Business as BusinessIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
 
 import { apiPath } from '../../apiPath';
@@ -79,14 +84,36 @@ export default function TaskPlanningCalendar({
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [loading, setLoading] = useState<boolean>(false);
 
+  const { username, id, role, userData, isAdmin }: any = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
+
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${apiPath}/api/appointment`);
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${apiPath}/api/appointment`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const list = res.data.data || res.data || [];
 
+      // Filter for non-admin staff in case not filtered by backend
+      const userList = isUserAdmin
+        ? list
+        : list.filter((item: any) => {
+            const emps = item.assignedEmployees || [];
+            return emps.some((emp: any) => {
+              const empId = emp?.employeeId?._id || emp?.employeeId || emp?._id;
+              const empName = (emp?.employeeName || '').toLowerCase();
+              const uName = (username || '').toLowerCase();
+              return (
+                (id && empId && String(empId) === String(id)) ||
+                (uName && empName.includes(uName))
+              );
+            });
+          });
+
       setEvents(
-        list.map((item: any) => ({
+        userList.map((item: any) => ({
           start: new Date(item.startTime || item.date),
           end: new Date(item.endTime || item.date),
           title: item.appointmentType || 'Appointment',
@@ -103,7 +130,7 @@ export default function TaskPlanningCalendar({
 
   useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [id, username, isUserAdmin]);
 
   // Filtered Events
   const filteredEvents = useMemo(() => {
@@ -430,7 +457,35 @@ export default function TaskPlanningCalendar({
           },
         }}
       >
-        {selectedAppointment && (
+        {selectedAppointment && (() => {
+          const selectedJob = selectedAppointment?.jobId;
+          const selectedCustomer = selectedJob?.customer || selectedAppointment?.customer;
+          const customerName = selectedCustomer
+            ? typeof selectedCustomer === 'string'
+              ? selectedCustomer
+              : `${selectedCustomer.firstName || ''} ${selectedCustomer.lastName || ''}`.trim() ||
+                selectedCustomer.name ||
+                ''
+            : '';
+          const customerMobile = selectedCustomer?.mobile || selectedCustomer?.contact || '';
+          const customerEmail = selectedCustomer?.email || '';
+
+          const formatAddress = (addr: any) => {
+            if (!addr) return '';
+            if (typeof addr === 'string') return addr;
+            const parts = [
+              [addr.street, addr.houseNumber, addr.addition].filter(Boolean).join(' '),
+              addr.postcode,
+              addr.city,
+              addr.country,
+            ].filter(Boolean);
+            return parts.join(', ');
+          };
+
+          const loadAddress = formatAddress(selectedJob?.load);
+          const unloadAddress = formatAddress(selectedJob?.unload);
+
+          return (
           <div className="bg-white dark:bg-boxdark text-slate-800 dark:text-slate-100">
             {/* Header with Type Color Banner */}
             <div
@@ -465,11 +520,11 @@ export default function TaskPlanningCalendar({
             </div>
 
             {/* Dialog Body */}
-            <div className="p-6 space-y-5">
-              {/* Quick Info Grid */}
+            <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              {/* Quick Info Grid: Date & Time */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <CalendarMonthIcon style={{ fontSize: 16 }} />
                   </div>
                   <div>
@@ -485,7 +540,7 @@ export default function TaskPlanningCalendar({
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
                     <AccessTimeIcon style={{ fontSize: 16 }} />
                   </div>
                   <div>
@@ -500,11 +555,78 @@ export default function TaskPlanningCalendar({
                 </div>
               </div>
 
-              {/* Location Card */}
+              {/* Customer & Job Info Card */}
+              {(customerName || selectedJob?.index) && (
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mt-0.5 shrink-0">
+                    <PersonIcon style={{ fontSize: 18 }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Customer Details
+                      </span>
+                      {selectedJob?.index && (
+                        <span className="text-xs font-bold font-mono text-slate-700 dark:text-slate-300">
+                          #{selectedJob.index}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs font-bold text-slate-800 dark:text-white mt-0.5 flex-wrap">
+                      {customerName && (
+                        <span className="capitalize">{customerName}</span>
+                      )}
+                      {customerMobile && (
+                        <span className="inline-flex items-center gap-1 font-medium text-slate-600 dark:text-slate-300">
+                          <PhoneIcon style={{ fontSize: 13 }} className="text-slate-400" />
+                          <span>{customerMobile}</span>
+                        </span>
+                      )}
+                      {customerEmail && (
+                        <span className="inline-flex items-center gap-1 font-medium text-slate-600 dark:text-slate-300">
+                          <EmailIcon style={{ fontSize: 13 }} className="text-slate-400" />
+                          <span>{customerEmail}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Customer Address Card */}
+              {(loadAddress || unloadAddress) && (
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mt-0.5 shrink-0">
+                    <HomeIcon style={{ fontSize: 18 }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Customer Moving Address
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 dark:text-white">
+                      {loadAddress || unloadAddress}
+                      {selectedJob?.load?.floor && ` (Floor: ${selectedJob.load.floor})`}
+                      {selectedJob?.load?.hasElevator ? ' • Elevator' : ''}
+                    </span>
+                    {loadAddress && unloadAddress && (
+                      <div className="text-xs font-medium text-slate-600 dark:text-slate-300 mt-2 pt-2 border-t border-slate-200/60 dark:border-strokedark">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                          Delivery Address
+                        </span>
+                        {unloadAddress}
+                        {selectedJob?.unload?.floor && ` (Floor: ${selectedJob.unload.floor})`}
+                        {selectedJob?.unload?.hasElevator ? ' • Elevator' : ''}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Departure Location Card */}
               {selectedAppointment.departureLocation && (
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center mt-0.5">
-                    <LocationOnIcon style={{ fontSize: 16 }} />
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center mt-0.5 shrink-0">
+                    <BusinessIcon style={{ fontSize: 18 }} />
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -529,50 +651,80 @@ export default function TaskPlanningCalendar({
                 {selectedAppointment.assignedEmployees?.length === 0 ? (
                   <p className="text-xs text-slate-400 italic">No staff assigned to this appointment.</p>
                 ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {selectedAppointment.assignedEmployees?.map((emp: any, idx: number) => (
-                      <div
-                        key={emp._id || idx}
-                        className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Avatar
-                            sx={{
-                              width: 32,
-                              height: 32,
-                              fontSize: '11px',
-                              fontWeight: 'bold',
-                              bgcolor: '#1a73e8',
-                            }}
-                          >
-                            {emp.employeeName?.[0] || 'E'}
-                          </Avatar>
-                          <div>
-                            <span className="font-bold text-slate-900 dark:text-white block">
-                              {emp.employeeName}
+                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                    {selectedAppointment.assignedEmployees?.map((emp: any, idx: number) => {
+                      const isDriver = (emp.workType || '').trim().toLowerCase() === 'driver';
+                      const vehicle = emp?.vehicle;
+                      const vehiclePlate = vehicle?.licensePlate || (typeof vehicle === 'string' ? vehicle : '');
+                      const vehicleName = vehicle?.name || '';
+
+                      return (
+                        <div
+                          key={emp._id || idx}
+                          className={`p-3 rounded-xl border transition-colors ${
+                            isDriver
+                              ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/50'
+                              : 'bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark'
+                          } flex items-center justify-between gap-3 text-xs`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Avatar
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                bgcolor: isDriver ? '#d97706' : '#1a73e8',
+                              }}
+                            >
+                              {emp.employeeName?.[0] || 'E'}
+                            </Avatar>
+                            <div>
+                              <span className="font-bold text-slate-900 dark:text-white block">
+                                {emp.employeeName}
+                              </span>
+                              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                <span
+                                  className={`text-[11px] font-extrabold capitalize ${
+                                    isDriver
+                                      ? 'text-amber-700 dark:text-amber-400'
+                                      : 'text-slate-400'
+                                  }`}
+                                >
+                                  {emp.workType || 'Crew Member'}
+                                </span>
+
+                                {/* If Driver: highlight vehicle number prominently */}
+                                {isDriver && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                                    <DirectionsCarIcon style={{ fontSize: 13 }} />
+                                    <span>
+                                      Vehicle No: {vehiclePlate || vehicleName || 'Not Assigned'}
+                                      {vehicleName && vehiclePlate ? ` (${vehicleName})` : ''}
+                                    </span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 block">
+                              {moment(emp.startTime).format('hh:mm A')} →{' '}
+                              {moment(emp.endTime).format('hh:mm A')}
                             </span>
-                            <span className="text-[11px] text-slate-400 capitalize">
-                              {emp.workType || 'Crew Member'}
-                            </span>
+                            {!isDriver && (vehiclePlate || vehicleName) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-primary font-bold">
+                                <DirectionsCarIcon style={{ fontSize: 12 }} />
+                                <span>
+                                  {vehiclePlate || vehicleName}
+                                </span>
+                              </span>
+                            )}
                           </div>
                         </div>
-
-                        <div className="text-right">
-                          <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 block">
-                            {moment(emp.startTime).format('hh:mm A')} →{' '}
-                            {moment(emp.endTime).format('hh:mm A')}
-                          </span>
-                          {emp?.vehicle?.name && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-primary font-bold">
-                              <DirectionsCarIcon style={{ fontSize: 12 }} />
-                              <span>
-                                {emp.vehicle.name} ({emp.vehicle.licensePlate})
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -602,7 +754,8 @@ export default function TaskPlanningCalendar({
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </Dialog>
 
       {/* Embedded Google Calendar Custom CSS Overrides */}

@@ -1,123 +1,78 @@
-import React, { useEffect, useState } from "react";
-import { Box, Typography, Button } from "@mui/material";
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import MarkEmailReadOutlinedIcon from '@mui/icons-material/MarkEmailReadOutlined';
+import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
+import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined';
+import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
 
 const ThankYouPage: React.FC = () => {
-  const [showBox, setShowBox] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowBox(true), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const navigate = useNavigate();
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        position: "relative",
-        bgcolor: "#282c34",
-        overflow: "hidden",
-        p: 3,
-      }}
-    >
-      {/* Animated Background */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          zIndex: 0,
-          overflow: "hidden",
-          "&::before, &::after": {
-            content: '""',
-            position: "absolute",
-            width: "150%",
-            height: "150%",
-            background:
-              "radial-gradient(circle, rgba(255,255,255,0.2), transparent)",
-            animation: "rotate 12s linear infinite",
-            zIndex: 0,
-          },
-          "&::before": {
-            top: "-50%",
-            left: "-50%",
-            animationDirection: "normal",
-          },
-          "&::after": {
-            top: "25%",
-            left: "25%",
-            animationDirection: "reverse",
-          },
-          "@keyframes rotate": {
-            "0%": { transform: "rotate(0deg)" },
-            "100%": { transform: "rotate(360deg)" },
-          },
-        }}
-      />
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-100/50 to-slate-50 dark:from-boxdark-2 dark:via-boxdark dark:to-boxdark-2 flex flex-col justify-between font-sans text-slate-800 dark:text-white relative overflow-hidden selection:bg-primary/20">
+      {/* Background Decorative Ambient Glows */}
+      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-gradient-to-tr from-primary/10 via-emerald-500/10 to-transparent blur-3xl pointer-events-none rounded-full" />
+      <div className="absolute bottom-[-5%] right-[-5%] w-[400px] h-[300px] bg-primary/5 blur-3xl pointer-events-none rounded-full" />
 
-      {/* Thank You Message Box */}
-      <Box
-        sx={{
-          position: "relative",
-          zIndex: 1,
-          bgcolor: "rgba(255, 255, 255, 0.9)",
-          color: "#333",
-          p: 6,
-          borderRadius: "10px",
-          boxShadow: "0px 16px 32px rgba(0, 0, 0, 0.1)",
-          maxWidth: "800px",
-          width: "90%",
-          transform: showBox ? "translateY(0)" : "translateY(100%)",
-          opacity: showBox ? 1 : 0,
-          transition: "transform 0.8s ease, opacity 0.8s ease",
-        }}
-      >
-        <Typography
-          variant="h4"
-          fontWeight="bold"
-          gutterBottom
-          sx={{
-            background: "linear-gradient(90deg, #ff7eb3, #ff758c, #feb47b)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            mb: 2,
-          }}
-        >
-          🎉 Thank You! 🎉
-        </Typography>
-        <Typography
-          variant="body1"
-          gutterBottom
-          sx={{
-            mb: 4,
-            fontWeight: 500,
-          }}
-        >
-          Your quotation has been successfully accepted! You’ll be redirected
-          to the homepage
-        </Typography>
-        <Button
-          variant="contained"
-          size="large"
-          sx={{
-            bgcolor: "#ff4081",
-            color: "#fff",
-            "&:hover": { bgcolor: "#f50057" },
-            px: 4,
-            py: 2,
-            fontSize: "1rem",
-          }}
-          onClick={() => alert("Redirecting to Home!")}
-        >
-          Go to Website
-        </Button>
-      </Box>
-    </Box>
+
+
+      {/* Main Hero Card */}
+      <main className="flex-1 flex items-center justify-center p-4 md:p-8 z-10">
+        <div className="w-full max-w-xl bg-white/95 dark:bg-boxdark/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-200/60 dark:shadow-black/40 border border-slate-200/80 dark:border-strokedark p-6 md:p-10 relative overflow-hidden text-center">
+          {/* Top Gradient Stripe */}
+          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-emerald-500 to-blue-500" />
+
+          {/* Animated Success Badge */}
+          <div className="relative w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full bg-emerald-500/15 animate-ping" />
+            <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center text-white shadow-xl shadow-emerald-500/30">
+              <CheckCircleRoundedIcon sx={{ fontSize: 44 }} />
+            </div>
+          </div>
+
+          {/* Titles */}
+          <div className="space-y-2">
+            <span className="inline-block text-[11px] font-extrabold uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+              Acceptance Successful
+            </span>
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Quotation Accepted!
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm max-w-md mx-auto leading-relaxed pt-1">
+              Thank you for confirming your quote. Your booking is officially registered in our system and our dispatch team has initiated preparation.
+            </p>
+          </div>
+
+
+
+
+
+          {/* Actions */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs md:text-sm shadow-lg shadow-primary/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <HomeOutlinedIcon fontSize="small" />
+              <span>Go to Homepage</span>
+              <ArrowForwardRoundedIcon fontSize="small" />
+            </button>
+          </div>
+
+          {/* Subtle Trust Footer */}
+          <div className="mt-7 pt-5 border-t border-slate-100 dark:border-strokedark flex items-center justify-center gap-2 text-[11px] text-slate-400">
+            <VerifiedUserOutlinedIcon style={{ fontSize: 14 }} className="text-emerald-500" />
+            <span>256-bit encrypted online acceptance confirmation</span>
+          </div>
+        </div>
+      </main>
+
+
+    </div>
   );
 };
 

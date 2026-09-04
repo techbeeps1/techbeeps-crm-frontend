@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
+import { UserContext } from '../../UserContext';
 import { toast } from 'react-toastify';
 import {
   IconButton,
@@ -27,6 +28,7 @@ import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import CheckIcon from '@mui/icons-material/Check';
 import { DeleteForever } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
@@ -55,6 +57,57 @@ interface NotesFormInputs {
   employeeNotes: string;
   customerNotes: string;
 }
+
+const statusOptions = [
+  {
+    value: 'PENDING',
+    label: 'PENDING',
+    desc: 'Waiting for action / review',
+    dotColor: '#f59e0b',
+    dotPing: true,
+    badgeColor: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+  },
+  {
+    value: 'PROCESSING',
+    label: 'PROCESSING',
+    desc: 'Initial valuation & setup',
+    dotColor: '#8b5cf6',
+    dotPing: true,
+    badgeColor: 'bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border-purple-300 dark:border-purple-700',
+  },
+  {
+    value: 'EXECUTION',
+    label: 'EXECUTION',
+    desc: 'Active moving & transport',
+    dotColor: '#10b981',
+    dotPing: true,
+    badgeColor: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700',
+  },
+  {
+    value: 'COMPLETED',
+    label: 'COMPLETED',
+    desc: 'Job finished & closed',
+    dotColor: '#3b82f6',
+    dotPing: false,
+    badgeColor: 'bg-blue/10 text-blue dark:bg-blue/20 dark:text-blue border border-blue/30 dark:border-blue/50',
+  },
+  {
+    value: 'CANCELLED',
+    label: 'CANCELLED',
+    desc: 'Job cancelled / aborted',
+    dotColor: '#f43f5e',
+    dotPing: false,
+    badgeColor: 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-300 dark:border-rose-700',
+  },
+  {
+    value: 'DRAFT',
+    label: 'DRAFT',
+    desc: 'Draft / Quote not sent',
+    dotColor: '#94a3b8',
+    dotPing: false,
+    badgeColor: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+  },
+];
 
 const notify = (message: string) => toast(message);
 const notifyError = (message: string) =>
@@ -90,7 +143,53 @@ const Jobslider: React.FC<JobsliderProps> = ({
   const [isAppointmentEditorOpen, setIsAppointmentEditorOpen] = useState(false);
   const [isAppointmentViewerOpen, setIsAppointmentViewerOpen] = useState(false);
   const [isdeleteBoc, setIsDeleteBox] = useState('');
+  const [currentStatus, setCurrentStatus] = useState<string>(job?.status || 'PROCESSING');
+  const [selectedStatus, setSelectedStatus] = useState<string>(job?.status || 'PROCESSING');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  const { role, userData, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (job?.status) {
+      setCurrentStatus(job.status);
+      setSelectedStatus(job.status);
+    }
+  }, [job?.status, job?._id]);
+
+  const handleSaveStatus = async () => {
+    if (!job?._id || selectedStatus.toUpperCase() === currentStatus.toUpperCase()) return;
+    setIsUpdatingStatus(true);
+    try {
+      const response = await axios.put(`${apiPath}/api/job-schedule/${job._id}`, {
+        status: selectedStatus,
+      });
+      if (response.status === 200) {
+        setCurrentStatus(selectedStatus);
+        if (job) job.status = selectedStatus;
+        toast.success(`Job status updated to ${selectedStatus}`);
+        handler();
+      }
+    } catch (err: any) {
+      console.error('Failed to update job status:', err);
+      toast.error(err?.response?.data?.message || 'Failed to update job status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   const handleChange = (_event: React.ChangeEvent<{}>, newValue: number) => {
     setTabIndex(newValue);
@@ -135,12 +234,16 @@ const Jobslider: React.FC<JobsliderProps> = ({
   };
 
   const getAppointments = async () => {
+    const jobId = job?._id;
+    if (!jobId) {
+      setAppointment([]);
+      return;
+    }
     try {
-      const queryString = job ? `?jobId=${job._id}` : '';
       const response = await axios.get(
-        `${apiPath}/api/appointment${queryString}`,
+        `${apiPath}/api/appointment?jobId=${jobId}`,
       );
-      setAppointment(response.data);
+      setAppointment(response.data || []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
     }
@@ -264,13 +367,22 @@ const Jobslider: React.FC<JobsliderProps> = ({
           </div>
           <div className="mt-1.5 flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${(job?.status || '').toLowerCase() === 'execution'
-                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
-                }`}
+              className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${
+                (currentStatus || '').toLowerCase() === 'execution' || (currentStatus || '').toLowerCase() === 'in progress'
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                  : (currentStatus || '').toLowerCase() === 'completed'
+                    ? 'bg-[#eff6ff] text-[#1d4ed8] dark:bg-blue/15 dark:text-blue border border-[#bfdbfe] dark:border-blue/30'
+                    : (currentStatus || '').toLowerCase() === 'cancelled'
+                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                      : (currentStatus || '').toLowerCase() === 'draft'
+                        ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                        : (currentStatus || '').toLowerCase() === 'processing'
+                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-300 dark:border-purple-800'
+                          : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+              }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
-              {job?.status || 'PENDING'}
+              {currentStatus || 'PENDING'}
             </span>
           </div>
         </div>
@@ -384,13 +496,112 @@ const Jobslider: React.FC<JobsliderProps> = ({
               onClose={() => setOpen(false)}
               job={job}
             />
-            <button
-              type="button"
-              onClick={Ondelete}
-              className="px-4 py-2.5 rounded-xl border border-rose-300 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-bold text-xs transition-all cursor-pointer"
-            >
-              Cancel Job
-            </button>
+
+            {/* Red Mark Area: Custom Styled Dropdown with Save button */}
+            <div className="ml-auto flex items-center gap-2 pl-3 border-l border-slate-200 dark:border-slate-700">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                Update Status:
+              </span>
+
+              <div className="relative" ref={statusDropdownRef}>
+                {/* Trigger Button */}
+                <button
+                  type="button"
+                  disabled={isUpdatingStatus || !isUserAdmin}
+                  onClick={() => {
+                    if (isUserAdmin) setIsStatusDropdownOpen((prev) => !prev);
+                  }}
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border shadow-xs transition-all ${isUserAdmin ? 'cursor-pointer active:scale-95' : 'cursor-default'} select-none ${statusOptions.find((o) => o.value === selectedStatus.toUpperCase())?.badgeColor ||
+                    'bg-slate-100 text-slate-800 border-slate-200'
+                    }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${statusOptions.find((o) => o.value === selectedStatus.toUpperCase())?.dotPing ? 'animate-pulse' : ''
+                      }`}
+                    style={{
+                      backgroundColor: statusOptions.find((o) => o.value === selectedStatus.toUpperCase())?.dotColor || '#94a3b8'
+                    }}
+                  />
+                  <span>{selectedStatus}</span>
+                  {isUserAdmin && (
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform duration-200 opacity-60 ${isStatusDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Custom Options Popover Menu */}
+                {isStatusDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-boxdark rounded-2xl shadow-xl border border-slate-200/90 dark:border-strokedark p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Select Status
+                    </div>
+                    {statusOptions.map((opt) => {
+                      const isSelected = selectedStatus.toUpperCase() === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStatus(opt.value);
+                            setIsStatusDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all cursor-pointer ${isSelected
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                            }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: opt.dotColor }}
+                            />
+                            <div>
+                              <div className="text-xs font-bold leading-tight">{opt.label}</div>
+                              <div className="text-[10px] text-slate-400 font-normal leading-tight mt-0.5">
+                                {opt.desc}
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <CheckIcon style={{ fontSize: 16 }} className="text-primary flex-shrink-0 ml-2" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Save & Cancel buttons shown ONLY when status is changed */}
+              {selectedStatus.toUpperCase() !== currentStatus.toUpperCase() && (
+                <div className="flex items-center gap-1.5 animate-fadeIn">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStatus(currentStatus)}
+                    disabled={isUpdatingStatus}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveStatus}
+                    disabled={isUpdatingStatus}
+                    className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckIcon style={{ fontSize: 15 }} />
+                    <span>{isUpdatingStatus ? 'Saving...' : 'Save'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Relocation, Hours & Rates Metrics */}
@@ -608,13 +819,15 @@ const Jobslider: React.FC<JobsliderProps> = ({
               <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Job Notes</span>
               </h3>
-              <button
-                type="button"
-                className="px-3.5 py-1.5 rounded-xl border border-primary text-primary hover:bg-primary/10 font-bold text-xs transition-all cursor-pointer"
-                onClick={() => setIsNotesModalShow(true)}
-              >
-                Edit Notes
-              </button>
+              {isUserAdmin && (
+                <button
+                  type="button"
+                  className="px-3.5 py-1.5 rounded-xl border border-primary text-primary hover:bg-primary/10 font-bold text-xs transition-all cursor-pointer"
+                  onClick={() => setIsNotesModalShow(true)}
+                >
+                  Edit Notes
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

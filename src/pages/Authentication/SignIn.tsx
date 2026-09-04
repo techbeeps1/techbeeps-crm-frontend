@@ -57,10 +57,13 @@ const SignIn: React.FC<SignInProps> = ({ signup, setsignup, onResetPassword }) =
     try {
       const response = await axios.post(`${apiPath}/user/login`, data);
       localStorage.setItem('token', response.data.token);
-      notify('Login successfully')
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      notify('Login successfully');
       setTimeout(() => {
         window.location.href = "/";
-      }, 0)
+      }, 100);
     } catch (error: any) {
       console.error('Error during login:', error);
       console.log("ERROR",error)

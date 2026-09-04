@@ -3,7 +3,6 @@ import CompanySettings from './CompanyDetail';
 import MoneyFormatSettings from './CurrencySetting';
 import LogoUploadForm from './Logo';
 import Header from './Header';
-import RoleSettings from './RoleSetting';
 import { UserContext } from '../../UserContext';
 import { toast } from 'react-toastify';
 import {
@@ -71,13 +70,6 @@ const AppSettings = () => {
       shortTitle: 'Branding',
       icon: MdOutlineImage,
       desc: 'Official logo & visual identity',
-    },
-    {
-      id: 4,
-      title: 'User Roles & Access',
-      shortTitle: 'Roles',
-      icon: MdOutlineAdminPanelSettings,
-      desc: 'Permissions & staff privileges',
     },
   ];
 
@@ -244,8 +236,6 @@ const AppSettings = () => {
             <LogoUploadForm />
           </div>
         );
-      case 4:
-        return <RoleSettings />;
       default:
         return null;
     }
