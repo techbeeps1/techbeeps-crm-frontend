@@ -9,6 +9,7 @@ import BoxFrom from './Froms/BoxFrom';
 import Supplier from './Froms/Supplier';
 import StockForm from './Froms/StockForm';
 import OrderList from './OrderList';
+import { formatCurrency } from '../../utils/currencyUtil';
 import { 
     MdAllInbox, 
     MdLayers, 
@@ -370,13 +371,13 @@ const BoxList: React.FC<{ type: string }> = ({ type }) => {
                                             <div>
                                                 <span className="text-slate-400 block font-medium mb-0.5">Rental Price</span>
                                                 <span className="font-bold text-slate-800 text-sm">
-                                                    ${selectedStaff?.rentalPrice || '0.00'}
+                                                    {formatCurrency(selectedStaff?.rentalPrice || 0)}
                                                 </span>
                                             </div>
                                             <div>
                                                 <span className="text-slate-400 block font-medium mb-0.5">Selling Price</span>
                                                 <span className="font-bold text-slate-800 text-sm">
-                                                    ${selectedStaff?.sellingPrice || '0.00'}
+                                                    {formatCurrency(selectedStaff?.sellingPrice || 0)}
                                                 </span>
                                             </div>
                                         </div>

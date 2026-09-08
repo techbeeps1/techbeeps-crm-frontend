@@ -15,6 +15,8 @@ import OfferDetail from '../pages/Quotes/OfferDetail.jsx';
 import Method from '../pages/Methods/Method.jsx';
 import HrmPage from '../pages/HRM/HrmPage.jsx';
 import MyLeavesPage from '../pages/HRM/MyLeavesPage.jsx';
+import MyHoursPage from '../pages/HRM/MyHoursPage.jsx';
+import MyDeclarationsPage from '../pages/HRM/MyDeclarationsPage.jsx';
 import InvoiceDetailpage from '../pages/InvoicePage/InvoiceDetailpage.jsx';
 import TaskPage from '../pages/Taskcomponent/TaskPage.jsx';
 import JobDetailPage from '../pages/Jobpage/JobDetailPage.js';
@@ -31,6 +33,7 @@ import OffersPage from '../pages/OffersPage.jsx';
 import InvoiceListPage from '../pages/InvoiceListPage.jsx';
 import Jobslider from '../pages/Jobpage/Jobslider.js';
 import WorkPage from '../pages/Work/WorkPage';
+import DamageClaimsPage from '../pages/DamageClaims/DamageClaimsPage.jsx';
 
 const coreRoutes = [
   {
@@ -153,6 +156,12 @@ const coreRoutes = [
     component: ResourcesPage,
   },
   {
+    path: '/claims',
+    title: 'Damage Claims',
+    access: 'Claims',
+    component: DamageClaimsPage,
+  },
+  {
     path: '/HRM',
     title: 'HRM',
     access: 'HRM',
@@ -162,6 +171,16 @@ const coreRoutes = [
     path: '/my-leaves',
     title: 'My Leaves',
     component: MyLeavesPage,
+  },
+  {
+    path: '/my-hours',
+    title: 'My Hours',
+    component: MyHoursPage,
+  },
+  {
+    path: '/my-declarations',
+    title: 'My Declarations',
+    component: MyDeclarationsPage,
   },
   {
     path: '/dropdownNotification',

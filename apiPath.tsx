@@ -12,10 +12,6 @@ export const chatApiPath = "https://techbeeps-crm-backend-9i4i.vercel.app/chatBa
 // export const chatApiPath = "http://localhost:4040/chatBackend";
 // export const imageUrl = "http://localhost:4040";
 
-
-
-
-// export const apiPath = "http://192.168.1.3:8080";
-// export const chatApiPath = "http://192.168.1.3:4040/chatBackend";
-// export const imageUrl = "http://192.168.1.3:4040";
+// Dynamically derive WebSocket URL from imageUrl (http -> ws, https -> wss)
+export const chatWsUrl = imageUrl.replace(/^http/, 'ws');
 

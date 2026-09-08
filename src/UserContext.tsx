@@ -1,6 +1,8 @@
 import { createContext, useEffect, useState, ReactNode } from "react";
 import axios from "axios";
-import { apiPath, chatApiPath } from "../apiPath.tsx";
+import { apiPath, chatApiPath, chatWsUrl } from "../apiPath.tsx";
+import { setSystemTimezone } from "./utils/timezoneUtil";
+import { setCurrencySettings } from "./utils/currencyUtil";
 
 interface UserContextType {
   userData: any;
@@ -16,6 +18,7 @@ interface UserContextType {
   fetchProfile: () => Promise<void>;
   ws: any;
   connectToWs: any;
+  onlineUsers: Array<{ userId: string; username: string }>;
 }
 
 export const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -58,6 +61,7 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
     }
   });
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<Array<{ userId: string; username: string }>>([]);
 
   const token = localStorage.getItem('token');
   if (token) {
@@ -89,16 +93,36 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
       const response = await axios.get(`${apiPath}/user/profile`, {
         headers: { Authorization: `Bearer ${currentToken}` }
       });
-      if (response.status === 200 && response.data?.user) {
-        const user = response.data.user;
-        const uid = user.userId || user.id || user._id;
-        const uname = user.username || user.name;
-        setId(uid);
-        setUsername(uname);
-        setRole(user.role);
-        setUserData(user);
-        localStorage.setItem('user', JSON.stringify(user));
+      if (response.status === 200 && response.data) {
+        const user = response.data.user || response.data;
+        if (user && (user._id || user.id || user.userId || user.email || user.username)) {
+          const uid = user.userId || user.id || user._id;
+          const uname = user.username || user.name;
+          if (uid) setId(uid);
+          if (uname) setUsername(uname);
+          if (user.role) setRole(user.role);
+          setUserData(user);
+          localStorage.setItem('user', JSON.stringify(user));
+        }
       }
+
+      // Also sync system timezone and currency from backend
+      try {
+        const settingsRes = await axios.get(`${apiPath}/api/available-settings`);
+        if (settingsRes.status === 200 && settingsRes.data) {
+          if (settingsRes.data.timezone) {
+            setSystemTimezone(settingsRes.data.timezone);
+          }
+          if (settingsRes.data.currency) {
+            setCurrencySettings({
+              code: settingsRes.data.currency,
+              symbol: settingsRes.data.currencySymbol,
+              position: settingsRes.data.currencyPosition,
+              decimals: settingsRes.data.currencyDecimals,
+            });
+          }
+        }
+      } catch (e) {}
     } catch (error: any) {
       console.error('Failed to fetch CRM user profile:', error?.message);
       if (error.response?.status === 401) {
@@ -110,21 +134,43 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
   };
 
   const connectToWs = () => {
-    if (!token) return;
+    const currentToken = localStorage.getItem('token') || token;
+    if (!currentToken) return;
     try {
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
       const socket = new WebSocket(
-        `wss://chat-backend-t73x.onrender.com?token=${token}`,
+        `${chatWsUrl}?token=${currentToken}`,
       );
-      socket.onopen = () => console.log('WebSocket connected');
+      socket.onopen = () => {
+        console.log('WebSocket connected to', chatWsUrl);
+        // Request current online users as soon as socket connects
+        socket.send(JSON.stringify({ type: 'getOnline' }));
+      };
+      socket.addEventListener('message', (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          if ('online' in data && Array.isArray(data.online)) {
+            setOnlineUsers(data.online);
+          }
+        } catch (e) {}
+      });
       setWs(socket);
       socket.onclose = (event) => {
         console.log('WebSocket closed:', event.reason);
+        setWs(null);
+        setTimeout(() => {
+          if (localStorage.getItem('token')) {
+            connectToWs();
+          }
+        }, 2000);
       };
       socket.onerror = (err) => {
-        console.warn('WebSocket notification service optional/unavailable');
+        console.warn('WebSocket connection error:', err);
       };
     } catch (err) {
-      console.warn('WebSocket connection skipped');
+      console.warn('WebSocket connection skipped', err);
     }
   };
 
@@ -161,6 +207,7 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
         setRole,
         isAdmin,
         hasAccess,
+        onlineUsers,
       }}
     >
       {children}

@@ -11,8 +11,10 @@ import {
   MdCalculate,
   MdTune
 } from 'react-icons/md';
+import { useCurrency } from '../../../utils/currencyUtil';
 
 const OffersForm = ({ register, errors, type, watch, setValue }) => {
+  const { symbol: currencySymbol } = useCurrency();
   const [rules, setRules] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [template, setTemplate] = useState([]);
@@ -308,11 +310,11 @@ const OffersForm = ({ register, errors, type, watch, setValue }) => {
                               className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
                             >
                               <option value="">Select Price Rate Component</option>
-                              <option value="{{relocation_pricePerMeterCubic}}">Volume Rate (€/m³)</option>
+                              <option value="{{relocation_pricePerMeterCubic}}">Volume Rate ({currencySymbol}/m³)</option>
                               <option value="{{moverPrice}}">Mover Hourly Rate</option>
                               <option value="{{boxCharges}}">Box Charge Rate</option>
                               <option value="{{relocation_pricePerHour}}">Hourly Transport Rate</option>
-                              <option value="{{relocation_pricePerKilometer}}">Distance Rate (€/km)</option>
+                              <option value="{{relocation_pricePerKilometer}}">Distance Rate ({currencySymbol}/km)</option>
                               <option value="{{movingLift_price}}">Moving Lift Rate</option>
                               <option value="{{assembling_appliedPrice}}">Assembling Hourly Rate</option>
                               <option value="{{disassembling_appliedPrice}}">Dismantle Hourly Rate</option>

@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import axios from 'axios';
 import { apiPath } from '../../../../apiPath';
+
 const CustomerForm: React.FC<any> = ({ type, customerid }) => {
   const [customers, setCustomers] = useState<any[]>([]);
   const {
@@ -19,10 +21,13 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const fetchAddresses = async (id: string) => {
+    if (!id) return;
     try {
-      const response = await fetch(`${apiPath}/customer/address/${id}`);
-      const data = await response.json();
-      if (data.success && data.address) {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/customer/address/${id}`, { headers });
+      const data = response.data;
+      if (data && data.success && data.address) {
         setValue(`load.postcode`, data.address.postcode || '');
         setValue(`load.houseNumber`, data.address.houseNumber || '');
         setValue(`load.street`, data.address.street || '');
@@ -37,30 +42,24 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
     }
   };
 
+  useEffect(() => {
+    if (customerid && Array.isArray(customers) && customers.length > 0) {
+      setCustomerMode('existing');
+      handleCustomerSelect(customerid);
+    }
+  }, [customers, customerid]);
 
   useEffect(() => {
-  if (
-    
-    customerid &&
-    customers.length > 0
-  ) {
-    setCustomerMode("existing");
-    handleCustomerSelect(customerid);
-  }
-  
-}, [customers, customerid]);
-
-
-  useEffect(() => {
-
-
     const fetchCustomers = async () => {
       try {
-        const response = await fetch(apiPath + '/customer/customerList');
-        const data = await response.json();
-        setCustomers(data.customers);
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await axios.get(`${apiPath}/customer/customerList`, { headers });
+        const list = response.data?.customers || response.data || [];
+        setCustomers(Array.isArray(list) ? list : []);
       } catch (error) {
         console.error('Error fetching customers:', error);
+        setCustomers([]);
       }
     };
     fetchCustomers();
@@ -71,7 +70,8 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
   const readOnly = customerMode === 'existing';
 
   const handleCustomerSelect = (id: string) => {
-    const customer = customers.find((item: any) => item._id === id);
+    const safeCustomers = Array.isArray(customers) ? customers : [];
+    const customer = id ? safeCustomers.find((item: any) => item._id === id) : null;
 
     if (customer) {
       if (customer.address && customer.address.length > 0) {
@@ -91,6 +91,7 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
       setValue(`${type}.findUs`, customer.findUs || '');
     } else {
       setSelectedCustomer(null);
+      setValue(`${type}.customerId`, '');
       setValue(`${type}.typeOfCustomer`, '');
       setValue(`${type}.gender`, '');
       setValue(`${type}.salutation`, '');
@@ -121,7 +122,7 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
               }}
               className="group cursor-pointer bg-gradient-to-br from-sky-50 to-white rounded-[28px] p-8  hover:shadow-2xl transition duration-300 hover:-translate-y-1"
             >
-              <div className="w-16 h-16 rounded-2xl bg-blue text-white flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-white flex items-center justify-center mx-auto shadow-lg">
                 <PersonAddAlt1Icon style={{ fontSize: 34 }} />
               </div>
 
@@ -180,57 +181,48 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
           {/* Dropdown */}
           {showDropdown && (
             <div className="absolute left-0 right-0 bg-white border border-gray shadow-lg rounded mt-1 max-h-72 overflow-auto z-50">
-              {(searchCustomer
-                ? customers.filter(
-                    (customer: any) =>
-                      `${customer.firstName} ${customer.lastName}`
-                        .toLowerCase()
-                        .includes(searchCustomer.toLowerCase()) ||
-                      customer.email
-                        ?.toLowerCase()
-                        .includes(searchCustomer.toLowerCase()) ||
-                      customer.mobile?.includes(searchCustomer),
-                  )
-                : customers
-              ).map((customer: any) => (
-                <div
-                  key={customer._id}
-                  onClick={() => {
-                    handleCustomerSelect(customer._id);
+              {(() => {
+                const safeCustomers = Array.isArray(customers) ? customers : [];
+                const filtered = searchCustomer
+                  ? safeCustomers.filter(
+                      (customer: any) =>
+                        `${customer.firstName || ''} ${customer.lastName || ''}`
+                          .toLowerCase()
+                          .includes(searchCustomer.toLowerCase()) ||
+                        customer.email
+                          ?.toLowerCase()
+                          .includes(searchCustomer.toLowerCase()) ||
+                        customer.mobile?.includes(searchCustomer),
+                    )
+                  : safeCustomers;
 
-                    setSearchCustomer(
-                      `${customer.firstName} ${customer.lastName}`,
-                    );
+                if (filtered.length === 0) {
+                  return (
+                    <div className="p-4 text-center text-gray-500">
+                      No customer found
+                    </div>
+                  );
+                }
 
-                    setShowDropdown(false);
-                  }}
-                  className="px-4 py-2 hover:bg-gray cursor-pointer border-2 border-b border-gray"
-                >
-                  <p className="font-medium">
-                    {customer.firstName} {customer.lastName}
-                  </p>
-
-                  <p className="text-sm text-gray-500">{customer.email}</p>
-                </div>
-              ))}
-
-              {(searchCustomer
-                ? customers.filter(
-                    (customer: any) =>
-                      `${customer.firstName} ${customer.lastName}`
-                        .toLowerCase()
-                        .includes(searchCustomer.toLowerCase()) ||
-                      customer.email
-                        ?.toLowerCase()
-                        .includes(searchCustomer.toLowerCase()) ||
-                      customer.mobile?.includes(searchCustomer),
-                  )
-                : customers
-              ).length === 0 && (
-                <div className="p-4 text-center text-gray-500">
-                  No customer found
-                </div>
-              )}
+                return filtered.map((customer: any) => (
+                  <div
+                    key={customer._id}
+                    onClick={() => {
+                      handleCustomerSelect(customer._id);
+                      setSearchCustomer(
+                        `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
+                      );
+                      setShowDropdown(false);
+                    }}
+                    className="px-4 py-2 hover:bg-gray cursor-pointer border-2 border-b border-gray"
+                  >
+                    <p className="font-medium">
+                      {customer.firstName} {customer.lastName}
+                    </p>
+                    <p className="text-sm text-gray-500">{customer.email}</p>
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>

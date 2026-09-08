@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Dialog } from '@mui/material';
 import { UserContext } from '../UserContext';
 import { useForm, Controller } from 'react-hook-form';
@@ -33,9 +33,14 @@ import {
 
 const Profile: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const { userData, fetchProfile } = useContext(UserContext) as any;
+  const { userData, fetchProfile, setUserData, id } = useContext(UserContext) as any;
   const [loading, setLoading] = useState<boolean>(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Fetch latest profile from backend on mount
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
   const notify = (message: string) =>
     toast.success(message, {
@@ -70,8 +75,29 @@ const Profile: React.FC = () => {
       city: userData?.city || '',
       country: userData?.country || '',
       postCode: userData?.postCode || '',
+      gender: userData?.gender || '',
+      language: userData?.language || 'English (EN)',
     },
   });
+
+  // Keep form in sync when userData updates from fetchProfile
+  useEffect(() => {
+    if (userData) {
+      reset({
+        username: userData?.username || '',
+        dob: userData?.dob || '',
+        telephone: userData?.telephone || '',
+        email: userData?.email || '',
+        houseNumber: userData?.houseNumber || '',
+        street: userData?.street || '',
+        city: userData?.city || '',
+        country: userData?.country || '',
+        postCode: userData?.postCode || '',
+        gender: userData?.gender || '',
+        language: userData?.language || 'English (EN)',
+      });
+    }
+  }, [userData, reset]);
 
   const handleOpen = () => {
     reset({
@@ -84,6 +110,8 @@ const Profile: React.FC = () => {
       city: userData?.city || '',
       country: userData?.country || '',
       postCode: userData?.postCode || '',
+      gender: userData?.gender || '',
+      language: userData?.language || 'English (EN)',
     });
     setOpen(true);
   };
@@ -91,72 +119,93 @@ const Profile: React.FC = () => {
   const handleClose = () => setOpen(false);
 
   const onSubmit = (data: any) => {
-    updateProfile({ id: userData._id, ...data });
+    const targetUserId = userData?._id || userData?.id || userData?.userId || id;
+    updateProfile({ id: targetUserId, ...data });
   };
 
   const updateProfile = async (data: any): Promise<any> => {
     setLoading(true);
-    if (data.username.trim() === '') {
+    if (!data.username || data.username.trim() === '') {
       notifyError('Username cannot be empty');
       setLoading(false);
       return;
     }
-    if (data.username.length < 3 || data.username.length > 20) {
-      notifyError('Username must be between 3 and 20 characters');
+    if (data.username.length < 3 || data.username.length > 50) {
+      notifyError('Username must be between 3 and 50 characters');
       setLoading(false);
       return;
     }
 
-    if (!/^\+?[0-9]{7,15}$/.test(data.telephone)) {
-      notifyError('Invalid telephone number');
-      setLoading(false);
-      return;
+    if (data.telephone) {
+      const cleanPhone = data.telephone.replace(/[\s\-()]/g, '');
+      if (!/^\+?[0-9]{7,15}$/.test(cleanPhone)) {
+        notifyError('Invalid telephone number (should be 7 to 15 digits)');
+        setLoading(false);
+        return;
+      }
     }
-    if (data.city.trim() === '') {
-      notifyError('City cannot be empty');
-      setLoading(false);
-      return;
-    }
-    if (data.city.length < 2 || data.city.length > 50) {
+
+    if (data.city && data.city.trim() !== '' && (data.city.length < 2 || data.city.length > 50)) {
       notifyError('City must be between 2 and 50 characters');
       setLoading(false);
       return;
     }
-    if (data.country.trim() === '') {
-      notifyError('Country cannot be empty');
-      setLoading(false);
-      return;
-    }
-    if (data.country.length < 2 || data.country.length > 50) {
+    if (data.country && data.country.trim() !== '' && (data.country.length < 2 || data.country.length > 50)) {
       notifyError('Country must be between 2 and 50 characters');
       setLoading(false);
       return;
     }
-    if (data.houseNumber.length > 10 || data.houseNumber.length < 1) {
-      notifyError('House number must be between 1 and 10 characters');
+    if (data.houseNumber && data.houseNumber.length > 20) {
+      notifyError('House number must be at most 20 characters');
       setLoading(false);
       return;
     }
-    if (data.street.length > 56 || data.street.length < 2) {
-      notifyError('Street must be between 2 and 56 characters');
+    if (data.street && data.street.length > 100) {
+      notifyError('Street must be at most 100 characters');
       setLoading(false);
       return;
     }
-    if (data.postCode.length > 12 || data.postCode.length < 3) {
-      notifyError('Postal code must be between 3 and 12 characters');
+    if (data.postCode && data.postCode.length > 20) {
+      notifyError('Postal code must be at most 20 characters');
       setLoading(false);
       return;
     }
 
     try {
-      await axios.post(`${apiPath}/user/update`, data);
+      const currentToken = localStorage.getItem('token');
+      const response = await axios.post(`${apiPath}/user/update`, data, {
+        headers: currentToken ? { Authorization: `Bearer ${currentToken}` } : {},
+      });
       handleClose();
+
+      const updatedUser = response.data?.user || response.data;
+      if (updatedUser && typeof updatedUser === 'object') {
+        const merged = { ...userData, ...updatedUser };
+        setUserData(merged);
+        localStorage.setItem('user', JSON.stringify(merged));
+      }
+
       await fetchProfile();
       notify('Profile updated successfully');
     } catch (error: any) {
-      notifyError(`Failed to update profile. ${error?.message}`);
+      notifyError(`Failed to update profile. ${error?.response?.data?.msg || error?.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatDob = (dobValue: any) => {
+    if (!dobValue) return 'N/A';
+    try {
+      const d = new Date(dobValue);
+      if (isNaN(d.getTime())) return String(dobValue);
+      return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+      }).format(d);
+    } catch {
+      return String(dobValue);
     }
   };
 
@@ -344,13 +393,7 @@ const Profile: React.FC = () => {
                 <span>Date of Birth</span>
               </div>
               <p className="text-sm font-bold text-black dark:text-white pl-5.5">
-                {userData?.dob
-                  ? new Intl.DateTimeFormat('en-US', {
-                    month: 'short',
-                    day: '2-digit',
-                    year: 'numeric',
-                  }).format(new Date(userData.dob))
-                  : 'N/A'}
+                {formatDob(userData?.dob)}
               </p>
             </div>
 
@@ -586,7 +629,7 @@ const Profile: React.FC = () => {
                 {/* Phone Number */}
                 <div>
                   <label className="block text-xs font-bold text-black dark:text-white uppercase tracking-wider mb-1.5">
-                    Phone Number <span className="text-meta-1">*</span>
+                    Phone Number
                   </label>
                   <Controller
                     name="telephone"
@@ -597,6 +640,51 @@ const Profile: React.FC = () => {
                         placeholder="e.g. +31 6 12345678"
                         className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                       />
+                    )}
+                  />
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block text-xs font-bold text-black dark:text-white uppercase tracking-wider mb-1.5">
+                    Gender
+                  </label>
+                  <Controller
+                    name="gender"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        {...field}
+                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    )}
+                  />
+                </div>
+
+                {/* Preferred Language */}
+                <div>
+                  <label className="block text-xs font-bold text-black dark:text-white uppercase tracking-wider mb-1.5">
+                    Preferred Language
+                  </label>
+                  <Controller
+                    name="language"
+                    control={control}
+                    render={({ field }) => (
+                      <select
+                        {...field}
+                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      >
+                        <option value="English (EN)">English (EN)</option>
+                        <option value="Dutch (NL)">Dutch (NL)</option>
+                        <option value="German (DE)">German (DE)</option>
+                        <option value="French (FR)">French (FR)</option>
+                        <option value="Spanish (ES)">Spanish (ES)</option>
+                      </select>
                     )}
                   />
                 </div>

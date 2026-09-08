@@ -21,6 +21,7 @@ import { UserContext } from '../../UserContext';
 import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
+import { formatCurrency } from '../../utils/currencyUtil';
 import { 
   MdReceiptLong, 
   MdAdd, 
@@ -398,9 +399,8 @@ const InvoiceList = ({ customerId }) => {
 
                       {/* AMOUNT */}
                       <td className="py-3.5 px-4 text-slate-600">
-                        <div className="flex items-center gap-1 font-bold text-slate-900 text-xs">
-                          <AttachMoneyIcon style={{ fontSize: 16 }} className="text-emerald-500 -mr-1" />
-                          <span>{Number(item.total || 0).toLocaleString()}</span>
+                        <div className="font-bold text-slate-900 font-mono text-xs">
+                          {formatCurrency(item.total || 0)}
                         </div>
                       </td>
 

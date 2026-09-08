@@ -5,6 +5,7 @@ import { Checkbox } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { IconButton } from '@mui/material';
 import axios from 'axios';
+import { formatCurrency } from '../../../utils/currencyUtil';
 
 
 const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appendedItemsRef }) => {
@@ -519,7 +520,7 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                     <h2 className="font-bold text-xl mb-2">Summary</h2>
                     <div className="grid grid-cols-2 mb-2 text-lg font-semibold">
                         <div>Subtotal:</div>
-                        <div className='text-lg font-semibold'>$ {subtotal && subtotal?.toFixed(2)}</div>
+                        <div className='text-lg font-semibold'>{formatCurrency(subtotal || 0)}</div>
                     </div>
                     <div className="flex justify-between mb-2 gap-5">
                         <div className="w-1/2">
@@ -549,15 +550,15 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                     />
                     <div className="grid grid-cols-2 mb-2">
                         <div className='text-lg font-semibold'>Discount :</div>
-                        <div className='text-lg font-semibold'>- $ {(subtotal * (discountPercentage / 100)).toFixed(2)} </div>
+                        <div className='text-lg font-semibold'>- {formatCurrency(subtotal * (discountPercentage / 100))} </div>
                     </div>
                     <div className="grid grid-cols-2 mb-2">
                         <div className='text-lg font-semibold'>Total tax :</div>
-                        <div className='text-lg font-semibold'>+ $ {taxTotal && taxTotal.toFixed(2)} </div>
+                        <div className='text-lg font-semibold'>+ {formatCurrency(taxTotal || 0)} </div>
                     </div>
                     <div className="grid grid-cols-2 mb-2">
                         <div className='text-lg font-semibold'>Total:</div>
-                        <div className='text-lg font-semibold'>= $ {total && total.toFixed(2)}</div>
+                        <div className='text-lg font-semibold'>= {formatCurrency(total || 0)}</div>
                     </div>
                 </div>
             </div >

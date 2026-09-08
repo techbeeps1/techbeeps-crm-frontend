@@ -4,6 +4,7 @@ import axios from "axios";
 import CloseIcon from '@mui/icons-material/Close';
 import { Dialog, DialogContent, DialogActions, IconButton } from "@mui/material";
 import { apiPath } from "../../../../apiPath";
+import { useCurrency, formatCurrency } from "../../../utils/currencyUtil";
 import { 
     MdBusiness, 
     MdPhone, 
@@ -56,6 +57,7 @@ const initialSupplierValues: SupplierFormInputs = {
 };
 
 const Supplier: React.FC<any> = ({ material, materilHandlers }) => {
+    const { symbol: currencySymbol } = useCurrency();
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [data, setData] = useState<any>([]);
     const [editForm, setEditForm] = useState<any>();
@@ -154,7 +156,7 @@ const Supplier: React.FC<any> = ({ material, materilHandlers }) => {
                                         </h4>
                                         <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-0.5">
                                             <MdAttachMoney className="text-xs" />
-                                            Purchase Price: ${item.purchasePrice || '0.00'}
+                                            Purchase Price: {formatCurrency(item.purchasePrice || 0)}
                                         </span>
                                     </div>
                                 </div>
@@ -325,7 +327,7 @@ const Supplier: React.FC<any> = ({ material, materilHandlers }) => {
 
                                     <div>
                                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                            Purchasing Price ($) <span className="text-rose-500">*</span>
+                                            Purchasing Price ({currencySymbol}) <span className="text-rose-500">*</span>
                                         </label>
                                         <input
                                             type="number"
@@ -358,7 +360,7 @@ const Supplier: React.FC<any> = ({ material, materilHandlers }) => {
 
                                         <div>
                                             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                                Purchasing Price ($) <span className="text-rose-500">*</span>
+                                                Purchasing Price ({currencySymbol}) <span className="text-rose-500">*</span>
                                             </label>
                                             <input
                                                 type="number"

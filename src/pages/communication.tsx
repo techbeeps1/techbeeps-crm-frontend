@@ -49,25 +49,25 @@ const Communication: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden gap-2.5">
       {/* Top Header & Navigation Bar */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-xs border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white flex items-center justify-center shadow-md shadow-primary/20 text-2xl shrink-0">
+      <div className="bg-white rounded-2xl py-2.5 px-4 sm:px-5 shadow-xs border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-blue-600 text-white flex items-center justify-center shadow-md shadow-primary/20 text-xl shrink-0">
             <MdForum />
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight">
+            <h2 className="text-base sm:text-lg font-bold text-slate-800 tracking-tight leading-tight">
               Communication Center
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-[11px] sm:text-xs text-slate-500">
               Manage team discussions & internal news announcements
             </p>
           </div>
         </div>
 
         {/* Modern Tab Pills */}
-        <div className="flex items-center bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/80 self-start md:self-auto overflow-x-auto max-w-full no-scrollbar">
+        <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shrink-0 self-start sm:self-auto">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -76,13 +76,13 @@ const Communication: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? 'bg-primary text-white shadow-sm shadow-primary/25 scale-[1.02]'
+                    ? 'bg-primary text-white shadow-xs scale-[1.02]'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                 }`}
               >
-                <Icon className={`text-base ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <Icon className={`text-sm ${isActive ? 'text-white' : 'text-slate-500'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -91,9 +91,13 @@ const Communication: React.FC = () => {
       </div>
 
       {/* Active Tab View Content Container */}
-      <div className="transition-all duration-200">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 0 && <DemoChat />}
-        {activeTab === 1 && <NewsItems />}
+        {activeTab === 1 && (
+          <div className="h-full overflow-y-auto">
+            <NewsItems />
+          </div>
+        )}
       </div>
     </div>
   );

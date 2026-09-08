@@ -11,9 +11,11 @@ import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import { UserContext } from '../../UserContext';
 import SearchableClientSelect from '../../components/SearchableClientSelect';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 const NewOffer = ({ display, job, onclose }) => {
   const { id } = useContext(UserContext);
+  const { symbol: currencySymbol } = useCurrency();
   const queryParams = new URLSearchParams(location.search);
   const type = queryParams.get('type');
 
@@ -501,7 +503,7 @@ const NewOffer = ({ display, job, onclose }) => {
             <div className="col-span-3">Description</div>
             <div className="col-span-2">Quantity</div>
             <div className="col-span-2">BTW (Tax)</div>
-            <div className="col-span-1">Price ($)</div>
+            <div className="col-span-1">Price ({currencySymbol})</div>
             <div className="col-span-1 text-center">Remove</div>
           </div>
 
@@ -688,21 +690,21 @@ const NewOffer = ({ display, job, onclose }) => {
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>Subtotal:</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  $ {subtotal.toFixed(2)}
+                  {formatCurrency(subtotal)}
                 </span>
               </div>
 
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>Discount ({discountPercentage}%):</span>
                 <span className="font-semibold text-rose-600">
-                  - $ {discountAmount.toFixed(2)}
+                  - {formatCurrency(discountAmount)}
                 </span>
               </div>
 
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>Total Tax (BTW):</span>
                 <span className="font-semibold text-emerald-600">
-                  + $ {taxTotal.toFixed(2)}
+                  + {formatCurrency(taxTotal)}
                 </span>
               </div>
 
@@ -711,7 +713,7 @@ const NewOffer = ({ display, job, onclose }) => {
                   Grand Total:
                 </span>
                 <span className="text-2xl font-black text-primary dark:text-blue-400">
-                  $ {total.toFixed(2)}
+                  {formatCurrency(total)}
                 </span>
               </div>
             </div>

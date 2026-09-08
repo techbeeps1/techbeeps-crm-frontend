@@ -17,12 +17,14 @@ import Loader from '../../common/Loader';
 import InvoicePopup from '../InvoicePage/Invoicing';
 import LinkQuotePopup from './LinkQuotePopup';
 import { toast } from 'react-toastify';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 const Offer = ({ data, notes, fetchInvoice }) => {
   const { Id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [openPopup, setOpenPopup] = useState(false);
+  const { symbol: currencySymbol } = useCurrency();
 
   const { role, userData, isAdmin } = useContext(UserContext) || {};
   const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
@@ -265,21 +267,21 @@ const Offer = ({ data, notes, fetchInvoice }) => {
         <div className="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Subtotal</span>
           <span className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 block font-mono">
-            $ {(parseFloat(data.subTotal) || 0).toFixed(2)}
+            {formatCurrency(data.subTotal || 0)}
           </span>
         </div>
 
         <div className="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">VAT / Tax</span>
           <span className="text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-1 block font-mono">
-            + $ {(parseFloat(data.btw) || 0).toFixed(2)}
+            + {formatCurrency(data.btw || 0)}
           </span>
         </div>
 
         <div className="bg-primary/10 dark:bg-primary/20 p-4 rounded-xl border border-primary/20">
           <span className="text-xs font-bold uppercase tracking-wider text-primary block">Grand Total</span>
           <span className="text-2xl font-black text-primary mt-1 block font-mono">
-            $ {(parseFloat(data.total) || 0).toFixed(2)}
+            {formatCurrency(data.total || 0)}
           </span>
         </div>
       </div>
@@ -447,7 +449,7 @@ const Offer = ({ data, notes, fetchInvoice }) => {
                 <th className="py-3 px-4 text-center">Quantity</th>
                 <th className="py-3 px-4 text-right">Unit Price</th>
                 <th className="py-3 px-4 text-center">BTW %</th>
-                <th className="py-3 px-4 text-right">Total ($)</th>
+                <th className="py-3 px-4 text-right">Total ({currencySymbol})</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-strokedark font-medium">
@@ -458,13 +460,13 @@ const Offer = ({ data, notes, fetchInvoice }) => {
                     {item?.quantity}
                   </td>
                   <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-slate-300">
-                    $ {(parseFloat(item?.price) || 0).toFixed(2)}
+                    {formatCurrency(item?.price || 0)}
                   </td>
                   <td className="py-3 px-4 text-center font-mono text-slate-500">
                     {item?.btw}%
                   </td>
                   <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                    $ {((parseFloat(item?.price) || 0) * (parseFloat(item?.quantity) || 1)).toFixed(2)}
+                    {formatCurrency((parseFloat(item?.price) || 0) * (parseFloat(item?.quantity) || 1))}
                   </td>
                 </tr>
               ))}
@@ -477,19 +479,19 @@ const Offer = ({ data, notes, fetchInvoice }) => {
           <div className="w-full max-w-xs space-y-2 text-xs font-semibold">
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>Subtotal</span>
-              <span className="font-mono text-slate-900 dark:text-white">$ {(parseFloat(data?.subTotal) || 0).toFixed(2)}</span>
+              <span className="font-mono text-slate-900 dark:text-white">{formatCurrency(data?.subTotal || 0)}</span>
             </div>
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>VAT / Tax Total</span>
-              <span className="font-mono text-blue-600 dark:text-blue-400">+ $ {(parseFloat(data?.btw) || 0).toFixed(2)}</span>
+              <span className="font-mono text-blue-600 dark:text-blue-400">+ {formatCurrency(data?.btw || 0)}</span>
             </div>
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>Discount</span>
-              <span className="font-mono text-rose-500">- $ {(((parseFloat(data?.subTotal) || 0) * (parseFloat(data?.discount) || 0)) / 100).toFixed(2)}</span>
+              <span className="font-mono text-rose-500">- {formatCurrency((((parseFloat(data?.subTotal) || 0) * (parseFloat(data?.discount) || 0)) / 100))}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-strokedark text-sm font-extrabold text-slate-900 dark:text-white">
               <span>Grand Total</span>
-              <span className="font-mono text-primary text-base">$ {(parseFloat(data?.total) || 0).toFixed(2)}</span>
+              <span className="font-mono text-primary text-base">{formatCurrency(data?.total || 0)}</span>
             </div>
           </div>
         </div>

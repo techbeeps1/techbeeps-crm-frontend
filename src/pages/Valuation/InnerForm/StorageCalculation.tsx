@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { useFormContext, Controller } from "react-hook-form";
+import { formatCurrency } from '../../../utils/currencyUtil';
 
 const StorageCalculation: React.FC<any> = ({ packingCharges, type, price }) => {
     const { control, setValue } = useFormContext() as any;
@@ -82,7 +83,7 @@ const StorageCalculation: React.FC<any> = ({ packingCharges, type, price }) => {
 
       <div className="flex items-center gap-4">
         <p className="text-lg font-bold">
-          {packingCharges || 0} $
+          {formatCurrency(packingCharges || 0)}
         </p>
 
         <span className="transform transition-transform group-open:rotate-180">

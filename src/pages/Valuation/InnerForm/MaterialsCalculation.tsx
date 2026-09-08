@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCurrency } from '../../../utils/currencyUtil';
 
 const MaterialsCalculation: React.FC<any> = ({
   totalSum,
@@ -21,7 +22,7 @@ const materialsCharge = materials.filter(
           </div>
 
           <div className="flex items-center gap-4">
-            <p className="text-lg font-bold">{totalSum || 0} $</p>
+            <p className="text-lg font-bold">{formatCurrency(totalSum || 0)}</p>
 
             <span className="transform transition-transform group-open:rotate-180">
               ▼
@@ -42,9 +43,7 @@ const materialsCharge = materials.filter(
                 </h4>
                 <p>
                   {' '}
-                  Total:{' '}
-                  
-                  ${totalSum.toFixed(2) || 0}
+                  Total: {formatCurrency(totalSum || 0)}
                 </p>
               </div>
               <div className="overflow-x-auto rounded-[5px] border border-slate-200">
@@ -85,10 +84,10 @@ const materialsCharge = materials.filter(
                         </td>
 
                         <td className="px-5 py-4 text-right text-sm font-medium text-slate-800">
-                          {box.sellingPrice || 0} $
+                          {formatCurrency(box.sellingPrice || 0)}
                         </td>
                         <td className="px-5 py-4 text-right text-sm font-medium text-slate-800">
-                          {(box.quantity * box.sellingPrice).toFixed(2) || 0} $
+                          {formatCurrency((box.quantity || 0) * (box.sellingPrice || 0))}
                         </td>
                       </tr>
                     ))}

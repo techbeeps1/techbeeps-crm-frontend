@@ -20,10 +20,12 @@ import { apiPath } from '../../../apiPath';
 import { UserContext } from '../../UserContext';
 import Loader from '../../common/Loader';
 import NewCustomer from '../customerDetails/NewCustomer';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 const EditInvoice = () => {
     const { id } = useContext(UserContext) || {};
     const { Id } = useParams(); // Get invoiceId from URL parameters
+    const { symbol: currencySymbol, code: currencyCode } = useCurrency();
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     const type = queryParams.get('type'); // 'Performa' or standard
@@ -946,7 +948,7 @@ const EditInvoice = () => {
                                         <th className="py-3 px-3 w-1/3">Description</th>
                                         <th className="py-3 px-3 w-20">Quantity</th>
                                         <th className="py-3 px-3 w-24">BTW</th>
-                                        <th className="py-3 px-3 w-28">Unit Price (€)</th>
+                                        <th className="py-3 px-3 w-28">Unit Price ({currencySymbol})</th>
                                         <th className="py-3 px-3 text-right">Subtotal</th>
                                         <th className="py-3 px-3 text-center w-16">Action</th>
                                     </tr>
@@ -967,125 +969,125 @@ const EditInvoice = () => {
                                                                 : 'border-slate-200 dark:border-strokedark'
                                                             } bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary`}
                                                         {...register(`items.${index}.salesgroup`, {
-                                                            required: 'Sales group is required',
-                                                        })}
-                                                    >
-                                                        <option value="">Select Group</option>
-                                                        {salesGroupList.map((sg) => (
-                                                            <option key={sg._id} value={sg._id}>
-                                                                {sg.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    {errors?.items?.[index]?.salesgroup && (
-                                                        <p className="text-rose-500 text-[10px] font-bold mt-0.5">
-                                                            {errors.items[index].salesgroup.message}
-                                                        </p>
-                                                    )}
-                                                </td>
+                                                             required: 'Sales group is required',
+                                                         })}
+                                                     >
+                                                         <option value="">Select Group</option>
+                                                         {salesGroupList.map((sg) => (
+                                                             <option key={sg._id} value={sg._id}>
+                                                                 {sg.name}
+                                                             </option>
+                                                         ))}
+                                                     </select>
+                                                     {errors?.items?.[index]?.salesgroup && (
+                                                         <p className="text-rose-500 text-[10px] font-bold mt-0.5">
+                                                             {errors.items[index].salesgroup.message}
+                                                         </p>
+                                                     )}
+                                                 </td>
 
-                                                {/* Description */}
-                                                <td className="p-2.5">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Line description"
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.description`)}
-                                                    />
-                                                </td>
+                                                 {/* Description */}
+                                                 <td className="p-2.5">
+                                                     <input
+                                                         type="text"
+                                                         placeholder="Line description"
+                                                         className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.description`)}
+                                                     />
+                                                 </td>
 
-                                                {/* Quantity */}
-                                                <td className="p-2.5">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="any"
-                                                        placeholder="Qty"
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.quantity`, {
-                                                            valueAsNumber: true,
-                                                            min: { value: 0, message: 'Must be >= 0' },
-                                                        })}
-                                                    />
-                                                </td>
+                                                 {/* Quantity */}
+                                                 <td className="p-2.5">
+                                                     <input
+                                                         type="number"
+                                                         min="0"
+                                                         step="any"
+                                                         placeholder="Qty"
+                                                         className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.quantity`, {
+                                                             valueAsNumber: true,
+                                                             min: { value: 0, message: 'Must be >= 0' },
+                                                         })}
+                                                     />
+                                                 </td>
 
-                                                {/* BTW */}
-                                                <td className="p-2.5">
-                                                    <select
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.btw`)}
-                                                    >
-                                                        <option value="0">0%</option>
-                                                        <option value="9">9%</option>
-                                                        <option value="21">21%</option>
-                                                    </select>
-                                                </td>
+                                                 {/* BTW */}
+                                                 <td className="p-2.5">
+                                                     <select
+                                                         className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.btw`)}
+                                                     >
+                                                         <option value="0">0%</option>
+                                                         <option value="9">9%</option>
+                                                         <option value="21">21%</option>
+                                                     </select>
+                                                 </td>
 
-                                                {/* Unit Price */}
-                                                <td className="p-2.5">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="any"
-                                                        placeholder="0.00"
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.price`, {
-                                                            valueAsNumber: true,
-                                                            min: { value: 0, message: 'Must be >= 0' },
-                                                        })}
-                                                    />
-                                                </td>
+                                                 {/* Unit Price */}
+                                                 <td className="p-2.5">
+                                                     <input
+                                                         type="number"
+                                                         min="0"
+                                                         step="any"
+                                                         placeholder="0.00"
+                                                         className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.price`, {
+                                                             valueAsNumber: true,
+                                                             min: { value: 0, message: 'Must be >= 0' },
+                                                         })}
+                                                     />
+                                                 </td>
 
-                                                {/* Line Subtotal */}
-                                                <td className="p-2.5 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
-                                                    € {lineSubtotal.toFixed(2)}
-                                                </td>
+                                                 {/* Line Subtotal */}
+                                                 <td className="p-2.5 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                                                     {formatCurrency(lineSubtotal)}
+                                                 </td>
 
-                                                {/* Action */}
-                                                <td className="p-2.5 text-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => remove(index)}
-                                                        disabled={fields.length === 1}
-                                                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                                                        title="Remove Line"
-                                                    >
-                                                        <DeleteOutlineIcon fontSize="small" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                                 {/* Action */}
+                                                 <td className="p-2.5 text-center">
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => remove(index)}
+                                                         disabled={fields.length === 1}
+                                                         className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                         title="Remove Line"
+                                                     >
+                                                         <DeleteOutlineIcon fontSize="small" />
+                                                     </button>
+                                                 </td>
+                                             </tr>
+                                         );
+                                     })}
+                                 </tbody>
+                             </table>
+                         </div>
+                     </div>
 
-                    {/* Card 3: Executive Invoice Billing Breakdown & Payment Terms */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                        {/* Left Column: Discount Adjustments & Payment Terms (7 cols) */}
-                        <div className="lg:col-span-7 space-y-5">
-                            {/* Discount & Adjustments Card */}
-                            <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 shadow-xs space-y-4">
-                                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-strokedark">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                                            <PercentIcon style={{ fontSize: 16 }} />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                                                Discount & Special Pricing
-                                            </h4>
-                                            <p className="text-[11px] text-slate-400">Apply promotional or negotiated discount</p>
-                                        </div>
-                                    </div>
-                                    {Number(discountPercentage) > 0 && (
-                                        <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 flex items-center gap-1">
-                                            <span>-{discountPercentage}%</span>
-                                            <span className="text-[10px] font-semibold">(-€{discountAmount.toFixed(2)})</span>
-                                        </span>
-                                    )}
-                                </div>
+                     {/* Card 3: Executive Invoice Billing Breakdown & Payment Terms */}
+                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                         {/* Left Column: Discount Adjustments & Payment Terms (7 cols) */}
+                         <div className="lg:col-span-7 space-y-5">
+                             {/* Discount & Adjustments Card */}
+                             <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 shadow-xs space-y-4">
+                                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-strokedark">
+                                     <div className="flex items-center gap-2.5">
+                                         <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                                             <PercentIcon style={{ fontSize: 16 }} />
+                                         </div>
+                                         <div>
+                                             <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                                 Discount & Special Pricing
+                                             </h4>
+                                             <p className="text-[11px] text-slate-400">Apply promotional or negotiated discount</p>
+                                         </div>
+                                     </div>
+                                     {Number(discountPercentage) > 0 && (
+                                         <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 flex items-center gap-1">
+                                             <span>-{discountPercentage}%</span>
+                                             <span className="text-[10px] font-semibold">(-{formatCurrency(discountAmount)})</span>
+                                         </span>
+                                     )}
+                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
@@ -1169,7 +1171,7 @@ const EditInvoice = () => {
                                     </div>
                                     <div className="text-right">
                                         <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs">
-                                            EUR (€)
+                                            {currencyCode} ({currencySymbol})
                                         </span>
                                     </div>
                                 </div>
@@ -1182,7 +1184,7 @@ const EditInvoice = () => {
                                             Line Items Subtotal
                                         </span>
                                         <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
-                                            € {subtotal.toFixed(2)}
+                                            {formatCurrency(subtotal)}
                                         </span>
                                     </div>
 
@@ -1205,7 +1207,7 @@ const EditInvoice = () => {
                                                     : 'text-slate-400'
                                             }`}
                                         >
-                                            {discountAmount > 0 ? `- € ${discountAmount.toFixed(2)}` : '€ 0.00'}
+                                            {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
                                         </span>
                                     </div>
 
@@ -1215,7 +1217,7 @@ const EditInvoice = () => {
                                             Net Taxable Base
                                         </span>
                                         <span className="font-bold text-slate-800 dark:text-slate-200 font-mono text-sm">
-                                            € {(subtotal - discountAmount).toFixed(2)}
+                                            {formatCurrency(subtotal - discountAmount)}
                                         </span>
                                     </div>
 
@@ -1230,7 +1232,7 @@ const EditInvoice = () => {
                                             </span>
                                         </div>
                                         <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
-                                            + € {taxTotal.toFixed(2)}
+                                            + {formatCurrency(taxTotal)}
                                         </span>
                                     </div>
                                 </div>
@@ -1248,7 +1250,7 @@ const EditInvoice = () => {
                                     <div className="flex items-baseline justify-between pt-1">
                                         <span className="text-xs text-slate-400">Total Payable</span>
                                         <span className="text-2xl md:text-3xl font-black text-white font-mono tracking-tight">
-                                            € {grandTotal.toFixed(2)}
+                                            {formatCurrency(grandTotal)}
                                         </span>
                                     </div>
                                 </div>

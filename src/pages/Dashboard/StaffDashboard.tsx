@@ -63,6 +63,7 @@ interface TaskItem {
 const StaffDashboard: React.FC = () => {
   const [tasksList, setTasksList] = useState<TaskItem[]>([]);
   const [appointmentsList, setAppointmentsList] = useState<any[]>([]);
+  const [myHours, setMyHours] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [tasksLoading, setTasksLoading] = useState<boolean>(true);
   const [jobsLoading, setJobsLoading] = useState<boolean>(true);
@@ -104,10 +105,15 @@ const StaffDashboard: React.FC = () => {
       try {
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        const [taskRes, apptRes] = await Promise.all([
+        const [taskRes, apptRes, hoursRes] = await Promise.all([
           axios.get(`${apiPath}/api/task`, { headers }).catch(() => ({ data: [] })),
           axios.get(`${apiPath}/api/appointment`, { headers }).catch(() => ({ data: [] })),
+          axios.get(`${apiPath}/api/hours/overview`, { headers }).catch(() => ({ data: {} })),
         ]);
+
+        if (hoursRes?.data?.success && hoursRes.data?.data?.[0]) {
+          setMyHours(hoursRes.data.data[0]);
+        }
 
         const rawTasks: any[] = Array.isArray(taskRes.data)
           ? taskRes.data
@@ -425,7 +431,7 @@ const StaffDashboard: React.FC = () => {
 
       {/* Overview Stat Cards - Only displayed if user has 'Work' access */}
       {hasWorkAccess && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* My Active Tasks */}
           <div
             onClick={() => navigate('/work')}
@@ -516,6 +522,31 @@ const StaffDashboard: React.FC = () => {
             </div>
             <div className="mt-3 text-xs text-slate-400 dark:text-slate-500">
               <span>Staff completed tasks</span>
+            </div>
+          </div>
+
+          {/* My Working Hours */}
+          <div
+            onClick={() => navigate('/my-hours')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Working Hours
+                </p>
+                <h4 className="text-2xl font-bold text-primary mt-1">
+                  {myHours?.totalNetApprovedHours ?? myHours?.approvedHours ?? 0}
+                  <span className="text-xs text-slate-400 font-normal ml-1">hrs</span>
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                <AccessTimeIcon />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+              <span>{myHours?.totalJobs || 0} shifts logged</span>
+              <span className="text-primary font-bold group-hover:underline">View &rarr;</span>
             </div>
           </div>
         </div>

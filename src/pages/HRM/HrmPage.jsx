@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   AiOutlineFileSearch,
   AiOutlineClockCircle,
@@ -12,10 +12,14 @@ import {
   MdGroups,
 } from "react-icons/md";
 import { FiCheckCircle, FiClock, FiCalendar, FiFileText } from "react-icons/fi";
+import { UserContext } from "../../UserContext";
 import Agentslist from "../../agents/Agentslist";
 import Team from "./Team";
+import ApproveHoursTab from "./ApproveHoursTab";
+import HoursOverviewTab from "./HoursOverviewTab";
 import LeaveRequestsTab from "./LeaveRequestsTab";
 import LeaveCardsTab from "./LeaveCardsTab";
+import DeclarationsTab from "./DeclarationsTab";
 
 const HrmPage = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -71,56 +75,13 @@ const HrmPage = () => {
         {activeTab === 0 && <Agentslist />}
         {activeTab === 1 && <Team />}
 
-        {activeTab === 2 && (
-          <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-8 sm:p-12 shadow-xs text-center">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-primary flex items-center justify-center mx-auto mb-4 text-3xl">
-              <AiOutlineFileSearch />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Approve Hours</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
-              Review, adjust, and approve submitted work hours and overtime records for all staff members.
-            </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold">
-              <FiClock className="text-primary" />
-              <span>Timesheet synchronization active</span>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 3 && (
-          <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-8 sm:p-12 shadow-xs text-center">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center mx-auto mb-4 text-3xl">
-              <AiOutlineClockCircle />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Hours Overview</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
-              Detailed breakdown of productive hours, billable time, and resource allocation across projects.
-            </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-semibold border border-emerald-100 dark:border-emerald-900">
-              <FiCheckCircle />
-              <span>Analytics engine connected</span>
-            </div>
-          </div>
-        )}
+        {activeTab === 2 && <ApproveHoursTab />}
+        {activeTab === 3 && <HoursOverviewTab />}
 
         {activeTab === 4 && <LeaveRequestsTab />}
         {activeTab === 5 && <LeaveCardsTab />}
 
-        {activeTab === 6 && (
-          <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-8 sm:p-12 shadow-xs text-center">
-            <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 flex items-center justify-center mx-auto mb-4 text-3xl">
-              <AiOutlineSetting />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Declarations</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
-              Expense claims, travel allowance declarations, and reimbursable receipts management.
-            </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 text-xs font-semibold border border-rose-100 dark:border-rose-900">
-              <AiOutlineSchedule />
-              <span>Expense rules configured</span>
-            </div>
-          </div>
-        )}
+        {activeTab === 6 && <DeclarationsTab />}
       </div>
     </div>
   );

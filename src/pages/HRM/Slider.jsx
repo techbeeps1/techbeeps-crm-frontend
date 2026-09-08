@@ -14,6 +14,9 @@ import {
   FiClock,
   FiDollarSign,
   FiCheckCircle,
+  FiXCircle,
+  FiCreditCard,
+  FiPaperclip,
   FiShield,
   FiSave,
   FiAlertCircle,
@@ -22,16 +25,119 @@ import {
   FiLayers,
   FiTrendingUp,
   FiEdit2,
+  FiDownload,
+  FiRefreshCw,
+  FiSliders,
+  FiRotateCcw,
+  FiPlus,
+  FiNavigation,
+  FiDroplet,
+  FiCoffee,
+  FiPackage,
+  FiTool,
+  FiHome,
+  FiEye,
 } from 'react-icons/fi';
-import { Dialog } from '@mui/material';
+import { Dialog, IconButton } from '@mui/material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { apiPath } from '../../../apiPath';
 import EditEmployee from '../../agents/EditEmployee';
 import AvailabilityComponent from '../../agents/Available';
 import ModulePermissionsSelector, { ALL_MODULE_IDS } from '../../agents/ModulePermissionsSelector';
+import ApplyDeclarationModal from './ApplyDeclarationModal';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+
+const getCategoryBadge = (type = '') => {
+  switch (type) {
+    case 'Travel & Mileage':
+      return {
+        bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+        icon: FiNavigation,
+      };
+    case 'Fuel & Gas':
+      return {
+        bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        icon: FiDroplet,
+      };
+    case 'Parking & Tolls':
+      return {
+        bg: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        icon: FiMapPin,
+      };
+    case 'Meals & Subsistence':
+      return {
+        bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        icon: FiCoffee,
+      };
+    case 'Materials & Supplies':
+      return {
+        bg: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+        icon: FiPackage,
+      };
+    case 'Equipment & Rental':
+      return {
+        bg: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800',
+        icon: FiTool,
+      };
+    case 'Accommodation':
+      return {
+        bg: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+        icon: FiHome,
+      };
+    default:
+      return {
+        bg: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+        icon: FiFileText,
+      };
+  }
+};
+
+const getStatusBadge = (status = '') => {
+  switch (status) {
+    case 'Approved':
+      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+    case 'Paid':
+      return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+    case 'Rejected':
+      return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800';
+    case 'Cancelled':
+      return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700';
+    case 'Pending':
+    default:
+      return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+  }
+};
+
+const isPdfUrl = (url = '') => {
+  if (!url) return false;
+  const str = String(url).toLowerCase();
+  return (
+    str.startsWith('data:application/pdf') ||
+    str.includes('application/pdf') ||
+    str.endsWith('.pdf') ||
+    str.includes('.pdf?') ||
+    str.startsWith('jvberiox')
+  );
+};
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licenses, countries }) => {
+  const { symbol: currencySymbol } = useCurrency();
   const [tabIndex, setTabIndex] = useState('colleague');
 
   // Role Access Management State
@@ -109,6 +215,133 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
     }
   }, [tabIndex, selectedStaff?._id, leaveYear]);
 
+  // Declarations Management State for Selected Staff
+  const [staffDeclarations, setStaffDeclarations] = useState([]);
+  const [declarationSummary, setDeclarationSummary] = useState({
+    totalAmount: 0,
+    pendingAmount: 0,
+    approvedAmount: 0,
+    paidAmount: 0,
+  });
+  const [loadingDeclarations, setLoadingDeclarations] = useState(false);
+  const [isApplyDeclarationModalOpen, setIsApplyDeclarationModalOpen] = useState(false);
+  const [selectedDeclarationForEdit, setSelectedDeclarationForEdit] = useState(null);
+
+  // Status Action Modal State in Slider
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [statusTargetDecl, setStatusTargetDecl] = useState(null);
+  const [targetStatusType, setTargetStatusType] = useState('Pending');
+  const [statusComment, setStatusComment] = useState('');
+  const [approvedAmountVal, setApprovedAmountVal] = useState('');
+  const [paymentRefVal, setPaymentRefVal] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  // Receipt Modal State in Slider
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  const [activeReceiptUrl, setActiveReceiptUrl] = useState('');
+  const [activeReceiptTitle, setActiveReceiptTitle] = useState('');
+
+  const staffId = selectedStaff?._id || selectedStaff?.id;
+
+  const fetchStaffDeclarations = async () => {
+    if (!staffId) return;
+    setLoadingDeclarations(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res = await axios.get(
+        `${apiPath}/api/declarations/employee/${staffId}`,
+        { headers }
+      );
+
+      if (res.data?.success) {
+        setStaffDeclarations(res.data.data || []);
+        if (res.data.summary) {
+          setDeclarationSummary(res.data.summary);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching staff declarations:', err);
+    } finally {
+      setLoadingDeclarations(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tabIndex === 'declarations' && staffId) {
+      fetchStaffDeclarations();
+    }
+  }, [tabIndex, staffId]);
+
+  const openStatusModal = (decl, defaultStatus = null) => {
+    setStatusTargetDecl(decl);
+    setTargetStatusType(defaultStatus || decl?.status || 'Pending');
+    setStatusComment(decl?.reviewerComment || '');
+    setApprovedAmountVal(decl?.amount !== undefined ? String(decl.amount) : '');
+    setPaymentRefVal(
+      decl?.paymentReference || `BANK-${new Date().getFullYear()}-${decl?.jobIndex || 'EXP'}`
+    );
+    setStatusModalOpen(true);
+  };
+
+  const handleSaveStatusModal = async (e) => {
+    e.preventDefault();
+    if (!statusTargetDecl) return;
+
+    setSavingStatus(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const payload = {
+        status: targetStatusType,
+        reviewerComment: statusComment.trim(),
+      };
+
+      if (targetStatusType === 'Approved' && approvedAmountVal) {
+        payload.approvedAmount = parseFloat(approvedAmountVal);
+      }
+      if (targetStatusType === 'Paid') {
+        payload.paymentReference = paymentRefVal.trim();
+      }
+
+      const res = await axios.put(
+        `${apiPath}/api/declarations/${statusTargetDecl._id}/status`,
+        payload,
+        { headers }
+      );
+
+      if (res.data?.success) {
+        toast.success(`Declaration status updated to ${targetStatusType}`);
+        setStatusModalOpen(false);
+        fetchStaffDeclarations();
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+      toast.error(err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const handleDeleteStaffDeclaration = async (id) => {
+    if (!window.confirm('Delete this declaration?')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const res = await axios.delete(`${apiPath}/api/declarations/${id}`, { headers });
+      if (res.data?.success) {
+        toast.success('Declaration deleted');
+        fetchStaffDeclarations();
+      }
+    } catch (err) {
+      console.error('Error deleting declaration:', err);
+      toast.error('Failed to delete');
+    }
+  };
+
   // Save Role Access
   const handleSavePermissions = async () => {
     if (!selectedStaff?._id) return;
@@ -168,6 +401,109 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
     }
   };
 
+  // Hours Overview State for this Staff Member
+  const [hoursYear, setHoursYear] = useState(currentYear);
+  const [hoursMonth, setHoursMonth] = useState('all'); // 'all' or '0'..'11'
+  const [hoursData, setHoursData] = useState(null);
+  const [loadingHours, setLoadingHours] = useState(false);
+
+  // Fetch Hours for this Employee
+  const fetchEmployeeHours = async () => {
+    if (!selectedStaff?._id) return;
+    setLoadingHours(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const params = {
+        employeeId: selectedStaff._id,
+        year: hoursYear,
+        month: hoursMonth,
+      };
+      const res = await axios.get(`${apiPath}/api/hours/overview`, { headers, params });
+      if (res.data?.success) {
+        const empRecord = res.data.data?.[0] || null;
+        setHoursData(empRecord);
+      }
+    } catch (err) {
+      console.error('Error fetching employee hours:', err);
+    } finally {
+      setLoadingHours(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tabIndex === 'hours-overview' && selectedStaff?._id) {
+      fetchEmployeeHours();
+    }
+  }, [tabIndex, selectedStaff?._id, hoursYear, hoursMonth]);
+
+  // Export Individual Employee Timesheet CSV
+  const handleExportStaffTimesheet = () => {
+    if (!hoursData?.shifts || hoursData.shifts.length === 0) {
+      toast.error('No shift records found for this period');
+      return;
+    }
+
+    const headers = [
+      'Date',
+      'Job Number',
+      'Customer',
+      'Work Type',
+      'Scheduled Duration (hrs)',
+      'Actual Start Time',
+      'Actual End Time',
+      'Break (mins)',
+      'Approved Hours',
+      'Overtime Hours',
+      'Status',
+      'Notes',
+    ];
+
+    const rows = hoursData.shifts.map((s) => [
+      `"${formatDate(s.date)}"`,
+      `"${s.jobIndex || 'N/A'}"`,
+      `"${(s.customerName || 'Client').replace(/"/g, '""')}"`,
+      `"${s.workType || 'Mover'}"`,
+      s.scheduledHours,
+      `"${formatTimeOnly(s.actualStartTime)}"`,
+      `"${formatTimeOnly(s.actualEndTime)}"`,
+      s.breakMinutes || 0,
+      s.approvedHours,
+      s.overtimeHours || 0,
+      `"${s.status}"`,
+      `"${(s.notes || '').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const cleanName = (selectedStaff?.username || 'Staff').replace(/\s+/g, '_');
+    const periodStr = hoursMonth === 'all' ? `Year_${hoursYear}` : `${MONTH_NAMES[parseInt(hoursMonth)]}_${hoursYear}`;
+    link.setAttribute('download', `Timesheet_${cleanName}_${periodStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Timesheet exported successfully');
+  };
+
+  function formatTimeOnly(isoOrTimeString) {
+    if (!isoOrTimeString) return '--:--';
+    if (typeof isoOrTimeString === 'string' && isoOrTimeString.length === 5 && isoOrTimeString.includes(':')) {
+      return isoOrTimeString;
+    }
+    try {
+      const d = new Date(isoOrTimeString);
+      if (isNaN(d.getTime())) return String(isoOrTimeString);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch {
+      return '--:--';
+    }
+  }
+
   function formatDate(isoDateString) {
     if (!isoDateString) return 'N/A';
     try {
@@ -203,8 +539,10 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
     { id: 'role-access', label: 'Role Access', icon: <FiShield /> },
     { id: 'leave-quota', label: 'Leave Quota', icon: <FiCalendar /> },
     { id: 'availability', label: 'Availability', icon: <FiClock /> },
+    { id: 'hours-overview', label: 'Hours Overview', icon: <FiClock /> },
     { id: 'declarations', label: 'Declarations', icon: <FiFileText /> },
     { id: 'billing', label: 'Billing', icon: <FiDollarSign /> },
+    { id: 'delete', label: 'Delete', icon: <FiTrash2 className="text-rose-500" /> },
   ];
 
   const getRoleBadge = (role) => {
@@ -255,23 +593,6 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Edit Employee Trigger Modal */}
-            <EditEmployee
-              skills={skills}
-              licenses={licenses}
-              countries={countries}
-              handler={handler}
-              userData={selectedStaff}
-            />
-
-            <button
-              onClick={() => Ondelete(selectedStaff)}
-              className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer"
-              title="Delete Staff"
-            >
-              <FiTrash2 className="text-lg" />
-            </button>
-
             <button
               onClick={onClose}
               className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
@@ -286,14 +607,20 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
         <div className="flex items-center gap-1.5 mt-4 overflow-x-auto no-scrollbar border-b border-slate-200/60 dark:border-slate-700/60 pb-1">
           {subTabs.map((tab) => {
             const isActive = tabIndex === tab.id;
+            const isDelete = tab.id === 'delete';
             return (
               <button
                 key={tab.id}
                 onClick={() => setTabIndex(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isActive
-                    ? 'bg-primary text-white shadow-xs'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? isDelete
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'bg-primary text-white shadow-xs'
+                    : isDelete
+                    ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
+                }`}
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>
@@ -310,11 +637,22 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
           <div className="space-y-4">
             {/* Personal Information Card */}
             <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-4 space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200/50 dark:border-slate-700/50">
-                <FiUser className="text-primary text-sm" />
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                  Personal Information
-                </h4>
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/50 dark:border-slate-700/50">
+                <div className="flex items-center gap-2">
+                  <FiUser className="text-primary text-sm" />
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Personal Information
+                  </h4>
+                </div>
+
+                {/* Edit Button in Top Right Corner of User Details */}
+                <EditEmployee
+                  skills={skills}
+                  licenses={licenses}
+                  countries={countries}
+                  handler={handler}
+                  userData={selectedStaff}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
@@ -468,7 +806,7 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
                     <div>
                       <span className="text-slate-400 block text-[11px]">Hourly Wage</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        €{selectedStaff?.contract?.hourlyWage || '0.00'}/hr
+                        {formatCurrency(selectedStaff?.contract?.hourlyWage || 0)}/hr
                       </span>
                     </div>
                     <div>
@@ -896,22 +1234,863 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
         {/* TAB 4: AVAILABILITY */}
         {tabIndex === 'availability' && (
           <div className="bg-white dark:bg-boxdark rounded-2xl">
-            <AvailabilityComponent />
+            <AvailabilityComponent selectedStaff={selectedStaff} />
+          </div>
+        )}
+
+        {/* TAB 5: HOURS OVERVIEW */}
+        {tabIndex === 'hours-overview' && (
+          <div className="space-y-4">
+            {/* Filter & Period Controls Bar */}
+            <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Year Select */}
+                <select
+                  value={hoursYear}
+                  onChange={(e) => setHoursYear(parseInt(e.target.value))}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-hidden focus:border-primary"
+                >
+                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Month Select */}
+                <select
+                  value={hoursMonth}
+                  onChange={(e) => setHoursMonth(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-hidden focus:border-primary"
+                >
+                  <option value="all">Full Year (All Months)</option>
+                  {MONTH_NAMES.map((m, idx) => (
+                    <option key={idx} value={idx.toString()}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={fetchEmployeeHours}
+                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-all text-xs"
+                  title="Refresh hours"
+                >
+                  <FiRefreshCw className={loadingHours ? 'animate-spin' : ''} />
+                </button>
+              </div>
+
+              {/* CSV Export */}
+              <button
+                type="button"
+                onClick={handleExportStaffTimesheet}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold hover:bg-slate-800 dark:hover:bg-white shadow-xs transition-all cursor-pointer"
+              >
+                <FiDownload />
+                <span>Export Timesheet</span>
+              </button>
+            </div>
+
+            {/* KPI Metrics Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* Scheduled Hours */}
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-3.5 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Scheduled Hours</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg font-black text-slate-800 dark:text-white">
+                    {hoursData?.totalScheduledHours || 0}
+                  </span>
+                  <span className="text-[10px] text-slate-400">hrs</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {hoursData?.totalJobs || 0} Total Shifts
+                </div>
+              </div>
+
+              {/* Approved Hours */}
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-3.5 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Approved Hours</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                    {hoursData?.approvedHours || 0}
+                  </span>
+                  <span className="text-[10px] text-slate-400">hrs</span>
+                </div>
+                <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  {hoursData?.totalScheduledHours > 0
+                    ? `${((hoursData.approvedHours / hoursData.totalScheduledHours) * 100).toFixed(0)}% approved`
+                    : '0% approved'}
+                </div>
+              </div>
+
+              {/* Overtime */}
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-3.5 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Overtime</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg font-black text-purple-600 dark:text-purple-400">
+                    {hoursData?.overtimeHours || 0}
+                  </span>
+                  <span className="text-[10px] text-slate-400">hrs</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Net: {hoursData?.totalNetApprovedHours || 0} hrs
+                </div>
+              </div>
+
+              {/* Pending Review */}
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-3.5 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Pending Review</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg font-black text-amber-600 dark:text-amber-400">
+                    {hoursData?.pendingHours || 0}
+                  </span>
+                  <span className="text-[10px] text-slate-400">hrs</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Awaiting review
+                </div>
+              </div>
+            </div>
+
+            {/* Shift Logs Table */}
+            <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                  Appointment Shift Records
+                </h4>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 font-semibold text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                  {hoursData?.shifts?.length || 0} Shifts
+                </span>
+              </div>
+
+              {loadingHours ? (
+                <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
+                  <FiRefreshCw className="animate-spin text-xl text-primary" />
+                  <p className="text-xs">Loading shift records...</p>
+                </div>
+              ) : !hoursData?.shifts || hoursData.shifts.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs">
+                  <FiClock className="text-3xl mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                  <p className="font-semibold text-slate-700 dark:text-slate-300">No shift hours recorded</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    There are no appointment shifts for this staff member in the selected time period.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-white/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200/60 dark:border-slate-700/60 uppercase tracking-wider text-[10px]">
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3">Job / Client</th>
+                        <th className="py-2.5 px-3">Role</th>
+                        <th className="py-2.5 px-3 text-center">Scheduled</th>
+                        <th className="py-2.5 px-3 text-center">Break</th>
+                        <th className="py-2.5 px-3 text-center">Approved</th>
+                        <th className="py-2.5 px-3 text-center">Overtime</th>
+                        <th className="py-2.5 px-3 text-center">Status</th>
+                        <th className="py-2.5 px-3">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/50 dark:divide-slate-700/50 font-medium">
+                      {hoursData.shifts.map((s, idx) => (
+                        <tr
+                          key={idx}
+                          className="hover:bg-white/50 dark:hover:bg-slate-700/30 transition-colors"
+                        >
+                          <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                            {formatDate(s.date)}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">
+                              Job #{s.jobIndex || 'N/A'}
+                            </div>
+                            <div className="text-[11px] text-slate-400 truncate max-w-[130px]">
+                              {s.customerName}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                              {s.workType || 'Mover'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <div className="font-semibold text-slate-700 dark:text-slate-300">
+                              {s.scheduledHours}h
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              {formatTimeOnly(s.actualStartTime)} - {formatTimeOnly(s.actualEndTime)}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-slate-500">
+                            {s.breakMinutes ? `${s.breakMinutes}m` : '--'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                            {s.approvedHours}h
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {s.overtimeHours > 0 ? (
+                              <span className="text-purple-600 dark:text-purple-400 font-bold">
+                                +{s.overtimeHours}h
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">--</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                s.status === 'Approved'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                  : s.status === 'Rejected'
+                                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                              }`}
+                            >
+                              {s.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-500 text-[11px] max-w-[150px] truncate">
+                            {s.notes || '--'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* TAB 5: DECLARATIONS */}
         {tabIndex === 'declarations' && (
-          <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-slate-200/80 dark:bg-slate-700 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
-              <FiFileText />
+          <div className="space-y-4">
+            {/* Mini Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Total Declared
+                </span>
+                <span className="text-sm font-black text-slate-900 dark:text-white mt-0.5 block">
+                  {formatCurrency(declarationSummary?.totalAmount || 0)}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block">
+                  Pending
+                </span>
+                <span className="text-sm font-black text-amber-600 dark:text-amber-400 mt-0.5 block">
+                  {formatCurrency(declarationSummary?.pendingAmount || 0)}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
+                  Approved
+                </span>
+                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+                  {formatCurrency(declarationSummary?.approvedAmount || 0)}
+                </span>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 block">
+                  Paid / Settled
+                </span>
+                <span className="text-sm font-black text-purple-600 dark:text-purple-400 mt-0.5 block">
+                  {formatCurrency(declarationSummary?.paidAmount || 0)}
+                </span>
+              </div>
             </div>
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-              No Declarations Found
-            </h4>
-            <p className="text-xs text-slate-400">
-              There are no declarations or expense receipts submitted for this colleague yet.
-            </p>
+
+            {/* Header & Add Button */}
+            <div className="flex items-center justify-between pt-1">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Expense & Allowance Claims ({staffDeclarations.length})
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDeclarationForEdit(null);
+                  setIsApplyDeclarationModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 shadow-xs cursor-pointer transition-all"
+              >
+                <FiPlus className="text-xs" />
+                <span>Add Declaration</span>
+              </button>
+            </div>
+
+            {/* Table or Empty State */}
+            {loadingDeclarations ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                <FiRefreshCw className="animate-spin text-xl mx-auto mb-2 text-primary" />
+                <p>Loading declarations...</p>
+              </div>
+            ) : staffDeclarations.length === 0 ? (
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 p-8 text-center">
+                <div className="w-12 h-12 rounded-xl bg-slate-200/80 dark:bg-slate-700 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
+                  <FiFileText />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  No Declarations Found
+                </h4>
+                <p className="text-xs text-slate-400">
+                  There are no declarations or expense receipts submitted for this colleague yet.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Category & Title</th>
+                      <th className="py-2.5 px-3">Job</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
+                      <th className="py-2.5 px-3 text-center">Receipt</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                    {staffDeclarations.map((d) => {
+                      const catBadge = getCategoryBadge(d.declarationType);
+                      const CatIcon = catBadge.icon;
+                      const dateVal = d.expenseDate || d.date || d.createdAt;
+                      return (
+                        <tr key={d._id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                          <td className="py-2.5 px-3 whitespace-nowrap text-slate-700 dark:text-slate-300 font-semibold">
+                            {formatDate(dateVal)}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="space-y-0.5 max-w-[200px]">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold border ${catBadge.bg}`}
+                                >
+                                  <CatIcon className="text-[10px] shrink-0" />
+                                  <span className="truncate">{d.declarationType}</span>
+                                </span>
+                                {d.items && d.items.length > 1 && (
+                                  <span className="px-1 py-0.2 rounded text-[9px] font-extrabold bg-blue-50 dark:bg-blue-950/40 text-primary border border-blue-200 dark:border-blue-900/60">
+                                    {d.items.length} items
+                                  </span>
+                                )}
+                              </div>
+                              <p className="font-bold text-slate-900 dark:text-white truncate">
+                                {d.title}
+                              </p>
+                              {d.description && (
+                                <p className="text-[10px] text-slate-400 truncate" title={d.description}>
+                                  {d.description}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap text-[11px] text-slate-500">
+                            {d.jobIndex ? (
+                              <span className="font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded text-[10px]">
+                                Job: {d.jobIndex}
+                              </span>
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                            {formatCurrency(d.amount || 0)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            {d.receiptUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveReceiptUrl(d.receiptUrl);
+                                  setActiveReceiptTitle(d.title);
+                                  setReceiptViewerOpen(true);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-primary/10 hover:text-primary text-slate-700 dark:text-slate-300 text-[10px] font-bold transition-all cursor-pointer"
+                              >
+                                <FiPaperclip className="text-xs" />
+                                <span>View</span>
+                              </button>
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">--</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => openStatusModal(d, d.status)}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all ${getStatusBadge(
+                                d.status
+                              )}`}
+                              title="Click to manage status"
+                            >
+                              <span>{d.status}</span>
+                              <FiEdit2 className="text-[8px] opacity-70" />
+                            </button>
+                            {d.reviewedBy && d.status !== 'Pending' && (
+                              <span className="text-[8px] text-slate-400 block mt-0.5 truncate max-w-[90px]">
+                                by {d.reviewerName || 'Manager'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              {d.status === 'Pending' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => openStatusModal(d, 'Approved')}
+                                    className="p-1 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 cursor-pointer"
+                                    title="Approve"
+                                  >
+                                    <FiCheck className="text-xs" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openStatusModal(d, 'Rejected')}
+                                    className="p-1 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
+                                    title="Reject"
+                                  >
+                                    <FiX className="text-xs" />
+                                  </button>
+                                </>
+                              )}
+                              {d.status === 'Approved' && (
+                                <button
+                                  type="button"
+                                  onClick={() => openStatusModal(d, 'Paid')}
+                                  className="p-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer"
+                                  title="Mark as Paid"
+                                >
+                                  <FiCreditCard className="text-xs" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDeclarationForEdit(d);
+                                  setIsApplyDeclarationModalOpen(true);
+                                }}
+                                className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 cursor-pointer"
+                                title={d.status === 'Pending' ? 'Edit' : `View (${d.status} - Read Only)`}
+                              >
+                                {d.status === 'Pending' ? (
+                                  <FiEdit2 className="text-xs" />
+                                ) : (
+                                  <FiEye className="text-xs text-slate-400 hover:text-primary" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteStaffDeclaration(d._id)}
+                                className="p-1 rounded-md hover:bg-rose-50 text-slate-400 hover:text-rose-600 cursor-pointer"
+                                title="Delete"
+                              >
+                                <FiTrash2 className="text-xs" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Modal 1: Create / Edit Declaration */}
+            <ApplyDeclarationModal
+              open={isApplyDeclarationModalOpen}
+              onClose={() => {
+                setIsApplyDeclarationModalOpen(false);
+                setSelectedDeclarationForEdit(null);
+              }}
+              onSuccess={() => {
+                fetchStaffDeclarations();
+              }}
+              defaultEmployeeId={staffId}
+              initialData={selectedDeclarationForEdit}
+            />
+
+            {/* Modal 2: Status Management Modal */}
+            <Dialog
+              open={statusModalOpen}
+              onClose={() => setStatusModalOpen(false)}
+              maxWidth="sm"
+              fullWidth
+              PaperProps={{
+                style: {
+                  borderRadius: '24px',
+                  backgroundColor: 'transparent',
+                  boxShadow: 'none',
+                },
+              }}
+            >
+              <div className="bg-white dark:bg-boxdark rounded-3xl border border-slate-200 dark:border-strokedark shadow-2xl p-6 sm:p-7 space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h3 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                      <FiSliders className="text-primary text-lg" />
+                      <span>Manage Declaration Status</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Change status, approve, reimburse, or reset claim back to Pending
+                    </p>
+                  </div>
+                  <IconButton size="small" onClick={() => setStatusModalOpen(false)}>
+                    <FiX className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                  </IconButton>
+                </div>
+
+                <form onSubmit={handleSaveStatusModal} className="space-y-5">
+                  {/* Summary */}
+                  <div className="bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white dark:bg-boxdark border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                          {statusTargetDecl?.jobIndex
+                            ? `Job: ${statusTargetDecl?.jobIndex}`
+                            : `Ref: ${statusTargetDecl?._id?.slice(-6)?.toUpperCase() || 'EXP'}`}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-500">
+                          {selectedStaff?.username || 'Staff'}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        {statusTargetDecl?.title || 'Declaration'}
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {formatDate(statusTargetDecl?.expenseDate || statusTargetDecl?.date)} ·{' '}
+                        {statusTargetDecl?.declarationType}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs text-slate-400 block font-medium">Claim Amount</span>
+                      <span className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                        {formatCurrency(statusTargetDecl?.amount || 0)}
+                      </span>
+                      <div className="mt-1">
+                        <span
+                          className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(
+                            statusTargetDecl?.status
+                          )}`}
+                        >
+                          Current: {statusTargetDecl?.status || 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5 Status Cards */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+                      Select Target Status
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {/* Pending */}
+                      <button
+                        type="button"
+                        onClick={() => setTargetStatusType('Pending')}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          targetStatusType === 'Pending'
+                            ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/30 font-bold shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <FiClock
+                          className={`text-base ${
+                            targetStatusType === 'Pending' ? 'text-amber-600' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="text-xs">Pending</span>
+                        <span className="text-[9px] opacity-75">Revert / Reset</span>
+                      </button>
+
+                      {/* Approved */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTargetStatusType('Approved');
+                          if (!approvedAmountVal && statusTargetDecl?.amount) {
+                            setApprovedAmountVal(String(statusTargetDecl.amount));
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          targetStatusType === 'Approved'
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500/30 font-bold shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <FiCheckCircle
+                          className={`text-base ${
+                            targetStatusType === 'Approved' ? 'text-emerald-600' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="text-xs">Approved</span>
+                        <span className="text-[9px] opacity-75">Accept Claim</span>
+                      </button>
+
+                      {/* Paid */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTargetStatusType('Paid');
+                          if (!paymentRefVal) {
+                            setPaymentRefVal(
+                              statusTargetDecl?.paymentReference ||
+                                `BANK-${new Date().getFullYear()}-${statusTargetDecl?.jobIndex || 'EXP'}`
+                            );
+                          }
+                        }}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          targetStatusType === 'Paid'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/30 font-bold shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <FiCreditCard
+                          className={`text-base ${
+                            targetStatusType === 'Paid' ? 'text-blue-600' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="text-xs">Paid</span>
+                        <span className="text-[9px] opacity-75">Reimbursed</span>
+                      </button>
+
+                      {/* Rejected */}
+                      <button
+                        type="button"
+                        onClick={() => setTargetStatusType('Rejected')}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          targetStatusType === 'Rejected'
+                            ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 ring-2 ring-rose-500/30 font-bold shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <FiXCircle
+                          className={`text-base ${
+                            targetStatusType === 'Rejected' ? 'text-rose-600' : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="text-xs">Rejected</span>
+                        <span className="text-[9px] opacity-75">Decline Claim</span>
+                      </button>
+
+                      {/* Cancelled */}
+                      <button
+                        type="button"
+                        onClick={() => setTargetStatusType('Cancelled')}
+                        className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
+                          targetStatusType === 'Cancelled'
+                            ? 'border-slate-500 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 ring-2 ring-slate-500/30 font-bold shadow-xs'
+                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        <FiX
+                          className={`text-base ${
+                            targetStatusType === 'Cancelled'
+                              ? 'text-slate-600 dark:text-slate-300'
+                              : 'text-slate-400'
+                          }`}
+                        />
+                        <span className="text-xs">Cancelled</span>
+                        <span className="text-[9px] opacity-75">Void Claim</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Context notice */}
+                  {targetStatusType === 'Pending' && (
+                    <div className="p-3 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                      <FiRotateCcw className="text-amber-600 shrink-0 mt-0.5 text-sm" />
+                      <div>
+                        <p className="font-bold">Revert / Reset to Pending</p>
+                        <p className="mt-0.5 text-[11px] opacity-90">
+                          This will clear previous reviewer and payment records. The claim will return to active pending status.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {targetStatusType === 'Approved' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Approved Amount ({currencySymbol})
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={approvedAmountVal}
+                        onChange={(e) => setApprovedAmountVal(e.target.value)}
+                        className="w-full px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-boxdark border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:border-primary"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  {targetStatusType === 'Paid' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Payment Reference / Transfer ID
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentRefVal}
+                        onChange={(e) => setPaymentRefVal(e.target.value)}
+                        placeholder="e.g. SEPA-TXN-129402"
+                        className="w-full px-3.5 py-2 rounded-xl text-xs font-medium bg-white dark:bg-boxdark border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:border-primary"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  {targetStatusType === 'Rejected' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Rejection Reason <span className="text-rose-500">*</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={statusComment}
+                        onChange={(e) => setStatusComment(e.target.value)}
+                        placeholder="Reason for rejecting this claim..."
+                        className="w-full px-3.5 py-2 rounded-xl text-xs font-medium bg-white dark:bg-boxdark border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:border-primary resize-none"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  {targetStatusType !== 'Rejected' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Reviewer Note (Optional)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={statusComment}
+                        onChange={(e) => setStatusComment(e.target.value)}
+                        placeholder="Add notes for records..."
+                        className="w-full px-3.5 py-2 rounded-xl text-xs font-medium bg-white dark:bg-boxdark border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-hidden focus:border-primary resize-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setStatusModalOpen(false)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingStatus}
+                      className={`px-5 py-2 rounded-xl text-xs font-bold text-white shadow-md disabled:opacity-50 flex items-center gap-1.5 cursor-pointer transition-all ${
+                        targetStatusType === 'Approved'
+                          ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                          : targetStatusType === 'Paid'
+                          ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+                          : targetStatusType === 'Rejected'
+                          ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                          : targetStatusType === 'Pending'
+                          ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                          : 'bg-slate-700 hover:bg-slate-800 shadow-slate-700/20'
+                      }`}
+                    >
+                      {savingStatus ? (
+                        <>
+                          <FiRefreshCw className="animate-spin text-xs" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          {targetStatusType === 'Pending' && <FiRotateCcw className="text-xs" />}
+                          {targetStatusType === 'Approved' && <FiCheck className="text-xs" />}
+                          {targetStatusType === 'Paid' && <FiCreditCard className="text-xs" />}
+                          {targetStatusType === 'Rejected' && <FiX className="text-xs" />}
+                          {targetStatusType === 'Cancelled' && <FiX className="text-xs" />}
+                          <span>Set Status to {targetStatusType}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </Dialog>
+
+            {/* Modal 3: Receipt Viewer Modal */}
+            <Dialog
+              open={receiptViewerOpen}
+              onClose={() => setReceiptViewerOpen(false)}
+              maxWidth="md"
+              fullWidth
+              PaperProps={{
+                style: {
+                  borderRadius: '24px',
+                  backgroundColor: 'transparent',
+                  boxShadow: 'none',
+                },
+              }}
+            >
+              <div className="bg-white dark:bg-boxdark rounded-3xl border border-slate-200 dark:border-strokedark shadow-2xl p-6 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+                      <FiPaperclip className="text-primary" />
+                      <span>Receipt Attachment</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{activeReceiptTitle}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {activeReceiptUrl && (
+                      <a
+                        href={activeReceiptUrl}
+                        download={`receipt-${activeReceiptTitle || 'doc'}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-primary transition-colors inline-flex items-center gap-1 text-xs font-bold"
+                        title="Download Receipt"
+                      >
+                        <FiDownload />
+                        <span>Download</span>
+                      </a>
+                    )}
+                    <IconButton size="small" onClick={() => setReceiptViewerOpen(false)}>
+                      <FiX className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+                    </IconButton>
+                  </div>
+                </div>
+
+                <div className="bg-slate-100 dark:bg-slate-900/60 rounded-2xl p-2 min-h-[300px] max-h-[70vh] flex items-center justify-center overflow-auto">
+                  {isPdfUrl(activeReceiptUrl) ? (
+                    <iframe
+                      src={activeReceiptUrl}
+                      title="Receipt PDF Preview"
+                      className="w-full h-[65vh] rounded-xl border-none shadow-xs"
+                    />
+                  ) : activeReceiptUrl ? (
+                    <img
+                      src={activeReceiptUrl}
+                      alt="Receipt Attachment"
+                      className="max-h-[65vh] w-auto max-w-full rounded-xl object-contain shadow-md mx-auto"
+                    />
+                  ) : (
+                    <div className="text-center text-slate-400 text-xs py-12">
+                      <FiPaperclip className="text-3xl mx-auto mb-2 opacity-40" />
+                      <p>No receipt attachment available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Dialog>
           </div>
         )}
 
@@ -927,6 +2106,59 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
             <p className="text-xs text-slate-400">
               Payroll statements and monthly wage slips will be generated at the end of the pay cycle.
             </p>
+          </div>
+        )}
+
+        {/* TAB 7: DELETE EMPLOYEE */}
+        {tabIndex === 'delete' && (
+          <div className="space-y-4">
+            <div className="bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 rounded-2xl p-6 sm:p-8 text-center space-y-4">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-3xl shadow-xs">
+                <FiTrash2 />
+              </div>
+
+              <div className="max-w-md mx-auto space-y-1.5">
+                <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                  Delete {selectedStaff?.username || 'Employee'}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Are you sure you want to permanently delete this employee? This action cannot be undone and will remove their profile, system access, and work schedules.
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-4 max-w-sm mx-auto border border-rose-100 dark:border-rose-900/30 text-xs text-left space-y-2">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400">Employee Name:</span>
+                  <strong className="text-slate-800 dark:text-slate-200">{selectedStaff?.username}</strong>
+                </div>
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-slate-400">Email:</span>
+                  <span className="text-slate-600 dark:text-slate-300 truncate font-medium">{selectedStaff?.email || 'N/A'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Role:</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300">{selectedStaff?.role || 'Staff'}</span>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTabIndex('colleague')}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => Ondelete(selectedStaff)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md shadow-rose-500/25 active:scale-95 transition-all cursor-pointer"
+                >
+                  <FiTrash2 className="text-sm" />
+                  <span>Delete Employee</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

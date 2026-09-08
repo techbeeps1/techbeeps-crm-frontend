@@ -6,9 +6,11 @@ import { apiPath } from "../../../../apiPath";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import Loader from "../../../common/Loader";
+import { useCurrency } from "../../../utils/currencyUtil";
 import { MdAllInbox, MdLayers, MdAdd, MdEdit } from "react-icons/md";
 
 const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
+    const { symbol: currencySymbol } = useCurrency();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const { control, handleSubmit, setValue, formState: { errors }, reset } = useForm();
@@ -161,7 +163,7 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                        Rental Price ($) <span className="text-rose-500">*</span>
+                                        Rental Price ({currencySymbol}) <span className="text-rose-500">*</span>
                                     </label>
                                     <Controller
                                         name="rentalPrice"
@@ -184,7 +186,7 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                        Selling Price ($) <span className="text-rose-500">*</span>
+                                        Selling Price ({currencySymbol}) <span className="text-rose-500">*</span>
                                     </label>
                                     <Controller
                                         name="sellingPrice"

@@ -15,6 +15,7 @@ import LoadingForm from './Storage/LoadingForm';
 import LoadingandUnloadingForm from './Storage/LoadingandUnloadingForm';
 import FreeupStorage from './Storage/FreeupStorage';
 import ContractForm from './Storage/ContractForm';
+import { formatCurrency } from '../../utils/currencyUtil';
 import { 
     MdWarehouse, 
     MdInventory2, 
@@ -625,7 +626,7 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                                             </div>
                                             <div className="bg-slate-50 p-3 rounded-xl">
                                                 <span className="text-slate-400 font-medium block">Price</span>
-                                                <span className="font-bold text-indigo-600 mt-0.5 block">${selectedStaff.price || '00'}</span>
+                                                <span className="font-bold text-indigo-600 mt-0.5 block">{formatCurrency(selectedStaff.price || 0)}</span>
                                             </div>
                                             <div className="bg-slate-50 p-3 rounded-xl">
                                                 <span className="text-slate-400 font-medium block">Billing Period</span>
@@ -677,7 +678,7 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                                             <tr key={index} className="hover:bg-slate-50/80 text-xs">
                                                 <td className="p-3 font-bold text-slate-800">{item?.description}</td>
                                                 <td className="p-3 text-slate-500">{formatDate(item?.actionDate)}</td>
-                                                <td className="p-3 font-bold text-emerald-600">${item?.price}</td>
+                                                <td className="p-3 font-bold text-emerald-600">{formatCurrency(item?.price || 0)}</td>
                                             </tr>
                                         ))}
                                     </tbody>

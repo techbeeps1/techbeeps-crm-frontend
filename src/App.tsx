@@ -27,7 +27,19 @@ const ProtectedRoute = ({
   if (!access) return <>{children}</>;
 
   const canAccess = () => {
-    const universalModules = ['Profile', 'Communication', 'Notifications', 'My Leaves', 'Leave', 'Leaves'];
+    const universalModules = [
+      'Profile',
+      'Communication',
+      'Notifications',
+      'My Leaves',
+      'Leave',
+      'Leaves',
+      'My Hours',
+      'Hours',
+      'My Declarations',
+      'Declarations',
+      'Declaration',
+    ];
     if (access && universalModules.includes(access)) return true;
     if (isAdmin || userData?.role === 'Admin') return true;
     if (typeof hasAccess === 'function') return hasAccess(access);

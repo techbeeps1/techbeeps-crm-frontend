@@ -17,9 +17,11 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import { apiPath } from '../../../apiPath';
 import Loader from '../../common/Loader';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 const RecordPayment = ({ invoiceData, fetchInvoice }) => {
   const { Id } = useParams();
+  const { symbol: currencySymbol } = useCurrency();
   const [paymentsList, setPaymentsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -193,7 +195,7 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
             </div>
           </div>
           <span className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-2 block">
-            € {invoiceTotal.toFixed(2)}
+            {formatCurrency(invoiceTotal)}
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
             Grand total of invoice
@@ -211,7 +213,7 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
             </div>
           </div>
           <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-2 block">
-            € {totalPaid.toFixed(2)}
+            {formatCurrency(totalPaid)}
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
             Recorded payments ({paymentsList.length} transactions)
@@ -239,7 +241,7 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
                 : 'text-emerald-600 dark:text-emerald-400'
               }`}
           >
-            € {balanceDue.toFixed(2)}
+            {formatCurrency(balanceDue)}
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
             {balanceDue === 0 ? 'Invoice fully settled' : 'Payment pending from client'}
@@ -337,7 +339,7 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
                       {item.description || '—'}
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm whitespace-nowrap">
-                      € {Number(item.amount || 0).toFixed(2)}
+                      {formatCurrency(item.amount || 0)}
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
@@ -391,7 +393,7 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
                 Outstanding Balance Due
               </span>
               <span className="text-lg font-black text-rose-600 dark:text-rose-400 font-mono">
-                € {balanceDue.toFixed(2)}
+                {formatCurrency(balanceDue)}
               </span>
             </div>
             {balanceDue > 0 && (
@@ -432,7 +434,7 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
               {/* Payment Amount */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                  Amount (€) *
+                  Amount ({currencySymbol}) *
                 </label>
                 <input
                   type="number"

@@ -5,6 +5,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import './satoshi.css';
+import './utils/timezoneUtil';
 import store from './pages/Redux/store';
 import { EmailProvider } from './EmailProvider/EmailContext';
 import { UserContextProvider } from './UserContext';

@@ -19,10 +19,12 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { apiPath } from '../../../apiPath';
 import { UserContext } from '../../UserContext';
 import NewCustomer from '../customerDetails/NewCustomer';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 const NewInvoice = () => {
     const { id } = useContext(UserContext) || {};
     const navigate = useNavigate();
+    const { symbol: currencySymbol, code: currencyCode } = useCurrency();
 
     // State Lists
     const [customerList, setCustomerList] = useState([]);
@@ -839,116 +841,109 @@ const NewInvoice = () => {
                                         <th className="py-3 px-3 w-1/3">Description</th>
                                         <th className="py-3 px-3 w-20">Quantity</th>
                                         <th className="py-3 px-3 w-24">BTW</th>
-                                        <th className="py-3 px-3 w-28">Unit Price (€)</th>
+                                        <th className="py-3 px-3 w-28">Unit Price ({currencySymbol})</th>
                                         <th className="py-3 px-3 text-right">Subtotal</th>
                                         <th className="py-3 px-3 text-center w-16">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                     {fields.map((item, index) => {
-                                        const currentQty = Number(watchedItems?.[index]?.quantity) || 0;
-                                        const currentPrice = Number(watchedItems?.[index]?.price) || 0;
-                                        const lineSubtotal = currentQty * currentPrice;
+                                         const currentQty = Number(watchedItems?.[index]?.quantity) || 0;
+                                         const currentPrice = Number(watchedItems?.[index]?.price) || 0;
+                                         const lineSubtotal = currentQty * currentPrice;
 
-                                        return (
-                                            <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                                                {/* Sales Group */}
-                                                <td className="p-2.5">
-                                                    <select
-                                                        className={`w-full p-2 rounded-lg border ${errors?.items?.[index]?.salesgroup
-                                                                ? 'border-rose-500'
-                                                                : 'border-slate-200 dark:border-strokedark'
-                                                            } bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary`}
-                                                        {...register(`items.${index}.salesgroup`, {
-                                                            required: 'Sales group is required',
-                                                        })}
-                                                    >
-                                                        <option value="">Select Group</option>
-                                                        {salesGroupList.map((sg) => (
-                                                            <option key={sg._id} value={sg._id}>
-                                                                {sg.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                    {errors?.items?.[index]?.salesgroup && (
-                                                        <p className="text-rose-500 text-[10px] font-bold mt-0.5">
-                                                            {errors.items[index].salesgroup.message}
-                                                        </p>
-                                                    )}
-                                                </td>
+                                         return (
+                                             <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                                                 {/* Sales Group */}
+                                                 <td className="p-2.5">
+                                                     <select
+                                                         className={`w-full p-2 rounded-lg border ${errors.items?.[index]?.salesgroup
+                                                                 ? 'border-rose-500 ring-1 ring-rose-500'
+                                                                 : 'border-slate-200/80 dark:border-strokedark'
+                                                             } bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary`}
+                                                         {...register(`items.${index}.salesgroup`, {
+                                                             required: 'Sales group is required',
+                                                         })}
+                                                     >
+                                                         <option value="">Select Group</option>
+                                                         {salesGroupList.map((sg) => (
+                                                             <option key={sg._id || sg.name} value={sg.name}>
+                                                                 {sg.name}
+                                                             </option>
+                                                         ))}
+                                                     </select>
+                                                 </td>
 
-                                                {/* Description */}
-                                                <td className="p-2.5">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Line description"
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.description`)}
-                                                    />
-                                                </td>
+                                                 {/* Description */}
+                                                 <td className="p-2.5">
+                                                     <input
+                                                         type="text"
+                                                         placeholder="Item or service description"
+                                                         className="w-full p-2 rounded-lg border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.description`)}
+                                                     />
+                                                 </td>
 
-                                                {/* Quantity */}
-                                                <td className="p-2.5">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="any"
-                                                        placeholder="Qty"
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.quantity`, {
-                                                            valueAsNumber: true,
-                                                            min: { value: 0, message: 'Must be >= 0' },
-                                                        })}
-                                                    />
-                                                </td>
+                                                 {/* Quantity */}
+                                                 <td className="p-2.5">
+                                                     <input
+                                                         type="number"
+                                                         min="1"
+                                                         placeholder="1"
+                                                         className="w-full p-2 rounded-lg border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.quantity`, {
+                                                             valueAsNumber: true,
+                                                         })}
+                                                     />
+                                                 </td>
 
-                                                {/* BTW */}
-                                                <td className="p-2.5">
-                                                    <select
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.btw`)}
-                                                    >
-                                                        <option value="0">0%</option>
-                                                        <option value="9">9%</option>
-                                                        <option value="21">21%</option>
-                                                    </select>
-                                                </td>
+                                                 {/* BTW / Tax Rate */}
+                                                 <td className="p-2.5">
+                                                     <select
+                                                         className="w-full p-2 rounded-lg border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.btw`)}
+                                                     >
+                                                         {taxTypeList.map((tax) => (
+                                                             <option key={tax._id || tax.taxRate} value={tax.taxRate}>
+                                                                 {tax.taxRate}%
+                                                             </option>
+                                                         ))}
+                                                     </select>
+                                                 </td>
 
-                                                {/* Unit Price */}
-                                                <td className="p-2.5">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="any"
-                                                        placeholder="0.00"
-                                                        className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
-                                                        {...register(`items.${index}.price`, {
-                                                            valueAsNumber: true,
-                                                            min: { value: 0, message: 'Must be >= 0' },
-                                                        })}
-                                                    />
-                                                </td>
+                                                 {/* Unit Price */}
+                                                 <td className="p-2.5">
+                                                     <input
+                                                         type="number"
+                                                         step="any"
+                                                         placeholder="0.00"
+                                                         className="w-full p-2 rounded-lg border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                                                         {...register(`items.${index}.price`, {
+                                                             valueAsNumber: true,
+                                                         })}
+                                                     />
+                                                 </td>
 
-                                                {/* Line Subtotal */}
-                                                <td className="p-2.5 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
-                                                    € {lineSubtotal.toFixed(2)}
-                                                </td>
+                                                 {/* Line Subtotal */}
+                                                 <td className="p-2.5 text-right font-black text-slate-900 dark:text-white whitespace-nowrap">
+                                                     {formatCurrency(lineSubtotal)}
+                                                 </td>
 
-                                                {/* Action */}
-                                                <td className="p-2.5 text-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => remove(index)}
-                                                        disabled={fields.length === 1}
-                                                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                                                        title="Remove Line"
-                                                    >
-                                                        <DeleteOutlineIcon fontSize="small" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                                 {/* Action */}
+                                                 <td className="p-2.5 text-center">
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => remove(index)}
+                                                         disabled={fields.length === 1}
+                                                         className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                         title="Remove Line"
+                                                     >
+                                                         <DeleteOutlineIcon fontSize="small" />
+                                                     </button>
+                                                 </td>
+                                             </tr>
+                                         );
+                                     })}
                                 </tbody>
                             </table>
                         </div>
@@ -975,7 +970,7 @@ const NewInvoice = () => {
                                     {Number(discountPercentage) > 0 && (
                                         <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900 flex items-center gap-1">
                                             <span>-{discountPercentage}%</span>
-                                            <span className="text-[10px] font-semibold">(-€{discountAmount.toFixed(2)})</span>
+                                            <span className="text-[10px] font-semibold">(-{formatCurrency(discountAmount)})</span>
                                         </span>
                                     )}
                                 </div>
@@ -1062,7 +1057,7 @@ const NewInvoice = () => {
                                     </div>
                                     <div className="text-right">
                                         <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs">
-                                            EUR (€)
+                                            {currencyCode} ({currencySymbol})
                                         </span>
                                     </div>
                                 </div>
@@ -1075,7 +1070,7 @@ const NewInvoice = () => {
                                             Line Items Subtotal
                                         </span>
                                         <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
-                                            € {subtotal.toFixed(2)}
+                                            {formatCurrency(subtotal)}
                                         </span>
                                     </div>
 
@@ -1097,7 +1092,7 @@ const NewInvoice = () => {
                                                     : 'text-slate-400'
                                                 }`}
                                         >
-                                            {discountAmount > 0 ? `- € ${discountAmount.toFixed(2)}` : '€ 0.00'}
+                                            {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
                                         </span>
                                     </div>
 
@@ -1107,7 +1102,7 @@ const NewInvoice = () => {
                                             Net Taxable Base
                                         </span>
                                         <span className="font-bold text-slate-800 dark:text-slate-200 font-mono text-sm">
-                                            € {(subtotal - discountAmount).toFixed(2)}
+                                            {formatCurrency(subtotal - discountAmount)}
                                         </span>
                                     </div>
 
@@ -1122,7 +1117,7 @@ const NewInvoice = () => {
                                             </span>
                                         </div>
                                         <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
-                                            + € {taxTotal.toFixed(2)}
+                                            + {formatCurrency(taxTotal)}
                                         </span>
                                     </div>
                                 </div>
@@ -1140,7 +1135,7 @@ const NewInvoice = () => {
                                     <div className="flex items-baseline justify-between pt-1">
                                         <span className="text-xs text-slate-400">Total Payable</span>
                                         <span className="text-2xl md:text-3xl font-black text-white font-mono tracking-tight">
-                                            € {grandTotal.toFixed(2)}
+                                            {formatCurrency(grandTotal)}
                                         </span>
                                     </div>
                                 </div>

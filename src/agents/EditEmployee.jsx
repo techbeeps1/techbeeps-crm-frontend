@@ -17,8 +17,10 @@ import {
   FiAward,
 } from 'react-icons/fi';
 import ModulePermissionsSelector, { ALL_MODULE_IDS } from './ModulePermissionsSelector';
+import { useCurrency } from '../utils/currencyUtil';
 
 const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
+  const { symbol: currencySymbol } = useCurrency();
   const {
     control,
     handleSubmit,
@@ -600,7 +602,7 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                           <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                              Hourly Wage (€) <span className="text-rose-500">*</span>
+                              Hourly Wage ({currencySymbol}) <span className="text-rose-500">*</span>
                             </label>
                             <input
                               type="number"

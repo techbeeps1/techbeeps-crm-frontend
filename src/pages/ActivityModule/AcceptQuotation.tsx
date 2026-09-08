@@ -13,6 +13,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 interface FormData {
     name: string;
@@ -22,6 +23,7 @@ interface FormData {
 }
 
 const AcceptOffer: React.FC = () => {
+    const { symbol: currencySymbol } = useCurrency();
     const {
         handleSubmit,
         control,
@@ -184,8 +186,8 @@ const AcceptOffer: React.FC = () => {
              <tr style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; width: 100%;">
                 <td style="flex: 1; min-width: 50%; font-weight: 600;">${item.description}</td>
                 <td style="width: 10%; text-align: center;">${item.quantity}</td>
-                <td style="width: 15%; text-align: right;">€ ${Number(item.price || 0).toFixed(2)}</td>
-                <td style="width: 15%; text-align: right; font-weight: 700;">€ ${(item.quantity * item.price).toFixed(2)}</td>
+                <td style="width: 15%; text-align: right;">${formatCurrency(item.price || 0)}</td>
+                <td style="width: 15%; text-align: right; font-weight: 700;">${formatCurrency((item.quantity || 0) * (item.price || 0))}</td>
                 <td style="width: 10%; text-align: right; color: #64748b;">${item.btw || 0}%</td>
               </tr>
         `
@@ -318,7 +320,7 @@ const AcceptOffer: React.FC = () => {
                                     Total Amount
                                 </span>
                                 <span className="text-xl md:text-2xl font-black text-primary">
-                                    € {Number(data?.total || 0).toFixed(2)}
+                                    {formatCurrency(data?.total || 0)}
                                 </span>
                             </div>
                         </div>
@@ -375,13 +377,13 @@ const AcceptOffer: React.FC = () => {
                                                             {item.quantity}
                                                         </td>
                                                         <td className="py-3 px-2 text-right font-mono text-slate-600 dark:text-slate-300">
-                                                            € {Number(item.price || 0).toFixed(2)}
+                                                            {formatCurrency(item.price || 0)}
                                                         </td>
                                                         <td className="py-3 px-2 text-right text-slate-400">
                                                             {item.btw || 0}%
                                                         </td>
                                                         <td className="py-3 pl-2 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                                            € {(Number(item.quantity || 0) * Number(item.price || 0)).toFixed(2)}
+                                                            {formatCurrency(Number(item.quantity || 0) * Number(item.price || 0))}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -394,28 +396,28 @@ const AcceptOffer: React.FC = () => {
                                         <div className="flex justify-between text-slate-600 dark:text-slate-400">
                                             <span>Subtotal</span>
                                             <span className="font-mono font-semibold">
-                                                € {Number(data?.subTotal || 0).toFixed(2)}
+                                                {formatCurrency(data?.subTotal || 0)}
                                             </span>
                                         </div>
 
                                         {Number(data?.discount || 0) > 0 && (
                                             <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                                                 <span>Discount ({data.discount}%)</span>
-                                                <span className="font-mono font-semibold">- € {discountAmount}</span>
+                                                <span className="font-mono font-semibold">- {formatCurrency(discountAmount)}</span>
                                             </div>
                                         )}
 
                                         <div className="flex justify-between text-slate-600 dark:text-slate-400">
                                             <span>BTW / Tax</span>
                                             <span className="font-mono font-semibold">
-                                                + € {Number(data?.btw || 0).toFixed(2)}
+                                                + {formatCurrency(data?.btw || 0)}
                                             </span>
                                         </div>
 
                                         <div className="pt-2 border-t border-slate-200/80 dark:border-strokedark flex justify-between items-center text-sm font-black text-slate-900 dark:text-white">
                                             <span>Total (incl. BTW)</span>
                                             <span className="text-base text-primary font-black font-mono">
-                                                € {Number(data?.total || 0).toFixed(2)}
+                                                {formatCurrency(data?.total || 0)}
                                             </span>
                                         </div>
                                     </div>

@@ -6,6 +6,7 @@ import { apiPath } from '../../../../apiPath';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import Loader from '../../../common/Loader';
+import { useCurrency } from '../../../utils/currencyUtil';
 import { 
     MdDirectionsCar, 
     MdLocalShipping, 
@@ -21,6 +22,7 @@ import {
 } from 'react-icons/md';
 
 const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
+    const { symbol: currencySymbol } = useCurrency();
     const { control, handleSubmit, reset, setValue, formState: { errors }, watch } = useForm<any>();
     const [open, setOpen] = useState(false);
     const [activeStep, setActiveStep] = useState(0);
@@ -318,7 +320,7 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
 
                                         <div>
                                             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                                Price Per Kilometer ($) <span className="text-rose-500">*</span>
+                                                Price Per Kilometer ({currencySymbol}) <span className="text-rose-500">*</span>
                                             </label>
                                             <Controller
                                                 name="pricePerKilometer"
@@ -340,7 +342,7 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
 
                                         <div>
                                             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                                Price Per Hour ($) <span className="text-rose-500">*</span>
+                                                Price Per Hour ({currencySymbol}) <span className="text-rose-500">*</span>
                                             </label>
                                             <Controller
                                                 name="pricePerHour"

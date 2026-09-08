@@ -14,14 +14,16 @@ import {
   MdSave,
   MdInfoOutline,
 } from 'react-icons/md';
+import { useCurrency } from '../../../utils/currencyUtil';
 
 const Features: React.FC = () => {
+  const { symbol: currencySymbol } = useCurrency();
   const { settings, fetchTemplates } = useContext(EmailContext) as any;
   const [loading, setLoading] = useState<boolean>(false);
   const [prices, setPrices] = useState<any>([
-    { label: 'Price per cubic meter', value: settings.standardPrice?.pricePerMeterCubic || 0, unit: '€ / m³' },
-    { label: 'Price per hour for travel time', value: settings.standardPrice?.pricePerHour || 0, unit: '€ / hr' },
-    { label: 'Price per kilometer', value: settings.standardPrice?.pricePerKilometer || 0, unit: '€ / km' },
+    { label: 'Price per cubic meter', value: settings.standardPrice?.pricePerMeterCubic || 0, unit: `${currencySymbol} / m³` },
+    { label: 'Price per hour for travel time', value: settings.standardPrice?.pricePerHour || 0, unit: `${currencySymbol} / hr` },
+    { label: 'Price per kilometer', value: settings.standardPrice?.pricePerKilometer || 0, unit: `${currencySymbol} / km` },
     { label: 'QUOTATION CALCULATION', type: 'heading' },
     { label: 'Cubic meters per employee per hour (average)', value: settings.standardPrice?.cubicMeterPerHourPerEmployee || 0, unit: 'm³ / hr' },
     { label: 'Packing boxes per hour', value: settings.standardPrice?.packingBoxPerHour || 0, unit: 'boxes / hr' },
@@ -411,7 +413,7 @@ const Features: React.FC = () => {
               </label>
               <input
                 type="text"
-                defaultValue="€ 0,00"
+                defaultValue={`${currencySymbol} 0.00`}
                 className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-1.5 px-3 outline-none focus:border-primary text-xs font-semibold"
               />
             </div>
@@ -446,7 +448,7 @@ const Features: React.FC = () => {
               </label>
               <input
                 type="text"
-                defaultValue="€ 0,00"
+                defaultValue={`${currencySymbol} 0.00`}
                 className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-1.5 px-3 outline-none focus:border-primary text-xs font-semibold"
               />
             </div>

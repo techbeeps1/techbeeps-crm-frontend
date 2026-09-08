@@ -1,30 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
+import axios from 'axios';
+import { apiPath } from '../../../apiPath';
+import {
+  SUPPORTED_CURRENCIES,
+  getCurrencySettings,
+  setCurrencySettings,
+  formatCurrency,
+} from '../../utils/currencyUtil';
 import {
   MdOutlinePayments,
   MdCheckCircle,
   MdAttachMoney,
   MdSave,
-  MdInfoOutline
+  MdInfoOutline,
 } from 'react-icons/md';
 
-const currencies = [
-  { code: 'USD', name: 'US Dollar', symbol: '$', locale: 'en-US' },
-  { code: 'EUR', name: 'Euro', symbol: '€', locale: 'de-DE' },
-  { code: 'GBP', name: 'British Pound', symbol: '£', locale: 'en-GB' },
-  { code: 'INR', name: 'Indian Rupee', symbol: '₹', locale: 'en-IN' },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'CA$', locale: 'en-CA' },
-  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$', locale: 'en-AU' },
-  { code: 'AED', name: 'UAE Dirham', symbol: 'AED', locale: 'ar-AE' },
-];
-
 const MoneyFormatSettings = () => {
-  const [selectedCurrency, setSelectedCurrency] = useState(
-    localStorage.getItem('defaultCurrency') || 'USD'
-  );
-  const [symbolPosition, setSymbolPosition] = useState('before');
-  const [decimalPlaces, setDecimalPlaces] = useState(2);
+  const initial = getCurrencySettings();
+  const [selectedCurrency, setSelectedCurrency] = useState(initial.code || 'USD');
+  const [symbolPosition, setSymbolPosition] = useState(initial.position || 'before');
+  const [decimalPlaces, setDecimalPlaces] = useState(initial.decimals !== undefined ? initial.decimals : 2);
   const [saving, setSaving] = useState(false);
 
   const { register, handleSubmit, setValue } = useForm({
@@ -33,29 +30,88 @@ const MoneyFormatSettings = () => {
     },
   });
 
+  // Load from backend on mount
+  useEffect(() => {
+    const fetchSavedCurrency = async () => {
+      try {
+        const res = await axios.get(`${apiPath}/api/available-settings`);
+        if (res.status === 200 && res.data) {
+          const d = res.data;
+          const code = d.currency || initial.code || 'USD';
+          const pos = d.currencyPosition || initial.position || 'before';
+          const dec = d.currencyDecimals !== undefined ? Number(d.currencyDecimals) : initial.decimals;
+          setSelectedCurrency(code);
+          setSymbolPosition(pos);
+          setDecimalPlaces(dec);
+          setValue('currency', code);
+
+          const matched = SUPPORTED_CURRENCIES.find((c) => c.code === code) || SUPPORTED_CURRENCIES[0];
+          setCurrencySettings({
+            code,
+            symbol: d.currencySymbol || matched.symbol,
+            position: pos,
+            decimals: dec,
+          });
+        }
+      } catch (e) {
+        console.warn('Could not fetch currency settings:', e);
+      }
+    };
+    fetchSavedCurrency();
+  }, [setValue]);
+
   const handleSelectCurrency = (code) => {
     setSelectedCurrency(code);
     setValue('currency', code);
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     setSaving(true);
-    localStorage.setItem('defaultCurrency', data.currency || selectedCurrency);
-    setTimeout(() => {
-      setSaving(false);
-      toast.success(`Default currency set to ${data.currency || selectedCurrency}!`, {
-        autoClose: 2000,
+    const code = data.currency || selectedCurrency;
+    const matched = SUPPORTED_CURRENCIES.find((c) => c.code === code) || SUPPORTED_CURRENCIES[0];
+    const symbol = matched.symbol;
+
+    try {
+      await axios.post(`${apiPath}/api/save-settings`, {
+        currency: code,
+        currencySymbol: symbol,
+        currencyPosition: symbolPosition,
+        currencyDecimals: decimalPlaces,
       });
-    }, 400);
+
+      setCurrencySettings({
+        code,
+        symbol,
+        position: symbolPosition,
+        decimals: decimalPlaces,
+      });
+
+      toast.success(`Default currency updated to ${code} (${symbol}) across the project!`, {
+        autoClose: 2500,
+      });
+    } catch (err) {
+      console.error('Failed to save currency settings:', err);
+      // Still set locally so user is not blocked
+      setCurrencySettings({
+        code,
+        symbol,
+        position: symbolPosition,
+        decimals: decimalPlaces,
+      });
+      toast.info(`Currency set locally to ${code} (${symbol}).`);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const currentObj = currencies.find((c) => c.code === selectedCurrency) || currencies[0];
+  const currentObj = SUPPORTED_CURRENCIES.find((c) => c.code === selectedCurrency) || SUPPORTED_CURRENCIES[0];
 
   const formatSample = (val) => {
-    const num = val.toFixed(decimalPlaces);
-    return symbolPosition === 'before'
-      ? `${currentObj.symbol} ${num}`
-      : `${num} ${currentObj.symbol}`;
+    return formatCurrency(val, {
+      symbol: currentObj.symbol,
+      position: symbolPosition,
+      decimals: decimalPlaces,
+    });
   };
 
   return (
@@ -84,7 +140,7 @@ const MoneyFormatSettings = () => {
             Select Default Currency
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
-            {currencies.map((c) => {
+            {SUPPORTED_CURRENCIES.map((c) => {
               const isSelected = selectedCurrency === c.code;
               return (
                 <button
@@ -132,7 +188,7 @@ const MoneyFormatSettings = () => {
               onChange={(e) => handleSelectCurrency(e.target.value)}
               className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
             >
-              {currencies.map((c) => (
+              {SUPPORTED_CURRENCIES.map((c) => (
                 <option key={c.code} value={c.code}>
                   {c.code} - {c.symbol} ({c.name})
                 </option>

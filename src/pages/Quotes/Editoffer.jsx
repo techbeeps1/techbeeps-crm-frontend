@@ -12,8 +12,10 @@ import axios from 'axios';
 import { UserContext } from '../../UserContext';
 import Loader from '../../common/Loader';
 import SearchableClientSelect from '../../components/SearchableClientSelect';
+import { useCurrency } from '../../utils/currencyUtil';
 
 const Editoffer = ({ display, offer, onclose }) => {
+  const { formatCurrency } = useCurrency();
   const { id } = useContext(UserContext);
   const params = useParams();
   const Id = !offer ? params.Id : offer._id;
@@ -702,21 +704,21 @@ const Editoffer = ({ display, offer, onclose }) => {
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>Subtotal:</span>
                 <span className="font-semibold text-slate-900 dark:text-white">
-                  $ {subtotal.toFixed(2)}
+                  {formatCurrency(subtotal)}
                 </span>
               </div>
 
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>Discount ({discountPercentage}%):</span>
                 <span className="font-semibold text-rose-600">
-                  - $ {discountAmount.toFixed(2)}
+                  - {formatCurrency(discountAmount)}
                 </span>
               </div>
 
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
                 <span>Total Tax (BTW):</span>
                 <span className="font-semibold text-emerald-600">
-                  + $ {taxTotal.toFixed(2)}
+                  + {formatCurrency(taxTotal)}
                 </span>
               </div>
 
@@ -725,7 +727,7 @@ const Editoffer = ({ display, offer, onclose }) => {
                   Grand Total:
                 </span>
                 <span className="text-2xl font-black text-primary dark:text-blue-400">
-                  $ {total.toFixed(2)}
+                  {formatCurrency(total)}
                 </span>
               </div>
             </div>

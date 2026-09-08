@@ -6,6 +6,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
 import VehicleForm from './Froms/VehicleForm';
+import { formatCurrency } from '../../utils/currencyUtil';
 import { 
     MdDirectionsCar, 
     MdLocalShipping, 
@@ -368,13 +369,13 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
                                             <div>
                                                 <span className="text-slate-400 block font-medium mb-0.5">Price / Km</span>
                                                 <span className="font-bold text-slate-800 text-sm">
-                                                    ${selectedStaff?.pricePerKilometer || '0.00'}
+                                                    {formatCurrency(selectedStaff?.pricePerKilometer || 0)}
                                                 </span>
                                             </div>
                                             <div>
                                                 <span className="text-slate-400 block font-medium mb-0.5">Price / Hour</span>
                                                 <span className="font-bold text-slate-800 text-sm">
-                                                    ${selectedStaff?.pricePerHour || '0.00'}
+                                                    {formatCurrency(selectedStaff?.pricePerHour || 0)}
                                                 </span>
                                             </div>
                                             <div>

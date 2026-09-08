@@ -1,10 +1,18 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import CompanySettings from './CompanyDetail';
 import MoneyFormatSettings from './CurrencySetting';
 import LogoUploadForm from './Logo';
 import Header from './Header';
 import { UserContext } from '../../UserContext';
 import { toast } from 'react-toastify';
+import axios from 'axios';
+import { apiPath } from '../../../apiPath';
+import {
+  TIMEZONE_OPTIONS,
+  parseIanaTimezone,
+  setSystemTimezone,
+  getSystemTimezoneLabel,
+} from '../../utils/timezoneUtil';
 import {
   MdOutlineTune,
   MdOutlineBusiness,
@@ -17,7 +25,9 @@ import {
   MdAccessTime,
   MdSave,
   MdCheckCircle,
-  MdChevronRight
+  MdChevronRight,
+  MdSend,
+  MdSchedule,
 } from 'react-icons/md';
 
 const AppSettings = () => {
@@ -28,18 +38,100 @@ const AppSettings = () => {
     language: 'US English',
     country: 'IN India',
     email: userData?.email || '',
-    timezone: 'UTC +05:30 (Asia/Kolkata)',
-    autoSave: true,
+    timezone: getSystemTimezoneLabel() || 'UTC +05:30 (Asia/Kolkata)',
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [liveTimeStr, setLiveTimeStr] = useState('');
 
-  const handleGeneralSubmit = (e) => {
+  // Fetch saved settings on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await axios.get(`${apiPath}/api/available-settings`);
+        if (response.status === 200 && response.data) {
+          const d = response.data;
+          const loadedEmail = d.adminNotificationEmail || userData?.email || '';
+          const loadedTimezone = d.timezone || getSystemTimezoneLabel() || 'UTC +05:30 (Asia/Kolkata)';
+          setGeneralSettings({
+            language: d.language || 'US English',
+            country: d.country || 'IN India',
+            email: loadedEmail,
+            timezone: loadedTimezone,
+          });
+          if (loadedTimezone) {
+            setSystemTimezone(loadedTimezone);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load available settings:', err);
+      }
+    };
+    fetchSettings();
+  }, [userData]);
+
+  // Live clock preview for selected timezone
+  useEffect(() => {
+    const updateLiveTime = () => {
+      try {
+        const iana = parseIanaTimezone(generalSettings.timezone);
+        const str = new Date().toLocaleTimeString('en-GB', {
+          timeZone: iana,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        setLiveTimeStr(str);
+      } catch (e) {
+        setLiveTimeStr('');
+      }
+    };
+    updateLiveTime();
+    const interval = setInterval(updateLiveTime, 1000);
+    return () => clearInterval(interval);
+  }, [generalSettings.timezone]);
+
+  const handleGeneralSubmit = async (e) => {
     e.preventDefault();
     setSavingGeneral(true);
-    setTimeout(() => {
-      setSavingGeneral(false);
+    try {
+      const payload = {
+        language: generalSettings.language,
+        country: generalSettings.country,
+        adminNotificationEmail: (generalSettings.email || '').trim(),
+        email: (generalSettings.email || '').trim(),
+        timezone: generalSettings.timezone,
+        timezoneName: parseIanaTimezone(generalSettings.timezone),
+      };
+
+      await axios.post(`${apiPath}/api/save-settings`, payload);
+      setSystemTimezone(generalSettings.timezone);
       toast.success('General settings saved successfully!', { autoClose: 2000 });
-    }, 600);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      toast.error('Failed to save general settings: ' + (err?.response?.data?.error || err.message));
+    } finally {
+      setSavingGeneral(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    const targetEmail = (generalSettings.email || '').trim();
+    if (!targetEmail) {
+      toast.error('Please enter an Admin Notification Email first.');
+      return;
+    }
+    setTestingEmail(true);
+    try {
+      const res = await axios.post(`${apiPath}/api/send-admin-test-email`, {
+        email: targetEmail,
+      });
+      toast.success(res.data?.message || 'Test notification sent! Check inbox.');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err.message || 'Failed to dispatch test notification.');
+    } finally {
+      setTestingEmail(false);
+    }
   };
 
   const navItems = [
@@ -138,64 +230,66 @@ const AppSettings = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Notification Email */}
           <div className="bg-gray-2 dark:bg-meta-4/40 p-4 rounded-xl border border-stroke dark:border-strokedark">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5">
-              <MdEmail className="text-primary text-base" />
-              Admin Notification Email
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <MdEmail className="text-primary text-base" />
+                Admin Notification Email
+              </label>
+              <button
+                type="button"
+                onClick={handleSendTestEmail}
+                disabled={testingEmail || !generalSettings.email}
+                className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors"
+                title="Send test alert to verify this email works"
+              >
+                <MdSend className="text-xs" />
+                <span>{testingEmail ? 'Sending...' : 'Send Test Alert'}</span>
+              </button>
+            </div>
             <input
               type="email"
-              value={generalSettings.email || userData?.email || ''}
+              value={generalSettings.email}
               onChange={(e) => setGeneralSettings({ ...generalSettings, email: e.target.value })}
               placeholder="admin@techbeeps.com"
               className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
             />
             <span className="text-[11px] text-body dark:text-bodydark mt-1.5 block">
-              Receives crucial system alerts, backups & security logs
+              Receives crucial system alerts, staff leaves, backups & security logs
             </span>
           </div>
 
           {/* Timezone */}
           <div className="bg-gray-2 dark:bg-meta-4/40 p-4 rounded-xl border border-stroke dark:border-strokedark">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2 flex items-center gap-1.5">
-              <MdAccessTime className="text-primary text-base" />
-              System Timezone
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <MdAccessTime className="text-primary text-base" />
+                System Timezone
+              </label>
+              {liveTimeStr && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                  <MdSchedule className="text-xs" />
+                  <span>{liveTimeStr}</span>
+                </span>
+              )}
+            </div>
             <select
               value={generalSettings.timezone}
-              onChange={(e) => setGeneralSettings({ ...generalSettings, timezone: e.target.value })}
+              onChange={(e) => {
+                setGeneralSettings({ ...generalSettings, timezone: e.target.value });
+                setSystemTimezone(e.target.value);
+              }}
               className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
             >
-              <option value="UTC +05:30 (Asia/Kolkata)">UTC +05:30 (Asia/Kolkata - IST)</option>
-              <option value="UTC +00:00 (GMT/UTC)">UTC +00:00 (London, GMT)</option>
-              <option value="UTC -05:00 (America/New_York)">UTC -05:00 (Eastern Time - US)</option>
-              <option value="UTC -08:00 (America/Los_Angeles)">UTC -08:00 (Pacific Time - US)</option>
-              <option value="UTC +04:00 (Asia/Dubai)">UTC +04:00 (Dubai, GST)</option>
-              <option value="UTC +08:00 (Asia/Singapore)">UTC +08:00 (Singapore, SGT)</option>
+              {TIMEZONE_OPTIONS.map((tz) => (
+                <option key={tz.iana} value={tz.value}>
+                  {tz.label}
+                </option>
+              ))}
             </select>
             <span className="text-[11px] text-body dark:text-bodydark mt-1.5 block">
-              Used for appointment bookings, calendar & chat timestamps
+              Active across all appointments, calendar, chat timestamps, and logs
             </span>
           </div>
-        </div>
-
-        {/* Feature quick flags card */}
-        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary text-white flex items-center justify-center text-xl shrink-0">
-              <MdCheckCircle />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-black dark:text-white">
-                Live Data Synchronisation
-              </p>
-              <p className="text-xs text-body dark:text-bodydark">
-                Automatically keep company settings in sync with multi-user sessions
-              </p>
-            </div>
-          </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-success/15 text-success">
-            Active
-          </span>
         </div>
 
         {/* Action Button */}

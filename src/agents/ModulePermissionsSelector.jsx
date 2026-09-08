@@ -13,6 +13,7 @@ import {
   FiBriefcase,
   FiSettings,
   FiSliders,
+  FiAlertTriangle,
 } from 'react-icons/fi';
 
 export const CRM_MODULES = [
@@ -25,6 +26,7 @@ export const CRM_MODULES = [
   { id: 'Finance', label: 'Finance', icon: FiDollarSign },
   { id: 'Tasks', label: 'Tasks', icon: FiCheckSquare },
   { id: 'Resources', label: 'Resources', icon: FiBox },
+  { id: 'Claims', label: 'Damage Claims', icon: FiAlertTriangle },
   { id: 'HRM', label: 'HRM', icon: FiBriefcase },
   { id: 'Settings', label: 'Settings', icon: FiSettings },
   { id: 'Features', label: 'Features', icon: FiSliders },

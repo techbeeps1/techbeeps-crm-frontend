@@ -13,7 +13,11 @@ export default function DemoChat() {
   }, [navigate, token]);
 
   if (token) {
-    return <Chat />;
+    return (
+      <div className="h-full w-full overflow-hidden">
+        <Chat />
+      </div>
+    );
   }
 
   return null;

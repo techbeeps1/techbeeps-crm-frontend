@@ -13,10 +13,14 @@ import {
   CalendarMonth,
   Task,
   AssignmentTurnedIn,
+  AccessTime,
+  Receipt,
   KeyboardArrowDown,
   KeyboardArrowRight,
   Menu,
   MenuOpen,
+  Inventory2,
+  Gavel,
 } from '@mui/icons-material';
 
 import {
@@ -174,17 +178,18 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       access: 'Tasks',
       icon: <Task />,
     },
-
-
-
-
     {
       label: 'Resources',
       path: '/resources',
       access: 'Resources',
-      icon: <BriefcaseIcon className="h-5 w-5" />,
+      icon: <Inventory2 />,
     },
-
+    {
+      label: 'Claims',
+      path: '/claims',
+      access: 'Claims',
+      icon: <Gavel />,
+    },
     {
       label: 'HRM',
       path: '/HRM',
@@ -192,9 +197,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       icon: <FaUsersCog />,
     },
     {
+      label: 'My Hours',
+      path: '/my-hours',
+      icon: <AccessTime />,
+    },
+    {
       label: 'My Leaves',
       path: '/my-leaves',
       icon: <CalendarMonth />,
+    },
+    {
+      label: 'My Declarations',
+      path: '/my-declarations',
+      icon: <Receipt />,
     },
     {
       label: 'Communication',
@@ -303,7 +318,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
             const canAccess = (acc?: string) => {
               if (!acc) return true;
-              const universalModules = ['Profile', 'Communication', 'Notifications', 'My Leaves', 'Leave', 'Leaves'];
+              const universalModules = [
+                'Profile',
+                'Communication',
+                'Notifications',
+                'My Leaves',
+                'Leave',
+                'Leaves',
+                'My Hours',
+                'Hours',
+                'My Hours Overview',
+                'My Declarations',
+                'Declarations',
+                'Declaration',
+              ];
               if (universalModules.includes(acc)) return true;
               if (isAdmin || userData?.role === 'Admin') return true;
               if (typeof hasAccess === 'function') return hasAccess(acc);
@@ -313,7 +341,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             };
 
             const isUserAdmin = isAdmin || userData?.role === 'Admin';
-            if ((item.label === 'Work' || item.label === 'My Leaves' || item.path === '/my-leaves') && isUserAdmin)
+            if (
+              (item.label === 'Work' ||
+                item.label === 'My Leaves' ||
+                item.path === '/my-leaves' ||
+                item.label === 'My Hours' ||
+                item.path === '/my-hours' ||
+                item.label === 'My Declarations' ||
+                item.path === '/my-declarations') &&
+              isUserAdmin
+            )
               return null;
 
             if (item.access && !canAccess(item.access))

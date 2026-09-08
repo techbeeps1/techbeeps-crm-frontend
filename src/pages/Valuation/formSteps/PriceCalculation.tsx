@@ -7,6 +7,7 @@ import PackingCalculation from "../InnerForm/PackingCalculation";
 import AssemblingCalculation from "../InnerForm/AssemblingCalculation";
 import StorageCalculation from "../InnerForm/StorageCalculation";
 import MaterialsCalculation from "../InnerForm/MaterialsCalculation";
+import { formatCurrency } from "../../../utils/currencyUtil";
 
 
 const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
@@ -251,7 +252,7 @@ useEffect(() => {
             <div className=" flex justify-end gap-5  cursor-pointer">
             <div className="flex justify-between  gap-5 items-center p-4 mb-1 bg-[#1976d2] cursor-pointer text-white rounded">
                 <h3 className="text-xl font-medium">Total Price: </h3>
-                <span className="text-lg font-bold">{totalPrice.toFixed(2) || 0} $</span>
+                <span className="text-lg font-bold">{formatCurrency(totalPrice || 0)}</span>
             </div>
             </div>
             <RelocationCalculation totalSum={totalSum} priceAgreement={priceAgreement} rooms={rooms} />
@@ -310,7 +311,7 @@ const ServiceDetails: React.FC<any> = ({ service, price, serviceCharge }) => {
 
       <div className="flex items-center gap-4">
         <p className="text-lg font-bold">
-          {serviceCharge || 0} $
+          {formatCurrency(serviceCharge || 0)}
         </p>
 
         <span className="transform transition-transform group-open:rotate-180">

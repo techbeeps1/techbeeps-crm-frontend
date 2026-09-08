@@ -78,7 +78,7 @@ export default function TaskPlanningCalendar({
 }: Props) {
   const [events, setEvents] = useState<AppointmentEvent[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<View>(Views.DAY);
+  const [currentView, setCurrentView] = useState<View>(Views.MONTH);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -418,7 +418,7 @@ export default function TaskPlanningCalendar({
             startAccessor="start"
             endAccessor="end"
             titleAccessor="title"
-            defaultView={Views.DAY}
+            defaultView={Views.MONTH}
             view={currentView}
             onView={(view: View) => setCurrentView(view)}
             date={currentDate}

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
+import { formatCurrency } from '../../../utils/currencyUtil';
 
 const RelocationCalculation: React.FC<any> = ({
   totalSum,
@@ -221,7 +222,7 @@ const RelocationCalculation: React.FC<any> = ({
           </div>
 
           <div className="flex items-center gap-4">
-            <p className="text-lg font-bold">{totalSum || 0} $</p>
+            <p className="text-lg font-bold">{formatCurrency(totalSum || 0)}</p>
 
             <span className="transform transition-transform group-open:rotate-180">
               ▼
@@ -478,7 +479,7 @@ const RelocationCalculation: React.FC<any> = ({
  <div className='flex justify-between'> <h4 className="mb-5 font-semibold text-slate-800">
     Inventory Items
   </h4> 
-  <p> Total: {mergedInventoryItems.reduce((sum : number, box: any) => sum + (box.quantity * box.price), 0).toFixed(2)} $ </p>
+  <p> Total: {formatCurrency(mergedInventoryItems.reduce((sum : number, box: any) => sum + (box.quantity * box.price), 0))} </p>
 </div>
   <div className="overflow-x-auto rounded-[5px] border border-slate-200">
     <table className="min-w-full border-collapse">
@@ -519,10 +520,10 @@ const RelocationCalculation: React.FC<any> = ({
               </td>
 
               <td className="px-5 py-4 text-right text-sm font-medium text-slate-800">
-                {box.price || 0} $
+                {formatCurrency(box.price || 0)}
               </td>
               <td className="px-5 py-4 text-right text-sm font-medium text-slate-800">
-                {(box.quantity * box.price).toFixed(2) || 0} $
+                {formatCurrency((box.quantity * box.price) || 0)}
               </td>
             </tr>
           ),

@@ -19,12 +19,14 @@ import { apiPath } from '../../../apiPath';
 import Loader from '../../common/Loader';
 import InvoicePopup from './Invoicing';
 import LinkQuotePopup from '../Quotes/LinkQuotePopup';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 const Invoice = ({ data, notes, fetchInvoice }) => {
   const { Id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [openPopup, setOpenPopup] = useState(false);
+  const { symbol: currencySymbol, code: currencyCode } = useCurrency();
 
   const { role, userData, isAdmin } = useContext(UserContext) || {};
   const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
@@ -222,10 +224,10 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
             Subtotal
           </span>
           <span className="text-xl font-black text-slate-900 dark:text-white font-mono mt-1 block">
-            € {subTotalNum.toFixed(2)}
+            {formatCurrency(subTotalNum)}
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
-            Discount: -€ {discountAmount.toFixed(2)}
+            Discount: -{formatCurrency(discountAmount)}
           </span>
         </div>
 
@@ -234,7 +236,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
             Total Tax (BTW)
           </span>
           <span className="text-xl font-black text-slate-900 dark:text-white font-mono mt-1 block">
-            € {Number(data?.btw || 0).toFixed(2)}
+            {formatCurrency(data?.btw || 0)}
           </span>
           <span className="text-[11px] text-slate-400 capitalize mt-1 block">
             VAT: {data?.vat || 'exclusive'}
@@ -246,7 +248,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
             Total Amount
           </span>
           <span className="text-xl font-black text-primary font-mono mt-1 block">
-            € {totalNum.toFixed(2)}
+            {formatCurrency(totalNum)}
           </span>
           <span className="text-[11px] text-slate-400 mt-1 block">
             Total invoice billing
@@ -259,10 +261,10 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
           </span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-              € {paidNum.toFixed(2)}
+              {formatCurrency(paidNum)}
             </span>
             <span className="text-xs text-slate-400 font-medium">
-              / Due: € {balanceDue.toFixed(2)}
+              / Due: {formatCurrency(balanceDue)}
             </span>
           </div>
           <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mt-2">
@@ -555,7 +557,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
             </h3>
           </div>
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-            EUR (€)
+            {currencyCode} ({currencySymbol})
           </span>
         </div>
 
@@ -588,7 +590,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
                       {qty}
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-slate-600 dark:text-slate-300">
-                      € {price.toFixed(2)}
+                      {formatCurrency(price)}
                     </td>
                     <td className="py-3 px-4 text-center font-bold">
                       <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px]">
@@ -596,7 +598,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-black text-slate-900 dark:text-white">
-                      € {lineTotal.toFixed(2)}
+                      {formatCurrency(lineTotal)}
                     </td>
                   </tr>
                 );
@@ -612,14 +614,14 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                 TAX INVOICE STATEMENT
               </span>
-              <span className="text-[10px] font-bold text-slate-400">EUR (€)</span>
+              <span className="text-[10px] font-bold text-slate-400">{currencyCode} ({currencySymbol})</span>
             </div>
 
             <div className="space-y-2.5 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-medium">Subtotal</span>
                 <span className="font-bold text-slate-900 dark:text-white font-mono">
-                  € {subTotalNum.toFixed(2)}
+                  {formatCurrency(subTotalNum)}
                 </span>
               </div>
 
@@ -632,14 +634,14 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
                       : 'text-slate-400'
                   }`}
                 >
-                  {discountAmount > 0 ? `- € ${discountAmount.toFixed(2)}` : '€ 0.00'}
+                  {discountAmount > 0 ? `- ${formatCurrency(discountAmount)}` : formatCurrency(0)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-medium">Total BTW / Tax</span>
                 <span className="font-bold text-slate-900 dark:text-white font-mono">
-                  + € {Number(data?.btw || 0).toFixed(2)}
+                  + {formatCurrency(data?.btw || 0)}
                 </span>
               </div>
             </div>
@@ -656,7 +658,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
               <div className="flex items-baseline justify-between pt-1">
                 <span className="text-xs text-slate-400">Total Payable</span>
                 <span className="text-2xl font-black text-white font-mono tracking-tight">
-                  € {totalNum.toFixed(2)}
+                  {formatCurrency(totalNum)}
                 </span>
               </div>
             </div>

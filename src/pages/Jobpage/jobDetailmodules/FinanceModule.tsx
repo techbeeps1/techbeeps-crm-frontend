@@ -16,6 +16,7 @@ import TouchAppOutlinedIcon from '@mui/icons-material/TouchAppOutlined';
 import { apiPath } from '../../../../apiPath';
 import { UserContext } from '../../../UserContext';
 import AddIcon from '@mui/icons-material/Add';
+import { useCurrency, formatCurrency } from '../../../utils/currencyUtil';
 interface FinanceModuleProps {
   data?: any;
   job?: any;
@@ -92,6 +93,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
   const [inputFields, setInputFields] = useState<any[]>([]);
 
   // Form states
+  const { symbol: currencySymbol } = useCurrency();
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [discountDescription, setDiscountDescription] = useState<string>('');
   const [discountPercentage, setDiscountPercentage] = useState<number>(0);
@@ -864,7 +866,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                               </select>
                               <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-bold">
                                 <span>Rate:</span>
-                                <span className="text-primary font-extrabold">€ {rule.evalPrice.toFixed(2)}</span>
+                                <span className="text-primary font-extrabold">{formatCurrency(rule.evalPrice)}</span>
                               </div>
                             </div>
                           ) : (
@@ -896,7 +898,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
 
                         {/* Evaluated Line Subtotal */}
                         <td className="p-2.5 text-right font-extrabold text-slate-900 dark:text-white whitespace-nowrap">
-                          € {rule.lineSubtotal.toFixed(2)}
+                          {formatCurrency(rule.lineSubtotal)}
                         </td>
 
                         {/* Actions */}
@@ -947,7 +949,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                     Subtotal
                   </span>
                   <span className="text-base font-black text-slate-900 dark:text-white mt-0.5 block">
-                    € {subtotal.toFixed(2)}
+                    {formatCurrency(subtotal)}
                   </span>
                 </div>
 
@@ -956,7 +958,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                     Discount ({discountPercentage}%)
                   </span>
                   <span className="text-base font-black text-rose-600 dark:text-rose-400 mt-0.5 block">
-                    - € {discountAmount.toFixed(2)}
+                    - {formatCurrency(discountAmount)}
                   </span>
                 </div>
 
@@ -965,7 +967,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                     Total Tax (BTW)
                   </span>
                   <span className="text-base font-black text-slate-900 dark:text-white mt-0.5 block">
-                    + € {taxTotal.toFixed(2)}
+                    + {formatCurrency(taxTotal)}
                   </span>
                 </div>
 
@@ -974,7 +976,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                     Grand Total ({vatSelected})
                   </span>
                   <span className="text-lg font-black text-primary mt-0.5 block">
-                    € {total.toFixed(2)}
+                    {formatCurrency(total)}
                   </span>
                 </div>
               </div>

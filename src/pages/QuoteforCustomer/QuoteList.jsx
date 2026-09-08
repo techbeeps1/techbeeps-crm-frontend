@@ -26,8 +26,10 @@ import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
 import { UserContext } from '../../UserContext';
+import { useCurrency } from '../../utils/currencyUtil';
 
 const QuoteList = ({ customerId }) => {
+  const { symbol: currencySymbol, formatCurrency } = useCurrency();
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [data, setData] = useState([]);
@@ -267,15 +269,15 @@ const QuoteList = ({ customerId }) => {
         </div>
 
         <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
-            <AttachMoneyIcon />
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-lg">
+            {currencySymbol || <AttachMoneyIcon />}
           </div>
           <div>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Total Proposals Value
             </p>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5">
-              $ {stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(stats.totalValue)}
             </h3>
           </div>
         </div>
@@ -444,10 +446,7 @@ const QuoteList = ({ customerId }) => {
 
                       {/* Total */}
                       <td className="py-4 px-5 font-bold text-slate-900 dark:text-white">
-                        $ {(parseFloat(item.total) || 0).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
+                        {formatCurrency(item.total || 0)}
                       </td>
 
                       {/* Status */}

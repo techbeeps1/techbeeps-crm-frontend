@@ -21,6 +21,7 @@ import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import CloseIcon from '@mui/icons-material/Close';
 import { apiPath } from '../../../../apiPath';
+import { formatCurrency } from '../../../utils/currencyUtil';
 
 interface JobOffermoduleProps {
   job: any;
@@ -328,7 +329,7 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh })
 
                     {/* CONTACT / AMOUNT */}
                     <td className="py-4 px-4 whitespace-nowrap font-black text-emerald-600 dark:text-emerald-400">
-                      <span className="text-xs">€ {amount}</span>
+                      <span className="text-xs">{formatCurrency(amount)}</span>
                     </td>
 
                     {/* COUNTRY / STATUS */}

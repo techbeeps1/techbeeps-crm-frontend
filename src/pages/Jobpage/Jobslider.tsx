@@ -44,6 +44,7 @@ import DocumentSelected from '../customerDetails/DocumentSelected';
 import EmailLayout from '../Emailpage/EmailComponent';
 import TaskPage from '../Taskcomponent/TaskPage';
 import JobOfferRooms from './jobDetailmodules/JobOfferRooms';
+import { formatCurrency } from '../../utils/currencyUtil';
 
 interface JobsliderProps {
   job: any | null;
@@ -712,37 +713,37 @@ const Jobslider: React.FC<JobsliderProps> = ({
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Cubic Meter</span>
                       <span className="font-extrabold text-primary">
-                        $ {relocation.relocation?.pricePerMeterCubic ?? relocation.rates?.cubicMeter ?? 0}
+                        {formatCurrency(relocation.relocation?.pricePerMeterCubic ?? relocation.rates?.cubicMeter ?? 0)}
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Travel Time</span>
                       <span className="font-extrabold text-primary">
-                        $ {relocation.relocation?.pricePerHour ?? relocation.rates?.travelTime ?? 0}
+                        {formatCurrency(relocation.relocation?.pricePerHour ?? relocation.rates?.travelTime ?? 0)}
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Distance</span>
                       <span className="font-extrabold text-primary">
-                        $ {relocation.relocation?.pricePerKilometer ?? relocation.rates?.distance ?? 0}
+                        {formatCurrency(relocation.relocation?.pricePerKilometer ?? relocation.rates?.distance ?? 0)}
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Disassembly</span>
                       <span className="font-extrabold text-primary">
-                        $ {relocation.disassembling?.appliedPrice ?? relocation.rates?.disassemblyHours ?? 0}
+                        {formatCurrency(relocation.disassembling?.appliedPrice ?? relocation.rates?.disassemblyHours ?? 0)}
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Assembly</span>
                       <span className="font-extrabold text-primary">
-                        $ {relocation.assembling?.appliedPrice ?? relocation.rates?.assemblyHours ?? 0}
+                        {formatCurrency(relocation.assembling?.appliedPrice ?? relocation.rates?.assemblyHours ?? 0)}
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Packing</span>
                       <span className="font-extrabold text-primary">
-                        $ {relocation.packing?.appliedPrice ?? relocation.rates?.packingHours ?? 0}
+                        {formatCurrency(relocation.packing?.appliedPrice ?? relocation.rates?.packingHours ?? 0)}
                       </span>
                     </div>
                   </div>

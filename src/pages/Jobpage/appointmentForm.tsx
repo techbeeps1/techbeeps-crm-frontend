@@ -249,8 +249,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         return;
       }
 
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const response = await axios.get(
         `${apiPath}/user/employees/${formatSelectedDate()}`,
+        { headers }
       );
       setVehicleOptions(response.data?.vehicles || []);
 

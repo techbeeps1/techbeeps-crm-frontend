@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import Avatar from './Avatar';
 import { UserContext } from './UserContext';
@@ -46,6 +47,7 @@ export default function Chat() {
 
   const [onlinePeople, setOnlinePeople] = useState<any>({});
   const [offlinePeople, setOfflinePeople] = useState<Record<string, User>>({});
+  const [allPeople, setAllPeople] = useState<Record<string, User>>({});
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [newMessageText, setNewMessageText] = useState<string>('');
   const [messagesPerUser, setMessagesPerUser] = useState<MessagesPerUser>({});
@@ -53,10 +55,11 @@ export default function Chat() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterMode, setFilterMode] = useState<'all' | 'online'>('all');
 
-  const { id, ws, connectToWs } = useContext(UserContext) as {
+  const { id, ws, connectToWs, onlineUsers } = useContext(UserContext) as {
     ws: any;
     id: string;
     connectToWs: any;
+    onlineUsers?: Array<{ userId: string; username: string }>;
   };
   const { fetchUnreadMessages } = useContext(EmailContext) as {
     fetchUnreadMessages: () => Promise<void>;
@@ -65,16 +68,47 @@ export default function Chat() {
   const divUnderMessages = useRef<HTMLDivElement | null>(null);
   const totalPeopleRef = useRef<Record<string, User>>({});
 
+  const location = useLocation();
+
+  // Automatically open conversation when sender is provided in URL query (e.g. from notifications)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const targetSender = params.get('sender') || params.get('userId');
+    if (targetSender && targetSender !== selectedUserId) {
+      setSelectedUserId(targetSender);
+    }
+  }, [location.search]);
+
+  // Sync with global onlineUsers from UserContext
+  useEffect(() => {
+    if (onlineUsers && onlineUsers.length > 0) {
+      showOnlinePeople(onlineUsers as any);
+    }
+  }, [onlineUsers]);
+
   useEffect(() => {
     requestNotificationPermission();
     if (ws) {
       ws.addEventListener('message', handleMessage);
+      return () => {
+        ws.removeEventListener('message', handleMessage);
+      };
     }
-  }, [selectedUserId]);
+  }, [ws, selectedUserId]);
 
   useEffect(() => {
     connectToWs();
-  }, []);
+    if (ws) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'getOnline' }));
+      } else {
+        const onOpen = () => {
+          ws.send(JSON.stringify({ type: 'getOnline' }));
+        };
+        ws.addEventListener('open', onOpen, { once: true });
+      }
+    }
+  }, [ws]);
 
   function requestNotificationPermission() {
     if (Notification.permission !== 'granted') {
@@ -111,14 +145,21 @@ export default function Chat() {
 
   function showOnlinePeople(peopleArray: User[]) {
     const onlinePeopleObj: Record<string, { username: string; _id: string }> = {};
-    const uniqueUsers: User[] = uniqBy(peopleArray, 'userId');
+    const uniqueUsers: User[] = uniqBy(peopleArray || [], 'userId');
     uniqueUsers.forEach(({ userId, username }) => {
-      onlinePeopleObj[userId] = { username, _id: userId };
+      if (userId) {
+        onlinePeopleObj[userId] = {
+          username: username || totalPeopleRef.current[userId]?.username || 'User',
+          _id: userId,
+        };
+      }
     });
     setOnlinePeople(onlinePeopleObj);
+
+    // Rebuild offline: all people minus currently online
     const updatedOfflinePeople = { ...totalPeopleRef.current };
-    uniqueUsers.forEach(({ userId }) => {
-      delete updatedOfflinePeople[userId];
+    Object.keys(onlinePeopleObj).forEach((onlineId) => {
+      delete updatedOfflinePeople[onlineId];
     });
     setOfflinePeople(updatedOfflinePeople);
   }
@@ -233,15 +274,27 @@ export default function Chat() {
 
   useEffect(() => {
     axios.get('/people').then((res) => {
-      const offlinePeopleArr = res.data
-        .filter((p: User) => p._id !== id)
-        .filter((p: User) => !Object.keys(onlinePeople).includes(p._id));
-      const offlinePeopleMap: Record<string, User> = {};
-      offlinePeopleArr.forEach((p: User) => {
-        offlinePeopleMap[p._id] = p;
+      const allMap: Record<string, User> = {};
+      const peopleList: User[] = res.data || [];
+      peopleList.forEach((p: User) => {
+        allMap[p._id] = p;
       });
-      totalPeopleRef.current = offlinePeopleMap;
+      setAllPeople(allMap);
+      totalPeopleRef.current = allMap;
+
+      const offlinePeopleMap: Record<string, User> = {};
+      peopleList.forEach((p: User) => {
+        if (!onlinePeople[p._id]) {
+          offlinePeopleMap[p._id] = p;
+        }
+      });
       setOfflinePeople(offlinePeopleMap);
+
+      if (onlineUsers && onlineUsers.length > 0) {
+        showOnlinePeople(onlineUsers as any);
+      }
+    }).catch((err) => {
+      console.error("Error fetching /people:", err);
     });
   }, []);
 
@@ -286,26 +339,29 @@ export default function Chat() {
     }, 1000);
   }, [selectedUserId]);
 
-  // Combined and filtered people list
+  // Combined and filtered people list (excluding the logged-in user)
   const onlineUserIds = Object.keys(onlinePeople).filter((userId) => userId !== id);
-  const offlineUserIds = Object.keys(offlinePeople);
+  const offlineUserIds = Object.keys(offlinePeople).filter((userId) => userId !== id);
+  const totalContactsCount = Object.keys(allPeople).filter((userId) => userId !== id).length;
 
-  const filteredOnlineUsers = onlineUserIds.filter((userId) =>
-    onlinePeople[userId]?.username?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const filteredOfflineUsers = offlineUserIds.filter((userId) =>
-    offlinePeople[userId]?.username?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOnlineUsers = onlineUserIds.filter((userId) => {
+    const name = onlinePeople[userId]?.username || allPeople[userId]?.username || '';
+    return name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+  const filteredOfflineUsers = offlineUserIds.filter((userId) => {
+    const name = offlinePeople[userId]?.username || allPeople[userId]?.username || '';
+    return name.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const selectedUserInfo = selectedUserId
-    ? onlinePeople[selectedUserId] || offlinePeople[selectedUserId]
+    ? onlinePeople[selectedUserId] || offlinePeople[selectedUserId] || allPeople[selectedUserId]
     : null;
   const isSelectedUserOnline = selectedUserId ? onlineUserIds.includes(selectedUserId) : false;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col md:flex-row h-[calc(100vh-210px)] min-h-[580px]">
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col md:flex-row h-full w-full">
       {/* Left Contacts Sidebar */}
-      <div className="w-full md:w-80 lg:w-96 flex flex-col border-r border-slate-200/80 bg-white shrink-0">
+      <div className="w-full md:w-80 lg:w-96 flex flex-col border-r border-slate-200/80 bg-white shrink-0 h-full overflow-hidden">
         <Logo />
 
         {/* Search Contact Bar */}
@@ -340,7 +396,8 @@ export default function Chat() {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
               }`}
             >
-              All ({onlineUserIds.length + offlineUserIds.length})
+              {/* Total contacts count */}
+              All ({totalContactsCount})
             </button>
             <button
               type="button"
@@ -360,32 +417,46 @@ export default function Chat() {
         {/* Contacts List Container */}
         <div className="overflow-y-auto flex-1 divide-y divide-slate-100/60 no-scrollbar">
           {/* Online Users */}
-          {filteredOnlineUsers.map((userId) => (
-            <Contact
-              key={userId}
-              id={userId}
-              username={onlinePeople[userId].username}
-              onClick={() => setSelectedUserId(userId)}
-              selected={userId === selectedUserId}
-              online={true}
-              unreadMessages={unreadMessages[userId]?.length || 0}
-            />
-          ))}
+          {filteredOnlineUsers.map((userId) => {
+            const name = onlinePeople[userId]?.username || allPeople[userId]?.username || 'User';
+            return (
+              <Contact
+                key={userId}
+                id={userId}
+                username={name}
+                onClick={() => setSelectedUserId(userId)}
+                selected={userId === selectedUserId}
+                online={true}
+                unreadMessages={unreadMessages[userId]?.length || 0}
+              />
+            );
+          })}
 
           {/* Offline Users */}
-          {filterMode === 'all' && filteredOfflineUsers.map((userId) => (
-            <Contact
-              key={userId}
-              id={userId}
-              username={offlinePeople[userId].username}
-              onClick={() => setSelectedUserId(userId)}
-              selected={userId === selectedUserId}
-              online={false}
-              unreadMessages={unreadMessages[userId]?.length || 0}
-            />
-          ))}
+          {filterMode === 'all' && filteredOfflineUsers.map((userId) => {
+            const name = offlinePeople[userId]?.username || allPeople[userId]?.username || 'User';
+            return (
+              <Contact
+                key={userId}
+                id={userId}
+                username={name}
+                onClick={() => setSelectedUserId(userId)}
+                selected={userId === selectedUserId}
+                online={false}
+                unreadMessages={unreadMessages[userId]?.length || 0}
+              />
+            );
+          })}
 
-          {filteredOnlineUsers.length === 0 && (filterMode === 'online' || filteredOfflineUsers.length === 0) && (
+          {/* Empty state — only show when the current filtered list is truly empty */}
+          {filterMode === 'online' && filteredOnlineUsers.length === 0 && (
+            <div className="py-12 px-4 text-center text-slate-400">
+              <MdPeopleOutline className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-xs font-semibold text-slate-600">No online users</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">No team members are currently online</p>
+            </div>
+          )}
+          {filterMode === 'all' && filteredOnlineUsers.length === 0 && filteredOfflineUsers.length === 0 && (
             <div className="py-12 px-4 text-center text-slate-400">
               <MdPeopleOutline className="w-8 h-8 mx-auto mb-2 text-slate-300" />
               <p className="text-xs font-semibold text-slate-600">No contacts found</p>
@@ -396,7 +467,7 @@ export default function Chat() {
       </div>
 
       {/* Right Chat Messaging Area */}
-      <div className="flex flex-col flex-1 bg-slate-50/50 relative overflow-hidden">
+      <div className="flex flex-col flex-1 bg-slate-50/50 relative overflow-hidden h-full">
         {!selectedUserId ? (
           <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
             <div className="w-16 h-16 rounded-3xl bg-primary/10 text-primary flex items-center justify-center text-3xl mb-4 shadow-xs">
@@ -422,7 +493,7 @@ export default function Chat() {
                 />
                 <div>
                   <h3 className="text-sm font-bold text-slate-800">
-                    {selectedUserInfo?.username || 'Team Member'}
+                    {selectedUserInfo?.username || allPeople[selectedUserId]?.username || 'Team Member'}
                   </h3>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`w-2 h-2 rounded-full ${isSelectedUserOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
@@ -495,7 +566,7 @@ export default function Chat() {
             </div>
 
             {/* Message Input Footer */}
-            <form onSubmit={sendMessage} className="p-3 sm:p-4 bg-white border-t border-slate-200/80 flex items-center gap-2.5 shrink-0">
+            <form onSubmit={sendMessage} className="p-3 sm:py-3 sm:px-4 bg-white border-t border-slate-200/80 flex items-center gap-2.5 shrink-0">
               <label
                 className="p-2.5 rounded-xl border border-slate-200 hover:border-primary/40 hover:bg-primary/5 text-slate-500 hover:text-primary transition-all cursor-pointer shrink-0"
                 title="Attach Document or Image"
