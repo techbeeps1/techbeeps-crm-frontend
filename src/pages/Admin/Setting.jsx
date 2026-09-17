@@ -43,6 +43,22 @@ const AppSettings = () => {
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [liveTimeStr, setLiveTimeStr] = useState('');
+  const [countryList, setCountryList] = useState([]);
+
+  // Fetch country list from directory
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await axios.get(`${apiPath}/api/sale_group?type=country`);
+        if (Array.isArray(res.data)) {
+          setCountryList(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to load country directory:', err);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   // Fetch saved settings on mount
   useEffect(() => {
@@ -209,17 +225,36 @@ const AppSettings = () => {
               Country & Region
             </label>
             <select
-              value={generalSettings.country}
+              value={
+                countryList.find(
+                  (c) =>
+                    c.name === generalSettings.country ||
+                    `${c.code ? c.code + ' ' : ''}${c.name}` === generalSettings.country ||
+                    `${c.name} (${c.code})` === generalSettings.country ||
+                    (c.code && generalSettings.country?.toLowerCase().includes(c.name.toLowerCase()))
+                )?.name || generalSettings.country
+              }
               onChange={(e) => setGeneralSettings({ ...generalSettings, country: e.target.value })}
               className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
             >
-              <option value="IN India">India (IN)</option>
-              <option value="US United States">United States (US)</option>
-              <option value="UK United Kingdom">United Kingdom (UK)</option>
-              <option value="CA Canada">Canada (CA)</option>
-              <option value="AU Australia">Australia (AU)</option>
-              <option value="DE Germany">Germany (DE)</option>
-              <option value="AE United Arab Emirates">United Arab Emirates (UAE)</option>
+              <option value="">Select Country</option>
+              {countryList && countryList.length > 0 ? (
+                countryList.map((c) => (
+                  <option key={c._id || c.name} value={c.name}>
+                    {c.name}{c.code ? ` (${c.code})` : ''}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="India">India (IN)</option>
+                  <option value="United States">United States (US)</option>
+                  <option value="United Kingdom">United Kingdom (UK)</option>
+                  <option value="Canada">Canada (CA)</option>
+                  <option value="Australia">Australia (AU)</option>
+                  <option value="Germany">Germany (DE)</option>
+                  <option value="United Arab Emirates">United Arab Emirates (UAE)</option>
+                </>
+              )}
             </select>
             <span className="text-[11px] text-body dark:text-bodydark mt-1.5 block">
               Determines regional formats and tax defaults

@@ -146,10 +146,11 @@ const AppointmentType: React.FC<{ inputFor: string }> = ({ inputFor }) => {
             </div>
 
             <button
+              type="button"
               onClick={() => openEditModal(null)}
-              className="flex items-center gap-1.5 bg-primary hover:bg-opacity-90 text-white font-semibold py-2 px-4 rounded-xl shadow-md shadow-primary/25 transition-all text-xs cursor-pointer shrink-0"
+              className="inline-flex items-center justify-center gap-1.5 bg-primary hover:bg-opacity-90 text-white font-semibold py-2 px-4 rounded-xl shadow-md shadow-primary/25 transition-all text-xs cursor-pointer shrink-0"
             >
-              <MdAdd className="text-base" />
+              <MdAdd className="text-lg shrink-0" />
               <span>New Input</span>
             </button>
           </div>

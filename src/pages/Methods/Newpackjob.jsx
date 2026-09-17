@@ -83,7 +83,23 @@ const NewPackjob = ({ open, onClose }) => {
         }
       });
       if (data[`${section}rules`]) {
-        formattedData[section].rules = data[`${section}rules`];
+        formattedData[section].rules = data[`${section}rules`]
+          .filter(Boolean)
+          .map((r) => ({
+            ...r,
+            salesGroup:
+              r.salesGroup?._id ||
+              r.salesGroup ||
+              r.salesgroup?._id ||
+              r.salesgroup ||
+              '',
+            isCalculated:
+              r.isCalculated === true || r.isCalculated === 'true',
+            enabled:
+              r.enabled === true ||
+              r.enabled === 'true' ||
+              r.enabled === undefined,
+          }));
       }
     });
     createPackage(formattedData);

@@ -35,18 +35,49 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
 
     const [handlingCost, setHandlingCost] = useState<any>('No');
     const [loading, setLoading] = useState(false);
+    const handleOpen = () => {
+        if (storageData) {
+            const initialRows = (storageData?.events && storageData.events.length > 0)
+                ? storageData.events.map((item: any) => ({
+                    ...item,
+                    loadedOn: item.loadedOn ? new Date(item.loadedOn) : null,
+                    ReleasedOn: item.ReleasedOn ? new Date(item.ReleasedOn) : null,
+                    loadedByEmployee: item.loadedByEmployee?._id || item.loadedByEmployee || '',
+                    ReleasedByEmployee: item.ReleasedByEmployee?._id || item.ReleasedByEmployee || '',
+                    storageLocation: item.storageLocation?._id || item.storageLocation || ''
+                }))
+                : [{ description: '', itemCode: '', externalCode: '', contents: '', storageLocation: storageData?.storageLocation?._id || storageData?.storageLocation || '', loadedOn: null, ReleasedOn: null, loadedByEmployee: '', ReleasedByEmployee: '', loadedByCustomer: false }];
+
+            reset({
+                ...storageData,
+                notes: storageData.notes || '',
+                rows: initialRows,
+                action: { description: '', price: '', quantity: '', actionDate: null }
+            });
+            setHandlingCost('No');
+        }
+        setOpen(true);
+    };
+
     const handleClose = () => {
         setOpen(false);
-        reset();
     };
 
     const onSubmit = (formData: any) => {
-        storageHandlers({ 
-            ...formData, 
-            percentageFill: ((totalVolume / (storageData?.cubicMeter || 1)) * 100).toFixed(2), 
-            events: formData.rows, 
-            costAction: handlingCost === 'Yes' && formData.action ? [formData.action] : [] 
-        });
+        const payload: any = {
+            ...formData,
+            percentageFill: ((totalVolume / (storageData?.cubicMeter || 1)) * 100).toFixed(2),
+            events: formData.rows || [],
+            totalVolume: totalVolume,
+        };
+
+        if (handlingCost === 'Yes' && formData.action && (formData.action.description || formData.action.price || formData.action.quantity)) {
+            payload.costAction = [formData.action];
+        } else {
+            payload.costAction = [];
+        }
+
+        storageHandlers(payload);
     };
 
     const volumeHandler = watch('rows');
@@ -71,12 +102,13 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
         try {
             const response = await axios.put(path, formData);
             if (response.status === 201 || response.status === 200) {
-                handler();
+                if (handler) {
+                    await handler();
+                }
                 setOpen(false);
-                reset();
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message || "Something went wrong. Please try again.";
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || "Something went wrong. Please try again.";
             alert(errorMessage);
         } finally {
             setLoading(false);
@@ -84,20 +116,26 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
     };
 
     useEffect(() => {
-        if (storageData?.events) {
-            reset({
-                ...storageData,
-                rows: storageData?.events.map((item: any) => ({
+        if (storageData) {
+            const initialRows = (storageData?.events && storageData.events.length > 0)
+                ? storageData.events.map((item: any) => ({
                     ...item,
                     loadedOn: item.loadedOn ? new Date(item.loadedOn) : null,
                     ReleasedOn: item.ReleasedOn ? new Date(item.ReleasedOn) : null,
-                    loadedByEmployee: item.loadedByEmployee?._id || item.loadedByEmployee,
-                    ReleasedByEmployee: item.ReleasedByEmployee?._id || item.ReleasedByEmployee,
-                    storageLocation: item.storageLocation?._id || item.storageLocation
-                })),
+                    loadedByEmployee: item.loadedByEmployee?._id || item.loadedByEmployee || '',
+                    ReleasedByEmployee: item.ReleasedByEmployee?._id || item.ReleasedByEmployee || '',
+                    storageLocation: item.storageLocation?._id || item.storageLocation || ''
+                }))
+                : [{ description: '', itemCode: '', externalCode: '', contents: '', storageLocation: storageData?.storageLocation?._id || storageData?.storageLocation || '', loadedOn: null, ReleasedOn: null, loadedByEmployee: '', ReleasedByEmployee: '', loadedByCustomer: false }];
+
+            reset({
+                ...storageData,
+                notes: storageData.notes || '',
+                rows: initialRows,
+                action: { description: '', price: '', quantity: '', actionDate: null }
             });
         }
-    }, [storageData, reset]);
+    }, [storageData, open, reset]);
 
     const handleAllEmploye = async () => {
         try {
@@ -119,7 +157,7 @@ const LoadingandUnloadingForm: React.FC<any> = ({ handler, storageData }) => {
         <>
             <button
                 type="button"
-                onClick={() => setOpen(true)}
+                onClick={handleOpen}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 transition-colors cursor-pointer"
             >
                 <MdOutlineSwapVert className="w-4 h-4" />

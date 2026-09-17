@@ -66,7 +66,7 @@ const FreeupStorage: React.FC<any> = ({ storage, handler }) => {
                 handler();
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message || "Something went wrong. Please try again.";
+            const errorMessage = typeof error.response?.data === 'string' ? error.response?.data : (error.response?.data?.message || "Something went wrong. Please try again.");
             notifyError(errorMessage);
         }
     };
@@ -77,11 +77,11 @@ const FreeupStorage: React.FC<any> = ({ storage, handler }) => {
             const response = await axios.post(`${apiPath}/api/storages-send`, data);
             if (response.status === 200) {
                 handleClose();
-                notify('Invoice sent successfully');
-                storageHandlers();
+                notify('Storage freed up successfully');
+                await storageHandlers();
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message || "Something went wrong. Please try again.";
+            const errorMessage = typeof error.response?.data === 'string' ? error.response?.data : (error.response?.data?.message || "Something went wrong. Please try again.");
             notifyError(errorMessage);
         } finally {
             setLoading(false);

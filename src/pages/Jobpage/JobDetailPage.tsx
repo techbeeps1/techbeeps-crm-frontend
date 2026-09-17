@@ -84,6 +84,20 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
     }
   };
 
+  const handleRefreshJobAndList = async () => {
+    if (selectedStaff?._id) {
+      try {
+        const response = await axios.get(`${apiPath}/api/jobs/${selectedStaff._id}`);
+        if (response.status === 200) {
+          setSelectedStaff(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to refresh selected job:', err);
+      }
+    }
+    handleAllJob();
+  };
+
   const openDeleteModal = () => {
     setDeleteModalOpen(true);
   };
@@ -641,7 +655,7 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
         /* Job Detail Drawer (Jobslider) Overlay */
         <div className="relative h-full w-full bg-white dark:bg-boxdark overflow-auto">
           <Jobslider
-            handler={handleAllJob}
+            handler={handleRefreshJobAndList}
             Ondelete={openDeleteModal}
             job={selectedStaff}
             onClose={() => setSelectedStaff(null)}

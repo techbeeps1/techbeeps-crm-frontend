@@ -16,6 +16,7 @@ import TouchAppOutlinedIcon from '@mui/icons-material/TouchAppOutlined';
 import { apiPath } from '../../../../apiPath';
 import { UserContext } from '../../../UserContext';
 import AddIcon from '@mui/icons-material/Add';
+import SaveIcon from '@mui/icons-material/Save';
 import { useCurrency, formatCurrency } from '../../../utils/currencyUtil';
 interface FinanceModuleProps {
   data?: any;
@@ -79,6 +80,13 @@ const STEPS = [
   { id: 'Storage', label: 'Storage loaded', type: 'Storage loaded', icon: <InventoryIcon /> },
   { id: 'appointment', label: 'After last appointment', type: 'After last appointment', icon: <EventAvailableIcon /> },
 ];
+
+const parseBtw = (val: any): string => {
+  if (val === undefined || val === null) return '21';
+  const s = String(val).replace('%', '').trim();
+  if (s === '' || s.toLowerCase() === 'vat') return '21';
+  return s;
+};
 
 const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) => {
   const { id: currentUserId } = (useContext(UserContext) as any) || {};
@@ -254,7 +262,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
             description: r.description || '',
             number: r.number ?? '',
             unitPrice: r.unitPrice ?? '',
-            btw: r.btw ?? '21',
+            btw: parseBtw(r.btw),
             enabled: r.enabled !== false,
             isCalculated: !!r.isCalculated,
           }))
@@ -359,6 +367,56 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
   };
 
   // Generate & Create Invoice via NewInvoice API
+  const [isSavingRules, setIsSavingRules] = useState<boolean>(false);
+
+  const handleSavePackageRules = async () => {
+    const packageId = data?._id || job?.package?._id;
+    if (!packageId) {
+      toast.error('No package ID found to update');
+      return;
+    }
+    setIsSavingRules(true);
+    try {
+      const updatedSection = {
+        ...(data?.[selectedForm] || {}),
+        financialTemplate: selectedTemplate || '',
+        discountDescription: discountDescription || '',
+        percentage: discountPercentage || 0,
+        rules: rules.map((r) => ({
+          salesGroup: r.salesGroup || '',
+          description: r.description || '',
+          number: r.number ?? '',
+          unitPrice: r.unitPrice ?? '',
+          btw: parseBtw(r.btw),
+          enabled: r.enabled !== false,
+          isCalculated: !!r.isCalculated,
+        })),
+      };
+
+      await axios.post(`${apiPath}/api/packages/${packageId}`, {
+        [selectedForm]: updatedSection,
+      });
+
+      // Update in-memory objects immediately so UI remains synchronized
+      if (data) {
+        data[selectedForm] = updatedSection;
+      }
+      if (job?.package) {
+        job.package[selectedForm] = updatedSection;
+      }
+
+      toast.success(`Rules for "${activeStepConfig?.label || selectedForm}" saved successfully!`);
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err: any) {
+      console.error('Error saving rules:', err);
+      toast.error(err.response?.data?.message || 'Failed to save rules');
+    } finally {
+      setIsSavingRules(false);
+    }
+  };
+
   const handleProcessWorkflowInvoice = async () => {
     if (!selectedForm) {
       toast.info('Please click and select a workflow stage card first.');
@@ -382,13 +440,26 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
           if (ignoreRules && item.evalQty === 0) return false;
           return true;
         })
-        .map((item) => ({
-          salesgroup: item.salesGroup,
-          description: item.description,
-          quantity: item.evalQty,
-          price: item.evalPrice,
-          btw: item.btw || '0',
-        }));
+        .map((item) => {
+          let sgId = item.salesGroup;
+          if (sgId && !/^[0-9a-fA-F]{24}$/.test(String(sgId))) {
+            const matched = (salesGroupList || []).find(
+              (sg) => sg.name?.trim()?.toLowerCase() === String(sgId)?.trim()?.toLowerCase()
+            );
+            if (matched) {
+              sgId = matched._id;
+            } else {
+              sgId = salesGroupList[0]?._id || undefined;
+            }
+          }
+          return {
+            salesgroup: sgId || salesGroupList[0]?._id || undefined,
+            description: item.description,
+            quantity: item.evalQty,
+            price: item.evalPrice,
+            btw: item.btw || '0',
+          };
+        });
 
       if (finalItems.length === 0) {
         finalItems = [
@@ -437,6 +508,15 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
         } catch (linkErr) {
           console.warn('Could not update job schedule:', linkErr);
         }
+      }
+
+      // Update in-memory job.invoice immediately so UI reflects without delay
+      if (job && response.data) {
+        const createdInvoice = {
+          ...response.data,
+          customer: job.customer,
+        };
+        job.invoice = [createdInvoice, ...(job.invoice || [])];
       }
 
       toast.success(`Invoice created for "${activeStepObj.label}" successfully!`, {
@@ -761,6 +841,17 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                   <AddCircleOutlineIcon fontSize="small" />
                   <span>Add Fixed Rule</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={handleSavePackageRules}
+                  disabled={isSavingRules || rules.length === 0}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Save current rules & BTW to the job package"
+                >
+                  <SaveIcon fontSize="small" />
+                  <span>{isSavingRules ? 'Saving...' : 'Save Rules'}</span>
+                </button>
               </div>
             </div>
 
@@ -770,13 +861,15 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                 <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
                   <thead className="bg-slate-100/80 dark:bg-slate-800 text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-strokedark">
                     <tr>
-                      <th className="py-3 px-3 w-1/6">Sales Group</th>
-                      <th className="py-3 px-3 w-1/4">Description</th>
-                      <th className="py-3 px-3 w-1/5">Quantity / Source</th>
-                      <th className="py-3 px-3 w-1/5">Unit Price / Rate</th>
-                      <th className="py-3 px-3 w-16">BTW</th>
-                      <th className="py-3 px-3 text-right">Subtotal</th>
-                      <th className="py-3 px-3 text-center w-20">Actions</th>
+                      <th className="py-3 px-3 min-w-[140px] w-1/6">Sales Group</th>
+                      <th className="py-3 px-3 min-w-[160px] w-1/4">Description</th>
+                      <th className="py-3 px-3 min-w-[140px] w-1/5">Quantity / Source</th>
+                      <th className="py-3 px-3 min-w-[140px] w-1/5">Unit Price / Rate</th>
+                      <th className="py-3 px-3 min-w-[125px] w-32 text-center font-extrabold uppercase text-slate-500 dark:text-slate-400">
+                        BTW
+                      </th>
+                      <th className="py-3 px-3 min-w-[100px] text-right">Subtotal</th>
+                      <th className="py-3 px-3 text-center min-w-[80px] w-20">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -884,15 +977,23 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                         </td>
 
                         {/* BTW */}
-                        <td className="p-2.5">
+                        <td className="p-2.5 min-w-[125px] w-32 text-center">
                           <select
-                            value={rule.btw}
+                            value={parseBtw(rule.btw)}
                             onChange={(e) => updateRuleField(idx, 'btw', e.target.value)}
-                            className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
+                            className="w-full min-w-[110px] h-9 py-1.5 pl-3 pr-7 rounded-xl border border-slate-300 dark:border-strokedark bg-white dark:bg-boxdark text-xs font-extrabold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary shadow-xs cursor-pointer appearance-auto"
+                            title="BTW Percentage"
                           >
-                            <option value="0">0%</option>
-                            <option value="9">9%</option>
                             <option value="21">21%</option>
+                            <option value="9">9%</option>
+                            <option value="0">0%</option>
+                            {rule.btw !== undefined &&
+                              rule.btw !== null &&
+                              !['0', '9', '21', ''].includes(String(rule.btw).replace('%', '').trim()) && (
+                                <option value={String(rule.btw).replace('%', '').trim()}>
+                                  {String(rule.btw).replace('%', '').trim()}%
+                                </option>
+                              )}
                           </select>
                         </td>
 
@@ -997,6 +1098,17 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
 
               {/* Action Buttons Row */}
               <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-strokedark">
+                <button
+                  type="button"
+                  onClick={handleSavePackageRules}
+                  disabled={isSavingRules}
+                  className="inline-flex items-center gap-1.5 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Save current rules & BTW to the job package"
+                >
+                  <SaveIcon fontSize="small" />
+                  <span>{isSavingRules ? 'Saving...' : 'Save Rules & BTW'}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleProcessWorkflowInvoice}

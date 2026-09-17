@@ -32,22 +32,27 @@ const LeadDetail = () => {
 
   const handleCustomer = async () => {
     try {
-      const response = await fetch(`${apiPath}/leads/lead/${id}`);
-      const data = await response.json();
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/leads/lead/${id}`, { headers });
 
-      if (data.success === true) {
-        setcustomerData(data.data);
+      if (response.data?.success === true) {
+        setcustomerData(response.data.data);
       } else {
+        toast.error(response.data?.message || 'Failed to fetch lead detail');
         navigate('/leads');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching lead detail:', error);
+      toast.error(error.response?.data?.message || error.response?.data?.msg || 'Error fetching lead detail');
       navigate('/leads');
     }
   };
 
   useEffect(() => {
-    handleCustomer();
+    if (id) {
+      handleCustomer();
+    }
   }, [id]);
 
   const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -58,7 +63,9 @@ const LeadDetail = () => {
 
   const deleteCustomer = async () => {
     try {
-      const response = await axios.delete(`${apiPath}/leads/lead/${id}`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.delete(`${apiPath}/leads/lead/${id}`, { headers });
       if (response.data.success) {
         toast.success('Lead deleted successfully!');
         setIsRemoveModalOpen(false);
@@ -67,8 +74,8 @@ const LeadDetail = () => {
         toast.error('Error deleting lead');
         console.error('Error deleting lead:', response.data.msg);
       }
-    } catch (error) {
-      toast.error('Error deleting lead');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.response?.data?.msg || 'Error deleting lead');
       console.error('Error deleting lead:', error);
     }
   };

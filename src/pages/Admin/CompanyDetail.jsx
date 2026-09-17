@@ -24,12 +24,28 @@ const CompanySettings = () => {
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingData, setPendingData] = useState(null);
+  const [countryList, setCountryList] = useState([]);
 
   const notify = (message) => toast.success(message);
   const notifyError = (message) =>
     toast.error(message, {
       autoClose: 2000,
     });
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(`${apiPath}/api/sale_group?type=country`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCountryList(data);
+        }
+      } catch (e) {
+        console.error('Failed to fetch countries:', e);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   useEffect(() => {
     const fetchCompanyDetails = async () => {
@@ -244,11 +260,29 @@ const CompanySettings = () => {
                 <MdPublic className="text-slate-400 text-sm" />
                 Country <span className="text-meta-1">*</span>
               </label>
-              <input
+              <select
                 {...register('companyCountry', { required: true })}
-                placeholder="e.g. India"
                 className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
-              />
+              >
+                <option value="">Select Country</option>
+                {countryList && countryList.length > 0 ? (
+                  countryList.map((c) => (
+                    <option key={c._id || c.name} value={c.name}>
+                      {c.name}{c.code ? ` (${c.code})` : ''}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="India">India (IN)</option>
+                    <option value="United States">United States (US)</option>
+                    <option value="United Kingdom">United Kingdom (UK)</option>
+                    <option value="Canada">Canada (CA)</option>
+                    <option value="Australia">Australia (AU)</option>
+                    <option value="Germany">Germany (DE)</option>
+                    <option value="United Arab Emirates">United Arab Emirates (UAE)</option>
+                  </>
+                )}
+              </select>
               {errors.companyCountry && (
                 <span className="text-meta-1 text-xs mt-1 block">Country is required</span>
               )}

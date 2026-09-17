@@ -147,21 +147,25 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                 maxWidth="md"
                 PaperProps={{
                     sx: {
-                        borderRadius: "16px",
+                        borderRadius: "20px",
                         boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                        maxHeight: "calc(100vh - 40px)",
+                        margin: "16px",
+                        display: "flex",
+                        flexDirection: "column",
                         overflow: "hidden",
                     },
                 }}
             >
-                <div className="bg-white flex flex-col">
+                <div className="bg-white flex flex-col max-h-[calc(100vh-40px)] overflow-hidden">
                     {/* Modal Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-slate-50/70 shrink-0">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs shrink-0">
                                 <MdWarehouse className="text-xl" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800">
+                                <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
                                     {data ? "Update Warehouse" : "Create New Warehouse"}
                                 </h3>
                                 <p className="text-xs text-slate-500">
@@ -172,19 +176,19 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                         <IconButton
                             onClick={handleCancel}
                             size="small"
-                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
+                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg shrink-0"
                         >
                             <CloseIcon fontSize="small" />
                         </IconButton>
                     </div>
 
-                    <DialogContent className="px-6 py-5">
+                    <DialogContent className="px-6 py-4 overflow-y-auto flex-1">
                         {loading && <Loader />}
 
-                        <form onSubmit={handleSubmit(onSubmit)} id="warehouse-form" className="space-y-5">
+                        <form onSubmit={handleSubmit(onSubmit)} id="warehouse-form" className="space-y-4">
                             {/* Warehouse Name */}
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                                     Warehouse Name <span className="text-rose-500">*</span>
                                 </label>
                                 <Controller
@@ -197,7 +201,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                             {...field}
                                             type="text"
                                             placeholder="e.g. Main Distribution Center"
-                                            className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                            className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                         />
                                     )}
                                 />
@@ -207,8 +211,8 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                             </div>
 
                             {/* Own Warehouse Segmented Button */}
-                            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                     Warehouse Ownership
                                 </label>
                                 <div className="grid grid-cols-2 gap-3">
@@ -220,7 +224,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                             <button
                                                 type="button"
                                                 onClick={() => field.onChange(true)}
-                                                className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border cursor-pointer ${
+                                                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-semibold text-sm transition-all border cursor-pointer ${
                                                     field.value
                                                         ? "bg-primary text-white border-primary shadow-xs"
                                                         : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100/70"
@@ -239,7 +243,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                             <button
                                                 type="button"
                                                 onClick={() => field.onChange(false)}
-                                                className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all border cursor-pointer ${
+                                                className={`flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-semibold text-sm transition-all border cursor-pointer ${
                                                     !field.value
                                                         ? "bg-primary text-white border-primary shadow-xs"
                                                         : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100/70"
@@ -254,18 +258,18 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                             </div>
 
                             {/* Address Section */}
-                            <div className="pt-2">
-                                <div className="flex items-center gap-2 mb-3">
+                            <div className="pt-1">
+                                <div className="flex items-center gap-2 mb-2.5">
                                     <MdLocationOn className="text-primary text-base" />
                                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
                                         Location & Address Details
                                     </h4>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {/* Postcode */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">
                                             Postcode <span className="text-rose-500">*</span>
                                         </label>
                                         <Controller
@@ -278,7 +282,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                                     {...field}
                                                     type="text"
                                                     placeholder="e.g. 1011 AB"
-                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                 />
                                             )}
                                         />
@@ -289,7 +293,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
 
                                     {/* House Number */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">
                                             House Number <span className="text-rose-500">*</span>
                                         </label>
                                         <Controller
@@ -302,7 +306,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                                     {...field}
                                                     type="text"
                                                     placeholder="e.g. 42"
-                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                 />
                                             )}
                                         />
@@ -313,7 +317,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
 
                                     {/* Addition */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">
                                             Addition (Optional)
                                         </label>
                                         <Controller
@@ -325,7 +329,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                                     {...field}
                                                     type="text"
                                                     placeholder="e.g. Suite B"
-                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                 />
                                             )}
                                         />
@@ -333,7 +337,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
 
                                     {/* Street */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">
                                             Street Name <span className="text-rose-500">*</span>
                                         </label>
                                         <Controller
@@ -346,7 +350,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                                     {...field}
                                                     type="text"
                                                     placeholder="e.g. Industrial Ave"
-                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                 />
                                             )}
                                         />
@@ -357,7 +361,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
 
                                     {/* City */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">
                                             City <span className="text-rose-500">*</span>
                                         </label>
                                         <Controller
@@ -370,7 +374,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                                     {...field}
                                                     type="text"
                                                     placeholder="e.g. Amsterdam"
-                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                 />
                                             )}
                                         />
@@ -381,7 +385,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
 
                                     {/* Country */}
                                     <div>
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">
                                             Country <span className="text-rose-500">*</span>
                                         </label>
                                         <Controller
@@ -392,7 +396,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                             render={({ field }) => (
                                                 <select
                                                     {...field}
-                                                    className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                    className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                 >
                                                     <option value="">Select Country</option>
                                                     {countries && countries.map((country: any) => (
@@ -413,19 +417,19 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                     </DialogContent>
 
                     {/* Actions Footer */}
-                    <div className="px-6 py-4.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end gap-3">
+                    <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-end gap-3 shrink-0">
                         <button
                             type="button"
                             onClick={handleCancel}
-                            className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
+                            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
                         >
                             Cancel
                         </button>
                         <button
-                            type="button"
-                            onClick={handleSubmit(onSubmit)}
+                            type="submit"
+                            form="warehouse-form"
                             disabled={loading}
-                            className="px-6 py-2.5 rounded-xl bg-primary hover:bg-opacity-90 text-white font-semibold text-sm shadow-sm shadow-primary/20 transition-all cursor-pointer"
+                            className="px-5 py-2 rounded-xl bg-primary hover:bg-opacity-90 text-white font-semibold text-sm shadow-sm shadow-primary/20 transition-all cursor-pointer disabled:opacity-50"
                         >
                             {data ? "Update Warehouse" : "Save Warehouse"}
                         </button>

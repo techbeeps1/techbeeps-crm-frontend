@@ -630,13 +630,83 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   };
 
+  const formatFriendlyDate = (dateVal: any) => {
+    if (!dateVal) return '';
+    try {
+      const d =
+        typeof dateVal === 'string' && !dateVal.includes('T')
+          ? new Date(`${dateVal}T00:00:00`)
+          : new Date(dateVal);
+      if (isNaN(d.getTime())) return String(dateVal);
+      return d.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return String(dateVal);
+    }
+  };
+
+  const formatFriendlyTime = (timeVal: any) => {
+    if (!timeVal) return '';
+    if (typeof timeVal === 'string' && /^\d{1,2}:\d{2}$/.test(timeVal)) {
+      return timeVal;
+    }
+    try {
+      const d = new Date(timeVal);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      }
+    } catch {}
+    return String(timeVal);
+  };
+
   const SendEmail = async (data: any, templateId: string) => {
     try {
+      const formattedDate = formatFriendlyDate(data?.date || selectedDate);
+      const start = formatFriendlyTime(data?.startTime);
+      const end = formatFriendlyTime(data?.endTime);
+
+      let timeDisplay = '';
+      let timeSentence = '';
+      if (start && end && start !== end) {
+        timeDisplay = `${start} - ${end}`;
+        timeSentence = `from ${start} to ${end}`;
+      } else if (start) {
+        timeDisplay = start;
+        timeSentence = `at ${start}`;
+      }
+
+      const appointmentType =
+        data?.appointmentType || planningType || 'appointment';
+      const dateWithTime = timeSentence
+        ? `${formattedDate} ${timeSentence}`
+        : formattedDate;
+
+      const subject = `Planning appointment booked for ${appointmentType} on ${dateWithTime} from techbeeps solution`;
+
+      const extraData = {
+        ...data,
+        date: formattedDate,
+        rawDate: data?.date,
+        formattedDate,
+        startTime: start,
+        endTime: end,
+        time: timeDisplay,
+        scheduledTime: timeDisplay,
+        appointmentTime: timeDisplay,
+        formattedTime: timeDisplay,
+      };
+
       const response = await axios.post(`${apiPath}/email/send_email`, {
         job: jobId,
         emailTemplateId: templateId,
-        extraData: data,
-        subject: `Planning appointment booked for ${data.appointmentType} on ${data.date} from techbeeps solution`,
+        extraData,
+        subject,
       });
       if (response.status === 200) {
         notify('Appointment confirmation email sent successfully');

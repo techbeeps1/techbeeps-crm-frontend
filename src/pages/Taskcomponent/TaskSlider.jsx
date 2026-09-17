@@ -500,9 +500,9 @@ const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
                                 <span className="text-slate-400">Name</span>
                                 <span className="font-bold text-slate-800 dark:text-slate-200 capitalize">{customerFullName}</span>
                             </div>
-                            <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                                <span className="text-slate-400">Email</span>
-                                <span className="font-semibold text-slate-800 dark:text-slate-200">{task.customer.email || 'N/A'}</span>
+                            <div className="flex justify-between items-start gap-2 py-1 border-b border-slate-100 dark:border-slate-800">
+                                <span className="text-slate-400 shrink-0">Email</span>
+                                <span className="font-semibold text-slate-800 dark:text-slate-200 break-all text-right">{task.customer.email || 'N/A'}</span>
                             </div>
                             <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
                                 <span className="text-slate-400">Phone</span>

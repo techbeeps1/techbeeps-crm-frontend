@@ -27,6 +27,7 @@ interface JobOffermoduleProps {
   job: any;
   type: 'offer' | 'invoice' | string;
   onRefresh?: () => void;
+  refreshKey?: number;
 }
 
 const avatarColors = [
@@ -44,11 +45,53 @@ const getAvatarBg = (index: number) => avatarColors[index % avatarColors.length]
 const getInitials = (first?: string, last?: string, fallback?: string) => {
   if (first && last) return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   if (first) return first.slice(0, 2).toUpperCase();
-  if (fallback) return String(fallback).slice(0, 2).toUpperCase();
+  if (last) return last.slice(0, 2).toUpperCase();
+  if (fallback && fallback !== 'Customer') {
+    const parts = fallback.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+    }
+    return fallback.slice(0, 2).toUpperCase();
+  }
   return 'CU';
 };
 
-const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh }) => {
+export const getResolvedCustomer = (item: any, job: any) => {
+  // 1. Check if item.customer is a populated object with name fields
+  if (item?.customer && typeof item.customer === 'object') {
+    const fn = (item.customer.firstName || '').trim();
+    const ln = (item.customer.lastName || '').trim();
+    if (fn || ln) {
+      return { ...item.customer, firstName: fn, lastName: ln, fullName: `${fn} ${ln}`.trim() };
+    }
+    if (item.customer.name) {
+      return { ...item.customer, firstName: item.customer.name, lastName: '', fullName: item.customer.name };
+    }
+  }
+
+  // 2. Fall back to job.customer if populated object with name fields
+  if (job?.customer && typeof job.customer === 'object') {
+    const fn = (job.customer.firstName || '').trim();
+    const ln = (job.customer.lastName || '').trim();
+    if (fn || ln) {
+      return { ...job.customer, firstName: fn, lastName: ln, fullName: `${fn} ${ln}`.trim() };
+    }
+    if (job.customer.name) {
+      return { ...job.customer, firstName: job.customer.name, lastName: '', fullName: job.customer.name };
+    }
+  }
+
+  // 3. Check customerName string fields on item or job
+  const fallbackStr = item?.customerName || job?.customerName || '';
+  if (fallbackStr) {
+    const parts = fallbackStr.trim().split(/\s+/);
+    return { firstName: parts[0] || fallbackStr, lastName: parts.slice(1).join(' ') || '', fullName: fallbackStr };
+  }
+
+  return { firstName: '', lastName: '', fullName: '' };
+};
+
+const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh, refreshKey }) => {
   const [offerData, setOfferData] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,12 +109,41 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh })
 
   useEffect(() => {
     if (type === 'offer') {
-      setOfferData(job?.offer || []);
+      setOfferData(job?.offer ? [...job.offer] : []);
     }
     if (type === 'invoice') {
-      setOfferData(job?.invoice || []);
+      setOfferData(job?.invoice ? [...job.invoice] : []);
     }
-  }, [job, type]);
+  }, [job, job?.invoice, job?.offer, type]);
+
+  // Refetch invoices from API whenever refreshKey changes (after a new invoice is created)
+  useEffect(() => {
+    if (type !== 'invoice' || !refreshKey || !job?._id) return;
+    const fetchFreshInvoices = async () => {
+      try {
+        const customerId =
+          typeof job.customer === 'object' ? job.customer?._id : job.customer;
+        const res = await axios.get(
+          `${apiPath}/invoice/invoiceList${customerId ? `?customer=${customerId}` : ''}`
+        );
+        const allInvoices: any[] = res.data?.invoiceData || [];
+        // Filter to invoices belonging to this job
+        const jobInvoices = allInvoices.filter((inv: any) => {
+          const invJob = typeof inv.job === 'object' ? inv.job?._id : inv.job;
+          return invJob === job._id || String(invJob) === String(job._id);
+        });
+        const freshList = jobInvoices.length > 0 ? jobInvoices : allInvoices;
+        setOfferData(freshList);
+        // Also sync back to the job object so other components stay consistent
+        if (job) job.invoice = freshList;
+      } catch (err) {
+        console.error('Failed to refetch invoices after creation:', err);
+        // Fallback: just use job.invoice if API fails
+        setOfferData(job?.invoice ? [...job.invoice] : []);
+      }
+    };
+    fetchFreshInvoices();
+  }, [refreshKey]);
 
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
@@ -99,9 +171,9 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh })
     if (!offerData || !Array.isArray(offerData)) return [];
     return offerData.filter((item) => {
       const num = String(item?.index || item?.invoiceNumber || item?._id || '').toLowerCase();
-      const customerName = `${item?.customer?.firstName || job?.customer?.firstName || ''} ${item?.customer?.lastName || job?.customer?.lastName || ''
-        }`.toLowerCase();
-      const email = (item?.customer?.email || job?.customer?.email || '').toLowerCase();
+      const resolvedCust = getResolvedCustomer(item, job);
+      const customerName = (resolvedCust.fullName || '').toLowerCase();
+      const email = (resolvedCust.email || item?.customer?.email || job?.customer?.email || '').toLowerCase();
       const status = (item?.Status || item?.status || '').toLowerCase();
       const total = String(item?.total ?? '').toLowerCase();
       const query = searchTerm.toLowerCase().trim();
@@ -125,10 +197,10 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh })
       let bVal = b[sortConfig.key];
 
       if (sortConfig.key === 'customer') {
-        aVal = `${a?.customer?.firstName || job?.customer?.firstName || ''} ${a?.customer?.lastName || job?.customer?.lastName || ''
-          }`;
-        bVal = `${b?.customer?.firstName || job?.customer?.firstName || ''} ${b?.customer?.lastName || job?.customer?.lastName || ''
-          }`;
+        const custA = getResolvedCustomer(a, job);
+        const custB = getResolvedCustomer(b, job);
+        aVal = custA.fullName || '';
+        bVal = custB.fullName || '';
       }
 
       if (sortConfig.key === 'index') {
@@ -283,11 +355,11 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh })
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {paginatedData.length > 0 ? (
               paginatedData.map((item, index) => {
-                const customerObj = item?.customer || job?.customer || {};
-                const firstName = customerObj.firstName || 'Customer';
-                const lastName = customerObj.lastName || '';
-                const fullName = `${firstName} ${lastName}`.trim();
-                const initials = getInitials(firstName, lastName, item?.index);
+                const customerObj = getResolvedCustomer(item, job);
+                const firstName = customerObj.firstName;
+                const lastName = customerObj.lastName;
+                const fullName = customerObj.fullName || 'Customer';
+                const initials = getInitials(firstName, lastName, fullName);
                 const avatarBg = getAvatarBg(index);
                 const formattedDate = formatDate(item?.createdAt || item?.date);
                 const amount = item?.total !== undefined ? Number(item.total).toFixed(2) : '0.00';

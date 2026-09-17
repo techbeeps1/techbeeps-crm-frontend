@@ -22,7 +22,9 @@ import {
     MdCalendarToday,
     MdAttachMoney,
     MdSpeed,
-    MdRoute
+    MdRoute,
+    MdVisibility,
+    MdVisibilityOff
 } from 'react-icons/md';
 
 const avatarColors = [
@@ -58,24 +60,44 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
     const [tabIndex, setTabIndex] = useState<number>(0);
     const [license, setLicense] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [showViewPin, setShowViewPin] = useState<boolean>(false);
 
     const notify = (message: string) => toast.success(message);
     const notifyError = (message: string) => toast.error(message, {
         autoClose: 2000,
     });
 
-    const handleAllData = async () => {
+    const handleAllData = async (selectedIdToKeep?: string) => {
         setLoading(true);
         try {
             const response = await axios.get(`${apiPath}/api/vehicles`);
-            setData(response["data"] || []);
-            setSelectedStaff(null);
+            const vehicles = response["data"] || [];
+            setData(vehicles);
+            if (selectedIdToKeep) {
+                const found = vehicles.find((v: any) => v._id === selectedIdToKeep);
+                if (found) setSelectedStaff(found);
+            } else if (selectedStaff) {
+                const found = vehicles.find((v: any) => v._id === selectedStaff._id);
+                if (found) setSelectedStaff(found);
+            }
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || "Something went wrong. Please try again.";
             notifyError(errorMessage);
             setError(errorMessage);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSelectVehicle = async (item: any) => {
+        setSelectedStaff(item);
+        try {
+            const res = await axios.get(`${apiPath}/api/vehicles/${item._id}`);
+            if (res.data) {
+                setSelectedStaff(res.data);
+            }
+        } catch (err) {
+            console.error("Error fetching vehicle details:", err);
         }
     };
 
@@ -213,7 +235,7 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
                                         return (
                                             <tr
                                                 key={item._id || index}
-                                                onClick={() => setSelectedStaff(item)}
+                                                onClick={() => handleSelectVehicle(item)}
                                                 className={`group transition-all duration-150 cursor-pointer ${
                                                     isSelected
                                                         ? 'bg-primary/5 border-l-4 border-l-primary'
@@ -361,9 +383,26 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
 
                                     {/* Specifications Card */}
                                     <div className="bg-slate-50/70 rounded-xl border border-slate-200/80 p-4 space-y-3">
-                                        <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider border-b border-slate-200/60 pb-2">
-                                            <MdInfoOutline className="text-primary text-base" />
-                                            <span>Vehicle Specifications</span>
+                                        <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                                            <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                                                <MdInfoOutline className="text-primary text-base" />
+                                                <span>Vehicle Specifications</span>
+                                            </div>
+                                            {/* Prominent Classification Badge */}
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                                                selectedStaff?.vehicleType === 'truck'
+                                                    ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                    : selectedStaff?.vehicleType === 'movingLift'
+                                                    ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                            }`}>
+                                                {selectedStaff?.vehicleType === 'truck' && <MdLocalShipping className="text-sm" />}
+                                                {selectedStaff?.vehicleType === 'movingLift' && <MdElevator className="text-sm" />}
+                                                {(!selectedStaff?.vehicleType || selectedStaff?.vehicleType === 'vehicle') && <MdDirectionsCar className="text-sm" />}
+                                                <span>
+                                                    {selectedStaff?.vehicleType === 'truck' ? 'Freight Truck' : selectedStaff?.vehicleType === 'movingLift' ? 'Moving Lift' : 'Passenger / Van'}
+                                                </span>
+                                            </span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3 text-xs">
                                             <div>
@@ -397,19 +436,73 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
                                                 </span>
                                             </div>
                                             <div>
-                                                <span className="text-slate-400 block font-medium mb-0.5">Tow Bar</span>
+                                                <span className="text-slate-400 block font-medium mb-0.5">Tow Bar Attached?</span>
                                                 <span className={`font-bold text-xs px-2 py-0.5 rounded inline-block ${
                                                     selectedStaff?.isTowBar ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
                                                 }`}>
                                                     {selectedStaff?.isTowBar ? 'YES' : 'NO'}
                                                 </span>
                                             </div>
-                                            <div>
-                                                <span className="text-slate-400 block font-medium mb-0.5">Cargo Capacity</span>
-                                                <span className="font-bold text-slate-800">
-                                                    {selectedStaff?.vehicleType === 'movingLift' ? `${selectedStaff?.floors} Floors` : `${selectedStaff?.contents || 0} m³`}
-                                                </span>
-                                            </div>
+
+                                            {/* Draw Weight visible when isTowBar is YES */}
+                                            {selectedStaff?.isTowBar && (
+                                                <div>
+                                                    <span className="text-slate-400 block font-medium mb-0.5">Draw Weight (kg)</span>
+                                                    <span className="font-bold text-slate-800 font-mono">
+                                                        {selectedStaff?.drawWeight ? `${selectedStaff.drawWeight} kg` : '—'}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* Classification-Specific Fields */}
+                                            {selectedStaff?.vehicleType === 'movingLift' && (
+                                                <>
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Max Floors</span>
+                                                        <span className="font-bold text-slate-800">
+                                                            {selectedStaff?.floors ? `${selectedStaff.floors} Floors` : '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Lift / Ladder Length</span>
+                                                        <span className="font-bold text-slate-800">
+                                                            {selectedStaff?.length ? `${selectedStaff.length} m` : '—'}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {selectedStaff?.vehicleType === 'truck' && (
+                                                <>
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Cargo Capacity / Contents</span>
+                                                        <span className="font-bold text-slate-800">
+                                                            {selectedStaff?.contents || '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Tail Lift Length</span>
+                                                        <span className="font-bold text-slate-800">
+                                                            {selectedStaff?.tailLiftLength ? `${selectedStaff.tailLiftLength} m` : '—'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Cargo Dimensions (L × W × H)</span>
+                                                        <span className="font-bold text-slate-800">
+                                                            {selectedStaff?.length || 0}m × {selectedStaff?.width || 0}m × {selectedStaff?.height || 0}m
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {(!selectedStaff?.vehicleType || selectedStaff?.vehicleType === 'vehicle') && (
+                                                <div>
+                                                    <span className="text-slate-400 block font-medium mb-0.5">Passenger / Cargo Capacity</span>
+                                                    <span className="font-bold text-slate-800">
+                                                        {selectedStaff?.contents || '—'}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -488,7 +581,21 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
                                             </div>
                                             <div>
                                                 <span className="text-slate-400 block font-medium mb-0.5">PIN</span>
-                                                <span className="font-bold text-slate-800 font-mono">••••</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-slate-800 font-mono">
+                                                        {showViewPin ? (selectedStaff?.fuelCard?.pincode || '—') : '••••'}
+                                                    </span>
+                                                    {selectedStaff?.fuelCard?.pincode && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowViewPin(!showViewPin)}
+                                                            className="text-slate-400 hover:text-slate-600 focus:outline-none p-0.5 rounded cursor-pointer"
+                                                            title={showViewPin ? "Hide PIN" : "Show PIN"}
+                                                        >
+                                                            {showViewPin ? <MdVisibilityOff className="text-sm" /> : <MdVisibility className="text-sm" />}
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

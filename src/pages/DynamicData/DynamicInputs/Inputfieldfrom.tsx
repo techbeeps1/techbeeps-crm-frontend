@@ -196,9 +196,9 @@ const Inputfieldfrom: React.FC<InputfieldFormProps> = ({
                 onClick={() =>
                   append({ label: '', name: '', type: 'text', required: false })
                 }
-                className="flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 transition-colors cursor-pointer"
               >
-                <MdAdd className="text-base" />
+                <MdAdd className="text-base shrink-0" />
                 <span>Add Another Field</span>
               </button>
             </div>

@@ -17,7 +17,10 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
 
   const [loading, setLoading] = useState(false);
 
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    reset();
+    setOpen(false);
+  };
 
   const notify = (message) =>
     toast.success(message, {
@@ -83,12 +86,14 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         `${apiPath}/leads/leads`,
         { ...e, type: type },
         {
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         },
       );
@@ -97,7 +102,7 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
         handler();
         reset();
         setLoading(false);
-        notify('Customer added successfully');
+        notify(type === 'leads' ? 'Lead added successfully' : 'Customer added successfully');
       }
     } catch (error) {
       console.log(error);

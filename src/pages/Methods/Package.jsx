@@ -180,7 +180,9 @@ const Packages = () => {
                     <td
                       onClick={() => {
                         setPackageData(item);
-                        item.priceAgree ? setEdittwo(true) : setEditone(true);
+                        item.priceAgree || (item.type_job && item.type_job !== 'Manual/No job')
+                          ? setEdittwo(true)
+                          : setEditone(true);
                       }}
                       className="py-3.5 px-5 font-bold text-black dark:text-white cursor-pointer hover:text-primary transition-colors flex items-center gap-2.5"
                     >
@@ -210,7 +212,9 @@ const Packages = () => {
                           type="button"
                           onClick={() => {
                             setPackageData(item);
-                            item.priceAgree ? setEdittwo(true) : setEditone(true);
+                            item.priceAgree || (item.type_job && item.type_job !== 'Manual/No job')
+                              ? setEdittwo(true)
+                              : setEditone(true);
                           }}
                           className="p-2 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
                           title="Edit Package"

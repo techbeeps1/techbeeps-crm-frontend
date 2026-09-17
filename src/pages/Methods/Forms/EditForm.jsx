@@ -24,80 +24,131 @@ const EditForm = ({ register, errors, type, watch, setValue, data }) => {
 
   useEffect(() => {
     if (data) {
-      setValue(`${type}_discountDescription`, data.discountDescription || '');
-      setValue(`${type}_percentage`, data.percentage || '');
-      if (data.rules) {
-        setRules(data.rules);
-        data.rules.forEach((rule, index) => {
-          setValue(`${type}rules[${index}].description`, rule.description);
-          setValue(`${type}rules[${index}].number`, rule.number);
-          setValue(`${type}rules[${index}].unitPrice`, rule.unitPrice);
-          setValue(`${type}rules[${index}].btw`, rule.btw);
-          setValue(`${type}rules[${index}].salesGroup`, rule.salesGroup);
+      const sectionData =
+        data._doc ||
+        (typeof data.toObject === 'function' ? data.toObject() : data);
+
+      setValue(
+        `${type}_discountDescription`,
+        sectionData.discountDescription || ''
+      );
+      setValue(`${type}_percentage`, sectionData.percentage || '');
+
+      if (
+        sectionData.financialTemplate ||
+        (sectionData.rules && sectionData.rules.length > 0) ||
+        sectionData.discountDescription ||
+        sectionData.percentage
+      ) {
+        setShowConfirmation(true);
+      }
+
+      if (sectionData.financialTemplate) {
+        setSelectedTemplate(sectionData.financialTemplate);
+        setValue(`${type}_financialTemplate`, sectionData.financialTemplate);
+      }
+
+      if (sectionData.rules && Array.isArray(sectionData.rules)) {
+        const normalizedRules = sectionData.rules.map((rule) => {
+          const rawSg =
+            rule.salesGroup?._id ||
+            rule.salesGroup ||
+            rule.salesgroup?._id ||
+            rule.salesgroup ||
+            '';
+          return {
+            ...rule,
+            salesGroup: rawSg,
+            isCalculated:
+              rule.isCalculated === true || rule.isCalculated === 'true',
+            enabled:
+              rule.enabled === true ||
+              rule.enabled === 'true' ||
+              rule.enabled === undefined,
+          };
+        });
+        setRules(normalizedRules);
+        normalizedRules.forEach((rule, index) => {
+          setValue(`${type}rules[${index}].description`, rule.description || '');
+          setValue(`${type}rules[${index}].number`, rule.number || '');
+          setValue(`${type}rules[${index}].unitPrice`, rule.unitPrice || '');
+          setValue(
+            `${type}rules[${index}].btw`,
+            rule.btw !== undefined && rule.btw !== null ? String(rule.btw) : '21'
+          );
+          setValue(`${type}rules[${index}].salesGroup`, rule.salesGroup || '');
           setValue(`${type}rules[${index}].enabled`, rule.enabled);
           setValue(`${type}rules[${index}].isCalculated`, rule.isCalculated);
         });
       }
-      if (data.financialTemplate) {
-        setShowConfirmation(true);
-      }
     }
-  }, [data, setValue, type, salesgroup]);
+  }, [data, setValue, type]);
 
   const addFixedRule = (isCalculated) => {
+    const isCalc = isCalculated === true;
     const newRule = {
       salesGroup: '',
       description: '',
       number: '',
       unitPrice: '',
-      btw: '',
+      btw: '21',
       enabled: true,
-      isCalculated: isCalculated,
+      isCalculated: isCalc,
     };
-    setRules((prevRules) => [...prevRules, newRule]);
+    const nextRules = [...rules, newRule];
+    setRules(nextRules);
     const newIndex = rules.length;
     setValue(`${type}rules[${newIndex}].description`, '');
     setValue(`${type}rules[${newIndex}].number`, '');
     setValue(`${type}rules[${newIndex}].unitPrice`, '');
-    setValue(`${type}rules[${newIndex}].btw`, '');
+    setValue(`${type}rules[${newIndex}].btw`, '21');
     setValue(`${type}rules[${newIndex}].salesGroup`, '');
-    setValue(`${type}rules[${newIndex}].enabled`, false);
+    setValue(`${type}rules[${newIndex}].enabled`, true);
+    setValue(`${type}rules[${newIndex}].isCalculated`, isCalc);
   };
 
   const deleteRule = (index) => {
     const updatedRules = rules.filter((_, i) => i !== index);
     setRules(updatedRules);
 
-    for (let i = index; i < updatedRules.length; i++) {
+    updatedRules.forEach((r, i) => {
       setValue(
         `${type}rules[${i}].description`,
-        watch(`${type}rules[${i + 1}].description`)
+        watch(`${type}rules[${i >= index ? i + 1 : i}].description`) ||
+          r.description ||
+          ''
       );
       setValue(
         `${type}rules[${i}].number`,
-        watch(`${type}rules[${i + 1}].number`)
+        watch(`${type}rules[${i >= index ? i + 1 : i}].number`) ||
+          r.number ||
+          ''
       );
       setValue(
         `${type}rules[${i}].unitPrice`,
-        watch(`${type}rules[${i + 1}].unitPrice`)
+        watch(`${type}rules[${i >= index ? i + 1 : i}].unitPrice`) ||
+          r.unitPrice ||
+          ''
       );
       setValue(
         `${type}rules[${i}].btw`,
-        watch(`${type}rules[${i + 1}].btw`)
+        watch(`${type}rules[${i >= index ? i + 1 : i}].btw`) || r.btw || '21'
       );
-      setValue(
-        `${type}rules[${i}].salesGroup`,
-        watch(`${type}rules[${i + 1}].salesGroup`)
-      );
+      const prevSalesGroup =
+        watch(`${type}rules[${i >= index ? i + 1 : i}].salesGroup`) ||
+        r.salesGroup?._id ||
+        r.salesGroup ||
+        r.salesgroup?._id ||
+        r.salesgroup ||
+        '';
+      setValue(`${type}rules[${i}].salesGroup`, prevSalesGroup);
       setValue(
         `${type}rules[${i}].enabled`,
-        watch(`${type}rules[${i + 1}].enabled`)
+        watch(`${type}rules[${i >= index ? i + 1 : i}].enabled`) ?? r.enabled
       );
-      setValue(
-        `${type}rules[${i}].isCalculated`,
-        watch(`${type}rules[${i + 1}].isCalculated`)
-      );
-    }
+      setValue(`${type}rules[${i}].isCalculated`, r.isCalculated);
+    });
+
     const lastIndex = updatedRules.length;
     setValue(`${type}rules[${lastIndex}].description`, '');
     setValue(`${type}rules[${lastIndex}].number`, '');
@@ -105,11 +156,7 @@ const EditForm = ({ register, errors, type, watch, setValue, data }) => {
     setValue(`${type}rules[${lastIndex}].btw`, '');
     setValue(`${type}rules[${lastIndex}].salesGroup`, '');
     setValue(`${type}rules[${lastIndex}].enabled`, false);
-  };
-
-  const handleTemplateChange = (e) => {
-    const selectedValue = e.target.value;
-    setSelectedTemplate(selectedValue);
+    setValue(`${type}rules[${lastIndex}].isCalculated`, false);
   };
 
   const handletemplate = async () => {
@@ -118,18 +165,34 @@ const EditForm = ({ register, errors, type, watch, setValue, data }) => {
         `${apiPath}/api/templates?type=${type === 'offers' ? 'quote' : 'invoice'}`
       );
       setTemplate(response.data || []);
-      setValue(`${type}_financialTemplate`, data?.financialTemplate || '');
+      const currentFinancialTemplate = data?.financialTemplate;
+      if (currentFinancialTemplate) {
+        setValue(`${type}_financialTemplate`, currentFinancialTemplate);
+        setSelectedTemplate(currentFinancialTemplate);
+      }
     } catch (error) {
       console.error('Error fetching template:', error.message);
     }
   };
 
   const handleAllinputs = async () => {
+    if (!selectedTemplate) {
+      setInputFields([]);
+      return;
+    }
     try {
       const response = await axios.get(
         `${apiPath}/api/input?inputFor=Template&name=${selectedTemplate}`
       );
-      setInputFields(response.data[0]?.extraFields || []);
+      const fields = response.data[0]?.extraFields || [];
+      setInputFields(fields);
+      if (data) {
+        fields.forEach((f) => {
+          if (data[f.name] !== undefined) {
+            setValue(`${type}_${f.name}`, data[f.name]);
+          }
+        });
+      }
     } catch (err) {
       console.error(err);
     }
@@ -138,7 +201,28 @@ const EditForm = ({ register, errors, type, watch, setValue, data }) => {
   const handlesalesgroup = async () => {
     try {
       const response = await axios.get(`${apiPath}/api/sale_group?type=salesGroup`);
-      setSales(response.data || []);
+      const list = response.data || [];
+      setSales(list);
+      const sectionData =
+        data?._doc ||
+        (typeof data?.toObject === 'function' ? data.toObject() : data);
+      if (sectionData?.rules && Array.isArray(sectionData.rules)) {
+        sectionData.rules.forEach((rule, index) => {
+          const rawGroup =
+            rule.salesGroup?._id ||
+            rule.salesGroup ||
+            rule.salesgroup?._id ||
+            rule.salesgroup ||
+            '';
+          if (rawGroup) {
+            const matched = list.find(
+              (g) => g._id === rawGroup || g.name === rawGroup
+            );
+            const resolvedId = matched ? matched._id : rawGroup;
+            setValue(`${type}rules[${index}].salesGroup`, resolvedId);
+          }
+        });
+      }
     } catch (error) {
       console.error('Error fetching sales group:', error.message);
     }
@@ -153,7 +237,10 @@ const EditForm = ({ register, errors, type, watch, setValue, data }) => {
   useEffect(() => {
     handletemplate();
     handlesalesgroup();
-  }, [setValue, data, type]);
+  }, [data, type]);
+
+  const currentTemplateVal =
+    watch(`${type}_financialTemplate`) || selectedTemplate || data?.financialTemplate || '';
 
   return (
     <div className="space-y-6">
@@ -204,7 +291,12 @@ const EditForm = ({ register, errors, type, watch, setValue, data }) => {
               </label>
               <select
                 {...register(`${type}_financialTemplate`)}
-                onChange={handleTemplateChange}
+                value={currentTemplateVal}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setValue(`${type}_financialTemplate`, val);
+                  setSelectedTemplate(val);
+                }}
                 className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
               >
                 <option value="">Select Financial Template</option>
@@ -302,150 +394,168 @@ const EditForm = ({ register, errors, type, watch, setValue, data }) => {
                       </td>
                     </tr>
                   ) : (
-                    rules.map((rule, index) => (
-                      <tr
-                        key={index}
-                        className="hover:bg-gray-2/30 dark:hover:bg-meta-4/20 transition-colors"
-                      >
-                        {/* Sales Group */}
-                        <td className="py-3 px-4 align-top">
-                          <select
-                            className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
-                            {...register(`${type}rules[${index}].salesGroup`)}
-                          >
-                            <option value="">Select Group</option>
-                            {salesgroup &&
-                              salesgroup.map((item, i) => (
-                                <option key={i} value={item._id}>
-                                  {item.name}
-                                </option>
-                              ))}
-                          </select>
-                        </td>
-
-                        {/* Description */}
-                        <td className="py-3 px-4 align-top">
-                          <textarea
-                            rows={2}
-                            {...register(`${type}rules[${index}].description`)}
-                            className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium resize-none"
-                            placeholder="Description"
-                          />
-                        </td>
-
-                        {/* Quantity */}
-                        <td className="py-3 px-4 align-top">
-                          {rule.isCalculated ? (
+                    rules.map((rule, index) => {
+                      const isCalc =
+                        rule.isCalculated === true ||
+                        rule.isCalculated === 'true';
+                      const formSalesGroup = watch(`${type}rules[${index}].salesGroup`);
+                      const rawSalesGroup =
+                        formSalesGroup !== undefined && formSalesGroup !== null && formSalesGroup !== ''
+                          ? formSalesGroup
+                          : (rule.salesGroup?._id || rule.salesGroup || rule.salesgroup?._id || rule.salesgroup || '');
+                      const matchedGroup = salesgroup.find(
+                        (g) => g._id === rawSalesGroup || g.name === rawSalesGroup
+                      );
+                      const currentSalesGroup = matchedGroup ? matchedGroup._id : (rawSalesGroup || '');
+                      return (
+                        <tr
+                          key={index}
+                          className="hover:bg-gray-2/30 dark:hover:bg-meta-4/20 transition-colors"
+                        >
+                          {/* Sales Group */}
+                          <td className="py-3 px-4 align-top">
                             <select
-                              {...register(`${type}rules[${index}].number`)}
                               className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                              {...register(`${type}rules[${index}].salesGroup`)}
+                              value={currentSalesGroup}
+                              onChange={(e) => {
+                                setValue(`${type}rules[${index}].salesGroup`, e.target.value);
+                              }}
                             >
-                              <option value="">Select Quantity Metric</option>
-                              <option value="{{relocation_totalVolume}}">Total Volume (m³)</option>
-                              <option value="{{relocation_movers}}">Movers Count</option>
-                              <option value="{{relocation_requiredHours}}">Required Hours</option>
-                              <option value="{{relocation_totalBoxes}}">Box Quantity</option>
-                              <option value="{{relocation_travelTime}}">Travel Time</option>
-                              <option value="{{relocation_distance}}">Distance (km)</option>
-                              <option value="{{movingLift_quantity}}">Moving Lift Count</option>
-                              <option value="{{assembling_requiredHours}}">Assembling Hours</option>
-                              <option value="{{disassembling_requiredHours}}">Dismantle Hours</option>
-                              <option value="{{total_handyman}}">Handyman Count</option>
-                              <option value="{{packing_requiredHours}}">Packing Hours</option>
-                              <option value="{{packing_requiredPackers}}">Packers Count</option>
-                              <option value="{{unpacking_requiredHours}}">Unpacking Hours</option>
-                              <option value="{{unpacking_requiredPackers}}">Unpackers Count</option>
-                              <option value="{{certificate_quantity}}">Warranty Certificate</option>
-                              <option value="{{insurance_quantity}}">Insurance Coverage</option>
-                              <option value="{{storage_storageVolume}}">Storage Volume</option>
+                              <option value="">Select Group</option>
+                              {salesgroup &&
+                                salesgroup.map((item, i) => (
+                                  <option key={i} value={item._id}>
+                                    {item.name}
+                                  </option>
+                                ))}
                             </select>
-                          ) : (
-                            <input
-                              {...register(`${type}rules[${index}].number`)}
-                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
-                              placeholder="Number"
-                              type="number"
+                          </td>
+
+                          {/* Description */}
+                          <td className="py-3 px-4 align-top">
+                            <textarea
+                              rows={2}
+                              {...register(`${type}rules[${index}].description`)}
+                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium resize-none"
+                              placeholder="Description"
                             />
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Unit Price */}
-                        <td className="py-3 px-4 align-top">
-                          {rule.isCalculated ? (
-                            <select
-                              {...register(`${type}rules[${index}].unitPrice`)}
-                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
-                            >
-                              <option value="">Select Price Rate Component</option>
-                              <option value="{{relocation_pricePerMeterCubic}}">Volume Rate ({currencySymbol}/m³)</option>
-                              <option value="{{moverPrice}}">Mover Hourly Rate</option>
-                              <option value="{{relocation_pricePerMeterCubic}}">Hours</option>
-                              <option value="{{boxCharges}}">Box Charge Rate</option>
-                              <option value="{{relocation_pricePerHour}}">Hourly Transport Rate</option>
-                              <option value="{{relocation_pricePerKilometer}}">Distance Rate ({currencySymbol}/km)</option>
-                              <option value="{{movingLift_price}}">Moving Lift Rate</option>
-                              <option value="{{assembling_appliedPrice}}">Assembling Hourly Rate</option>
-                              <option value="{{disassembling_appliedPrice}}">Dismantle Hourly Rate</option>
-                              <option value="{{handymanCharge}}">Handyman Rate</option>
-                              <option value="{{packing_appliedPrice}}">Packing Hourly Rate</option>
-                              <option value="{{packersCharge}}">Packers Rate</option>
-                              <option value="{{unpacking_appliedPrice}}">Unpacking Hourly Rate</option>
-                              <option value="{{packerCharge}}">Unpacker Rate</option>
-                              <option value="{{certificate_price}}">Certificate Price</option>
-                              <option value="{{insurance_price}}">Insurance Premium</option>
-                              <option value="{{storage_appliedPrice}}">Storage Rate</option>
-                            </select>
-                          ) : (
-                            <input
-                              {...register(`${type}rules[${index}].unitPrice`)}
-                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
-                              placeholder="Unit Price"
-                              type="number"
-                            />
-                          )}
-                        </td>
-
-                        {/* BTW */}
-                        <td className="py-3 px-4 align-top">
-                          <select
-                            className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2 outline-none focus:border-primary text-xs font-medium"
-                            {...register(`${type}rules[${index}].btw`)}
-                          >
-                            <option value="">VAT</option>
-                            <option value="0">0%</option>
-                            <option value="9">9%</option>
-                            <option value="21">21%</option>
-                          </select>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3 px-4 text-center align-top">
-                          <div className="flex items-center justify-center gap-2 pt-1">
-                            <label className="flex items-center cursor-pointer">
+                          {/* Quantity */}
+                          <td className="py-3 px-4 align-top">
+                            {isCalc ? (
+                              <select
+                                {...register(`${type}rules[${index}].number`)}
+                                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                              >
+                                <option value="">Select Quantity Metric</option>
+                                <option value="{{relocation_totalVolume}}">Total Volume (m³)</option>
+                                <option value="{{relocation_movers}}">Movers Count</option>
+                                <option value="{{relocation_requiredHours}}">Required Hours</option>
+                                <option value="{{relocation_totalBoxes}}">Box Quantity</option>
+                                <option value="{{relocation_travelTime}}">Travel Time</option>
+                                <option value="{{relocation_distance}}">Distance (km)</option>
+                                <option value="{{movingLift_quantity}}">Moving Lift Count</option>
+                                <option value="{{assembling_requiredHours}}">Assembling Hours</option>
+                                <option value="{{disassembling_requiredHours}}">Dismantle Hours</option>
+                                <option value="{{total_handyman}}">Handyman Count</option>
+                                <option value="{{packing_requiredHours}}">Packing Hours</option>
+                                <option value="{{packing_requiredPackers}}">Packers Count</option>
+                                <option value="{{unpacking_requiredHours}}">Unpacking Hours</option>
+                                <option value="{{unpacking_requiredPackers}}">Unpackers Count</option>
+                                <option value="{{certificate_quantity}}">Warranty Certificate</option>
+                                <option value="{{insurance_quantity}}">Insurance Coverage</option>
+                                <option value="{{storage_storageVolume}}">Storage Volume</option>
+                              </select>
+                            ) : (
                               <input
-                                type="checkbox"
-                                {...register(`${type}rules[${index}].enabled`)}
-                                defaultChecked
-                                className="w-4 h-4 rounded text-primary focus:ring-primary border-stroke cursor-pointer"
+                                {...register(`${type}rules[${index}].number`)}
+                                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                                placeholder="Number"
+                                type="number"
                               />
-                            </label>
-                            <input
-                              type="hidden"
-                              {...register(`${type}rules[${index}].isCalculated`)}
-                              value={rule.isCalculated}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => deleteRule(index)}
-                              className="p-1.5 text-slate-400 hover:text-meta-1 hover:bg-meta-1/10 rounded-lg transition-colors cursor-pointer"
-                              title="Delete Rule"
+                            )}
+                          </td>
+
+                          {/* Unit Price */}
+                          <td className="py-3 px-4 align-top">
+                            {isCalc ? (
+                              <select
+                                {...register(`${type}rules[${index}].unitPrice`)}
+                                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                              >
+                                <option value="">Select Price Rate Component</option>
+                                <option value="{{relocation_pricePerMeterCubic}}">Volume Rate ({currencySymbol}/m³)</option>
+                                <option value="{{moverPrice}}">Mover Hourly Rate</option>
+                                <option value="{{relocation_pricePerMeterCubic}}">Hours</option>
+                                <option value="{{boxCharges}}">Box Charge Rate</option>
+                                <option value="{{relocation_pricePerHour}}">Hourly Transport Rate</option>
+                                <option value="{{relocation_pricePerKilometer}}">Distance Rate ({currencySymbol}/km)</option>
+                                <option value="{{movingLift_price}}">Moving Lift Rate</option>
+                                <option value="{{assembling_appliedPrice}}">Assembling Hourly Rate</option>
+                                <option value="{{disassembling_appliedPrice}}">Dismantle Hourly Rate</option>
+                                <option value="{{handymanCharge}}">Handyman Rate</option>
+                                <option value="{{packing_appliedPrice}}">Packing Hourly Rate</option>
+                                <option value="{{packersCharge}}">Packers Rate</option>
+                                <option value="{{unpacking_appliedPrice}}">Unpacking Hourly Rate</option>
+                                <option value="{{packerCharge}}">Unpacker Rate</option>
+                                <option value="{{certificate_price}}">Certificate Price</option>
+                                <option value="{{insurance_price}}">Insurance Premium</option>
+                                <option value="{{storage_appliedPrice}}">Storage Rate</option>
+                              </select>
+                            ) : (
+                              <input
+                                {...register(`${type}rules[${index}].unitPrice`)}
+                                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2.5 outline-none focus:border-primary text-xs font-medium"
+                                placeholder="Unit Price"
+                                type="number"
+                              />
+                            )}
+                          </td>
+
+                          {/* BTW */}
+                          <td className="py-3 px-4 align-top">
+                            <select
+                              className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2 px-2 outline-none focus:border-primary text-xs font-medium"
+                              {...register(`${type}rules[${index}].btw`)}
                             >
-                              <MdDeleteOutline className="text-base" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                              <option value="">VAT</option>
+                              <option value="0">0%</option>
+                              <option value="9">9%</option>
+                              <option value="21">21%</option>
+                            </select>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3 px-4 text-center align-top">
+                            <div className="flex items-center justify-center gap-2 pt-1">
+                              <label className="flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  {...register(`${type}rules[${index}].enabled`)}
+                                  defaultChecked={rule.enabled}
+                                  className="w-4 h-4 rounded text-primary focus:ring-primary border-stroke cursor-pointer"
+                                />
+                              </label>
+                              <input
+                                type="hidden"
+                                {...register(`${type}rules[${index}].isCalculated`)}
+                                value={isCalc ? 'true' : 'false'}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => deleteRule(index)}
+                                className="p-1.5 text-slate-400 hover:text-meta-1 hover:bg-meta-1/10 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Rule"
+                              >
+                                <MdDeleteOutline className="text-base" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

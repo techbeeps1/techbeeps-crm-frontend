@@ -125,12 +125,14 @@ const ConvertAsCustomer = ({ handler, setOpen, open, type = 'Lead', customerData
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         `${apiPath}/leads/convert-as-customer`,
         { ...e, type: type },
         {
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         },
       );

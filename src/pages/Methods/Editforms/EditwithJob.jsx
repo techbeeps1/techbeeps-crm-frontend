@@ -52,8 +52,8 @@ const EditwithJob = ({ open, onClose, data }) => {
   function formatApiData(formData) {
     const formattedData = {
       name: formData.name,
-      ignoreRules: formData.ignoreRules,
-      vat: formData.vat,
+      ignoreRules: !!formData.ignoreRules,
+      vat: formData.vat || vatSelected,
       type_job: formData.type_job,
       priceAgree: priceAgree,
     };
@@ -73,7 +73,23 @@ const EditwithJob = ({ open, onClose, data }) => {
         }
       });
       if (formData[`${section}rules`]) {
-        formattedData[section].rules = formData[`${section}rules`];
+        formattedData[section].rules = formData[`${section}rules`]
+          .filter(Boolean)
+          .map((r) => ({
+            ...r,
+            salesGroup:
+              r.salesGroup?._id ||
+              r.salesGroup ||
+              r.salesgroup?._id ||
+              r.salesgroup ||
+              '',
+            isCalculated:
+              r.isCalculated === true || r.isCalculated === 'true',
+            enabled:
+              r.enabled === true ||
+              r.enabled === 'true' ||
+              r.enabled === undefined,
+          }));
       }
     });
     updatePackage(formattedData);
@@ -99,12 +115,13 @@ const EditwithJob = ({ open, onClose, data }) => {
   };
 
   function reverseApiData(formattedData) {
+    if (!formattedData) return {};
     const res = {
-      name: formattedData.name,
-      ignoreRules: formattedData.ignoreRules,
-      type_job: formattedData.type_job,
-      priceAgree: formattedData.priceAgree,
-      vat: formattedData.vat,
+      name: formattedData.name || '',
+      ignoreRules: !!formattedData.ignoreRules,
+      type_job: formattedData.type_job || 'relocation',
+      priceAgree: formattedData.priceAgree || 'fixed_price',
+      vat: formattedData.vat || 'exclusive',
     };
 
     const sections = [
@@ -115,14 +132,32 @@ const EditwithJob = ({ open, onClose, data }) => {
       'appointment',
     ];
     sections.forEach((section) => {
-      if (formattedData[section]) {
-        Object.keys(formattedData[section]).forEach((key) => {
-          if (key !== 'rules') {
-            res[`${section}_${key}`] = formattedData[section][key];
+      const sec = formattedData[section];
+      if (sec) {
+        const secObj =
+          sec._doc ||
+          (typeof sec.toObject === 'function' ? sec.toObject() : sec);
+        Object.keys(secObj).forEach((key) => {
+          if (key !== 'rules' && key !== '_id') {
+            res[`${section}_${key}`] = secObj[key];
           }
         });
-        if (formattedData[section].rules) {
-          res[`${section}rules`] = formattedData[section].rules;
+        if (secObj.rules && Array.isArray(secObj.rules)) {
+          res[`${section}rules`] = secObj.rules.map((r) => ({
+            ...r,
+            salesGroup:
+              r.salesGroup?._id ||
+              r.salesGroup ||
+              r.salesgroup?._id ||
+              r.salesgroup ||
+              '',
+            isCalculated:
+              r.isCalculated === true || r.isCalculated === 'true',
+            enabled:
+              r.enabled === true ||
+              r.enabled === 'true' ||
+              r.enabled === undefined,
+          }));
         }
       }
     });

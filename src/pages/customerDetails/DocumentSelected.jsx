@@ -19,6 +19,9 @@ const formatDate = (dateStr) => {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024; // 10 MB in bytes
+
 const formatSize = (bytes) => {
   if (!bytes) return '';
   if (bytes < 1024) return bytes + ' B';
@@ -102,22 +105,42 @@ const DocumentSelected = ({ id, isEmployee = '', email = '' }) => {
     }
   };
 
+  const validateAndSetFile = (selectedFile) => {
+    if (!selectedFile) return false;
+
+    if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
+      notifyError(`File size exceeds maximum limit of ${MAX_FILE_SIZE_MB} MB (${formatSize(selectedFile.size)}). Please choose a file up to ${MAX_FILE_SIZE_MB} MB.`);
+      setFile(null);
+      const fileInput = document.getElementById('dtFileInput');
+      if (fileInput) fileInput.value = '';
+      return false;
+    }
+
+    setFile(selectedFile);
+    setUploadFormData((prev) => ({
+      ...prev,
+      filename: prev.filename || selectedFile.name,
+      mimetype: selectedFile.type,
+    }));
+    return true;
+  };
+
   const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
   const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); };
   const handleDrop = (e) => {
-    e.preventDefault(); e.stopPropagation(); setDragActive(false);
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
-      setFile(droppedFile);
-      setUploadFormData((prev) => ({ ...prev, filename: droppedFile.name, mimetype: droppedFile.type }));
+      validateAndSetFile(droppedFile);
     }
   };
 
   const handleFileSelect = (event) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
-      setFile(selectedFile);
-      setUploadFormData({ ...uploadFormData, filename: selectedFile.name, mimetype: selectedFile.type });
+      validateAndSetFile(selectedFile);
     }
   };
 
@@ -128,12 +151,20 @@ const DocumentSelected = ({ id, isEmployee = '', email = '' }) => {
 
   const handleUpload = async (e) => {
     if (uploadStarted) return;
-    setUploadStarted(true);
     e.preventDefault();
-    if (!file) { notifyError('No file selected'); setUploadStarted(false); return; }
+    if (!file) {
+      notifyError('No file selected. Please choose a file to upload.');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      notifyError(`File size exceeds the maximum allowed limit of ${MAX_FILE_SIZE_MB} MB (${formatSize(file.size)}).`);
+      return;
+    }
+
+    setUploadStarted(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('fileName', uploadFormData.filename);
+    formData.append('fileName', uploadFormData.filename || file.name);
     formData.append('customer', id || '');
     formData.append('documentType', uploadFormData.documentType);
     formData.append('email', email || '');
@@ -145,11 +176,14 @@ const DocumentSelected = ({ id, isEmployee = '', email = '' }) => {
           setUploadProgress(pct);
         },
       });
-      notifySuccess('Document uploaded!');
+      notifySuccess('Document uploaded successfully!');
       closeDialog();
       fetchDocumentList();
     } catch (error) {
-      notifyError('Upload failed');
+      console.error(error);
+      const errMsg = error.response?.data?.msg || error.response?.data?.message || 'Upload failed. Please try again.';
+      notifyError(errMsg);
+    } finally {
       setUploadStarted(false);
     }
   };
@@ -266,8 +300,33 @@ const DocumentSelected = ({ id, isEmployee = '', email = '' }) => {
         .dt-drop-icon { font-size:32px; margin-bottom:8px; }
         .dt-drop-text { font-size:13px; color:#64748b; font-weight:500; }
         .dt-drop-sub { font-size:12px; color:#94a3b8; margin-top:3px; }
+        .dt-drop-limit {
+          margin-top: 10px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 12px;
+          background: rgba(99,102,241,0.08);
+          border: 1px solid rgba(99,102,241,0.22);
+          border-radius: 999px;
+          font-size: 11.5px;
+          color: #4f46e5;
+          font-weight: 500;
+        }
+        .dt-drop-limit strong {
+          font-weight: 700;
+          color: #3730a3;
+        }
 
         .dt-file-ok { display:flex; align-items:center; gap:8px; padding:9px 12px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:9px; font-size:13px; color:#10b981; font-weight:500; }
+        .dt-file-size-pill {
+          font-size: 11px;
+          font-weight: 600;
+          padding: 2px 8px;
+          border-radius: 6px;
+          background: rgba(16,185,129,0.12);
+          color: #047857;
+        }
         .dt-input-grp { display:flex; flex-direction:column; gap:5px; }
         .dt-label { font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; }
         .dt-input { padding:9px 13px; border-radius:9px; border:1.5px solid #e2e8f0; font-size:13px; color:#1e293b; outline:none; font-family:inherit; transition:border-color 0.15s; }
@@ -394,16 +453,30 @@ const DocumentSelected = ({ id, isEmployee = '', email = '' }) => {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                <input type="file" id="dtFileInput" style={{ display: 'none' }} onChange={handleFileSelect} />
+                <input
+                  type="file"
+                  id="dtFileInput"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.svg,.zip,.rar"
+                />
                 <div className="dt-drop-icon">☁️</div>
                 <div className="dt-drop-text">Drag &amp; Drop your file here</div>
                 <div className="dt-drop-sub">or click to browse from your device</div>
+                <div className="dt-drop-limit">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                  <span>Maximum file size: <strong>{MAX_FILE_SIZE_MB} MB</strong></span>
+                </div>
               </div>
               {file && (
                 <div className="dt-file-ok">
                   <span>✅</span>
-                  <span style={{ flex: 1 }}>{file.name}</span>
-                  <span style={{ color: '#64748b', fontSize: '11px' }}>{formatSize(file.size)}</span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                  <span className="dt-file-size-pill">
+                    {formatSize(file.size)} / {MAX_FILE_SIZE_MB} MB
+                  </span>
                 </div>
               )}
               <div className="dt-input-grp">

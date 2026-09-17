@@ -139,7 +139,7 @@ const FeaturePage: React.FC = () => {
       </div>
 
       {/* Right Content Viewport */}
-      <div className="flex-1 p-5 sm:p-7 md:p-8 overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto min-w-0">
         {renderContent()}
       </div>
     </div>

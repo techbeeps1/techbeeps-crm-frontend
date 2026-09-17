@@ -293,19 +293,31 @@ const NewInvoice = () => {
             [];
 
         if (Array.isArray(pkgRules) && pkgRules.length > 0) {
-            const formattedItems = pkgRules.map((rule) => ({
-                salesgroup:
-                    rule.salesGroup ||
-                    rule.salesgroup ||
-                    (salesGroupList[0]?._id || ''),
-                description: rule.description || '',
-                quantity:
-                    Number(rule.number) ||
-                    (isNaN(Number(rule.number)) ? 1 : Number(rule.number)) ||
-                    1,
-                btw: rule.btw !== undefined ? String(rule.btw) : '21',
-                price: Number(rule.unitPrice) || Number(rule.price) || 0,
-            }));
+            const formattedItems = pkgRules.map((rule) => {
+                const rawSg = rule.salesGroup || rule.salesgroup || '';
+                let matchedId = '';
+                if (rawSg) {
+                    const matched = (salesGroupList || []).find(
+                        (sg) =>
+                            sg._id === rawSg ||
+                            sg.name?.trim()?.toLowerCase() === String(rawSg)?.trim()?.toLowerCase()
+                    );
+                    matchedId = matched?._id || (/^[0-9a-fA-F]{24}$/.test(rawSg) ? rawSg : (salesGroupList[0]?._id || ''));
+                } else {
+                    matchedId = salesGroupList[0]?._id || '';
+                }
+
+                return {
+                    salesgroup: matchedId,
+                    description: rule.description || '',
+                    quantity:
+                        Number(rule.number) ||
+                        (isNaN(Number(rule.number)) ? 1 : Number(rule.number)) ||
+                        1,
+                    btw: rule.btw !== undefined ? String(rule.btw) : '21',
+                    price: Number(rule.unitPrice) || Number(rule.price) || 0,
+                };
+            });
             replace(formattedItems);
         }
 
@@ -376,6 +388,28 @@ const NewInvoice = () => {
         setIsSubmitting(true);
         try {
             let finalData = restructureData(formData);
+
+            // Clean & ensure items salesgroup is valid ID
+            if (Array.isArray(finalData.items)) {
+                finalData.items = finalData.items.map((item) => {
+                    let sgId = item.salesgroup;
+                    if (sgId && !/^[0-9a-fA-F]{24}$/.test(String(sgId))) {
+                        const matched = (salesGroupList || []).find(
+                            (sg) => sg.name?.trim()?.toLowerCase() === String(sgId)?.trim()?.toLowerCase()
+                        );
+                        if (matched) {
+                            sgId = matched._id;
+                        } else {
+                            sgId = salesGroupList[0]?._id || undefined;
+                        }
+                    }
+                    return {
+                        ...item,
+                        salesgroup: sgId || salesGroupList[0]?._id || undefined,
+                    };
+                });
+            }
+
             finalData = {
                 ...finalData,
                 btw: taxTotal.toFixed(2),
@@ -867,7 +901,7 @@ const NewInvoice = () => {
                                                      >
                                                          <option value="">Select Group</option>
                                                          {salesGroupList.map((sg) => (
-                                                             <option key={sg._id || sg.name} value={sg.name}>
+                                                             <option key={sg._id || sg.name} value={sg._id}>
                                                                  {sg.name}
                                                              </option>
                                                          ))}

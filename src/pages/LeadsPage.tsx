@@ -12,8 +12,11 @@ const LeadsPage = () => {
   async function fetchCustomers() {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.get(
         `${apiPath}/leads/leadList`,
+        { headers }
       );
       setCustomersList(response.data.leads);
     } catch (error) {

@@ -18,7 +18,9 @@ import {
     MdBuild, 
     MdBadge, 
     MdArrowForward, 
-    MdArrowBack 
+    MdArrowBack,
+    MdVisibility,
+    MdVisibilityOff
 } from 'react-icons/md';
 
 const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
@@ -27,6 +29,9 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
     const [open, setOpen] = useState(false);
     const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [showPin, setShowPin] = useState(false);
+
+    const todayStr = new Date().toISOString().split('T')[0];
 
     const notify = (message: string) => toast.success(message);
     const notifyError = (message: string) => toast.error(message, {
@@ -34,18 +39,22 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
     });
 
     useEffect(() => {
-        if (data) {
+        if (data && open) {
             reset(data);
             const formatDateForInput = (dateString: any) => {
                 if (!dateString) return '';
                 const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '';
                 return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             };
             setValue('purchasingDate', formatDateForInput(data?.purchasingDate));
             setValue('maintenance.nextInspection', formatDateForInput(data?.maintenance?.nextInspection));
             setValue('maintenance.maintenanceRequired', formatDateForInput(data?.maintenance?.maintenanceRequired));
+        } else if (!data && open) {
+            reset({});
+            setActiveStep(0);
         }
-    }, [reset, data, setValue]);
+    }, [reset, data, open, setValue]);
 
     const isTowBar = watch('isTowBar');
     const vehicleType = watch('vehicleType');
@@ -80,19 +89,22 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
             path = `${path}/${data?._id}`;
         }
         try {
+            const token = localStorage.getItem('token');
             const response = await axios.post(path, formData, {
                 headers: {
                     "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
             });
             if (response.status === 201 || response.status === 200) {
                 notify("Vehicle saved successfully!");
-                handler();
+                const savedId = response.data?._id || data?._id;
+                if (handler) handler(savedId);
                 setOpen(false);
                 setActiveStep(0);
                 reset();
             } else {
-                notifyError(response.data.message);
+                notifyError(response.data?.message || "Failed to save vehicle");
             }
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || "Something went wrong. Please try again.";
@@ -427,14 +439,19 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
                                                 name="purchasingDate"
                                                 control={control}
                                                 defaultValue=""
+                                                rules={{
+                                                    validate: (val) => !val || val <= todayStr || "Purchase date cannot be in the future",
+                                                }}
                                                 render={({ field }) => (
                                                     <input
                                                         {...field}
                                                         type="date"
+                                                        max={todayStr}
                                                         className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                     />
                                                 )}
                                             />
+                                            {errors.purchasingDate && <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.purchasingDate.message)}</p>}
                                         </div>
                                     </div>
 
@@ -808,14 +825,21 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
                                                 name="maintenance.nextInspection"
                                                 control={control}
                                                 defaultValue=""
+                                                rules={{
+                                                    validate: (val) => !val || val >= todayStr || "Next inspection must be today or a future date",
+                                                }}
                                                 render={({ field }) => (
                                                     <input
                                                         {...field}
                                                         type="date"
+                                                        min={todayStr}
                                                         className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                     />
                                                 )}
                                             />
+                                            {(errors?.maintenance as any)?.nextInspection && (
+                                                <p className="text-rose-500 text-xs mt-1 font-medium">{String((errors?.maintenance as any)?.nextInspection?.message)}</p>
+                                            )}
                                         </div>
 
                                         <div>
@@ -826,14 +850,21 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
                                                 name="maintenance.maintenanceRequired"
                                                 control={control}
                                                 defaultValue=""
+                                                rules={{
+                                                    validate: (val) => !val || val >= todayStr || "Maintenance date must be today or a future date",
+                                                }}
                                                 render={({ field }) => (
                                                     <input
                                                         {...field}
                                                         type="date"
+                                                        min={todayStr}
                                                         className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                                                     />
                                                 )}
                                             />
+                                            {(errors?.maintenance as any)?.maintenanceRequired && (
+                                                <p className="text-rose-500 text-xs mt-1 font-medium">{String((errors?.maintenance as any)?.maintenanceRequired?.message)}</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -935,13 +966,23 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
                                                     },
                                                 }}
                                                 render={({ field }) => (
-                                                    <input
-                                                        {...field}
-                                                        type="password"
-                                                        placeholder="••••"
-                                                        maxLength={6}
-                                                        className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            {...field}
+                                                            type={showPin ? "text" : "password"}
+                                                            placeholder="••••"
+                                                            maxLength={6}
+                                                            className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowPin(!showPin)}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1 cursor-pointer"
+                                                            title={showPin ? "Hide PIN" : "Show PIN"}
+                                                        >
+                                                            {showPin ? <MdVisibilityOff className="text-base" /> : <MdVisibility className="text-base" />}
+                                                        </button>
+                                                    </div>
                                                 )}
                                             />
                                             {(errors?.fuelCard as any)?.pincode && (

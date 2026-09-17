@@ -1,15 +1,22 @@
-
+import React, { useState, useEffect } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { useState } from 'react';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import Loader from '../../common/Loader';
-
+import { resolveLogoUrl, fetchCompanyLogo } from '../../utils/logoUtil';
+import {
+  MdEmail,
+  MdLock,
+  MdVisibility,
+  MdVisibilityOff,
+  MdArrowBack,
+  MdCheckCircle,
+  MdVpnKey,
+  MdClose
+} from 'react-icons/md';
 
 interface ResetPasswordFormInputs {
   email: string;
-  old_password: string;
   new_password: string;
   confirm_newPassword: string;
 }
@@ -19,7 +26,6 @@ interface ResetPasswordProps {
 }
 
 const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
-
   const [newpasswordVisible, setnewPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [showOtpPopup, setShowOtpPopup] = useState(false);
@@ -27,11 +33,8 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
   const [otp, setOtp] = useState('');
   const [userData, setUserdata] = useState<any>({});
   const [loading, setLoading] = useState<boolean>(false);
-
-  const notify = (message: string) => toast(message);
-  const notifyError = (message: string) => toast.error(message, {
-    autoClose: 2000,
-  });
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [companyName, setCompanyName] = useState<string>('Techbeeps CRM');
 
   const {
     register,
@@ -40,289 +43,308 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
     formState: { errors },
   } = useForm<ResetPasswordFormInputs>();
 
-  const new_password = watch("new_password");
+  const new_password = watch('new_password');
 
+  useEffect(() => {
+    const loadBrand = async () => {
+      const logo = await fetchCompanyLogo();
+      if (logo) setLogoUrl(logo);
+      try {
+        const res = await fetch(`${apiPath}/api/company-details`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.companyName) setCompanyName(data.companyName);
+          if (data?.logoUrl) setLogoUrl(resolveLogoUrl(data.logoUrl));
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    loadBrand();
+  }, []);
 
   const handleVerifyOTP = async () => {
+    if (!otp.trim()) {
+      setErrorMessage('Please enter the verification code.');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await axios.post(`${apiPath}/user/reset_password`, { email: userData.email, otp, newPassword: userData.newPassword }, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.status == 200) {
-
-         notify('Passward reset Successfully')
-         setErrorMessage('');
-         setShowOtpPopup(false);
+      const response = await axios.post(
+        `${apiPath}/user/reset_password`,
+        { email: userData.email, otp, newPassword: userData.newPassword },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      if (response.status === 200) {
+        toast.success('Password reset successfully! You can now sign in.');
+        setErrorMessage('');
+        setShowOtpPopup(false);
+        setTimeout(() => {
+          handler();
+        }, 300);
       }
     } catch (error: any) {
-      notifyError(`${error.response?.data?.msg ?? 'Failed to verify OTP.'}`);
-      setErrorMessage(error.response?.data?.msg || 'Failed to verify OTP.');
-    }finally{
+      const msg = error.response?.data?.msg || 'Failed to verify OTP.';
+      toast.error(msg);
+      setErrorMessage(msg);
+    } finally {
       setLoading(false);
     }
   };
 
   const onSubmit: SubmitHandler<ResetPasswordFormInputs> = async (data) => {
-
     if (data.new_password !== data.confirm_newPassword) {
-      notifyError("Passwords do not match");
+      toast.error('Passwords do not match');
       return;
     }
 
-    if(data.email.trim() === ''){
-      notifyError("Email is required");
+    if (!data.email || !/^\S+@\S+$/i.test(data.email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
-    if(data.email && !/^\S+@\S+$/i.test(data.email)){
-      notifyError("Please enter a valid email address");
+
+    if (data.new_password.length < 6 || data.new_password.length > 30) {
+      toast.error('Password must be between 6 and 30 characters long');
       return;
     }
-    if(data.email.length > 55){
-      notifyError("Email must be less than 55 characters");
-      return;
-    }
-      if (data.new_password.length < 6 || data.new_password.length > 12) {
-      notifyError("Password must be between 6 and 12 characters long");
-      return;
-    }
+
     setLoading(true);
     const finalData = {
       email: data.email,
       newPassword: data.confirm_newPassword,
     };
     try {
-      const response = await axios.post(`${apiPath}/email/send-otp`, { email: data.email }, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await axios.post(
+        `${apiPath}/email/send-otp`,
+        { email: data.email },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
       if (response.status === 200) {
-        setUserdata(finalData)
+        setUserdata(finalData);
         setShowOtpPopup(true);
         setOtp('');
-        notify('OTP Send to your email address')
+        toast.success('Verification OTP code sent to your email.');
       }
     } catch (error: any) {
-      notifyError(`Failed to send otp.${error?.message}`);
+      toast.error(error?.response?.data?.msg || `Failed to send OTP: ${error?.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-
-  const togglenewPasswordVisibility = () => {
-    setnewPasswordVisible(!newpasswordVisible);
-  };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setConfirmPasswordVisible(!confirmPasswordVisible);
-  };
-
   return (
-    <>
-      {loading && <Loader />}
-      <div className="w-full border-stroke dark:border-strokedark xl:w-1/2 xl:border-l-2">
-        <div className="w-full p-4 sm:p-12.5 xl:p-17.5">
-          <span className="mb-1.5 block font-medium">Forget Password ?</span>
-          <h2 className="mb-9 text-2xl font-bold text-black dark:text-white sm:text-title-xl2">
-            Reset Password to CRM
-          </h2>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="mb-4">
-              <label className="mb-2.5 block font-medium text-black dark:text-white">
-                Email
-              </label>
-              <div className="relative">
-                <input
-                  {...register("email", {
-                    required: "Email is required",
-                    pattern: {
-                      value: /^\S+@\S+$/i,
-                      message: "Please enter a valid email address",
-                    },
-                  })}
-                  type="email"
-                  placeholder="Enter your email"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-                )}
-              </div>
-            </div>
-
-
-            <div className="mb-4">
-              <label className="mb-2.5 block font-medium text-black dark:text-white">
-                New Password
-              </label>
-              <div className="relative">
-                <input
-                  {...register("new_password", { required: "New Password is required" })}
-                  type={newpasswordVisible ? "text" : "password"}
-                  placeholder="Enter your password"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                />
-                <span
-                  className="absolute right-4 top-4 cursor-pointer"
-                  onClick={togglenewPasswordVisibility}
-                >
-                  {newpasswordVisible ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      width="22"
-                      height="22"
-                    >
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-.59 1.687-1.601 3.178-2.875 4.25M15 12a3 3 0 11-6 0 3 3 0 016 0zm-3 7v-1m0-4v-1"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      width="22"
-                      height="22"
-                    >
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 5c-4.477 0-8.268 2.943-9.542 7C3.732 16.057 7.523 19 12 19c4.477 0 8.268-2.943 9.542-7C20.268 7.943 16.477 5 12 5z"
-                      />
-                    </svg>
-                  )}
-                </span>
-                {errors.new_password && (
-                  <p className="text-red-500 text-sm mt-1">{errors.new_password.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="mb-2.5 block font-medium text-black dark:text-white">
-                Re-type New Password
-              </label>
-              <div className="relative">
-                <input
-                  {...register("confirm_newPassword", {
-                    required: "Please confirm your password",
-                    validate: (value) =>
-                      value === new_password || "Passwords do not match",
-                  })}
-                  type={confirmPasswordVisible ? "text" : "password"}
-                  placeholder="Re-enter your password"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                />
-                <span
-                  className="absolute right-4 top-4 cursor-pointer"
-                  onClick={toggleConfirmPasswordVisibility}
-                >
-                  {confirmPasswordVisible ? (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      width="22"
-                      height="22"
-                    >
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-.59 1.687-1.601 3.178-2.875 4.25M15 12a3 3 0 11-6 0 3 3 0 016 0zm-3 7v-1m0-4v-1"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      width="22"
-                      height="22"
-                    >
-                      <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 5c-4.477 0-8.268 2.943-9.542 7C3.732 16.057 7.523 19 12 19c4.477 0 8.268-2.943 9.542-7C20.268 7.943 16.477 5 12 5z"
-                      />
-                    </svg>
-                  )}
-                </span>
-                {errors.confirm_newPassword && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.confirm_newPassword.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-primary py-4 px-10 text-center font-medium text-white hover:bg-opacity-90 lg:px-8 xl:px-10"
-            >
-              Reset Password
-            </button>
-
-            <p className="mt-6 text-center">
-              Already have an account?{" "}
-              <a onClick={() => handler()} className="text-primary">
-                Sign In
-              </a>
-            </p>
-          </form>
-        </div>
-        {showOtpPopup && <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-1/3">
-            <h2 className="text-xl font-bold mb-4">Verify Your Email</h2>
-            <p className="mb-4">Please enter the OTP sent to your email <strong>{userData.email}</strong>.</p>
-
-            <input
-              type="text"
-              value={otp}
-              onChange={(e) =>{ setErrorMessage(''); setOtp(e.target.value)}}
-              placeholder="Enter OTP"
-              className="w-full mb-4 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+    <div className="w-full max-w-md mx-auto space-y-7 animate-in fade-in duration-300">
+      {/* Top Header */}
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-3 mb-2">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={companyName}
+              className="max-h-14 max-w-[220px] object-contain"
+              onError={() => setLogoUrl('')}
             />
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <div className="w-11 h-11 rounded-2xl bg-primary text-white flex items-center justify-center text-xl font-black shadow-md shadow-primary/30">
+                {companyName.charAt(0)}
+              </div>
+              <span className="font-extrabold text-2xl tracking-tight text-black dark:text-white">
+                {companyName}
+              </span>
+            </div>
+          )}
+        </div>
 
-            {errorMessage && <p className="text-red-500 text-sm mb-4">{errorMessage}</p>}
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-black dark:text-white tracking-tight">
+          Reset password
+        </h2>
+        <p className="text-xs sm:text-sm text-body dark:text-bodydark font-medium">
+          Enter your registered email and choose a new password
+        </p>
+      </div>
 
-            <div className="flex justify-end">
-              <button onClick={() => handleVerifyOTP()}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Email */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+            <MdEmail className="text-primary text-sm" />
+            <span>Email Address</span>
+          </label>
+          <input
+            {...register('email', {
+              required: 'Email is required',
+              pattern: {
+                value: /^\S+@\S+$/i,
+                message: 'Please enter a valid email address',
+              },
+            })}
+            type="email"
+            placeholder="name@company.com"
+            className="w-full bg-gray-2/50 dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-3 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium transition-all"
+          />
+          {errors.email && (
+            <p className="text-meta-1 text-xs mt-1.5 font-medium">{errors.email.message}</p>
+          )}
+        </div>
+
+        {/* New Password */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+            <MdLock className="text-primary text-sm" />
+            <span>New Password</span>
+          </label>
+          <div className="relative">
+            <input
+              {...register('new_password', {
+                required: 'New Password is required',
+                minLength: { value: 6, message: 'Minimum 6 characters required' },
+              })}
+              type={newpasswordVisible ? 'text' : 'password'}
+              placeholder="••••••••••••"
+              className="w-full bg-gray-2/50 dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-3 pl-4 pr-11 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium transition-all"
+            />
+            <button
+              type="button"
+              onClick={() => setnewPasswordVisible(!newpasswordVisible)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer transition-colors"
+            >
+              {newpasswordVisible ? <MdVisibilityOff className="text-lg" /> : <MdVisibility className="text-lg" />}
+            </button>
+          </div>
+          {errors.new_password && (
+            <p className="text-meta-1 text-xs mt-1.5 font-medium">{errors.new_password.message}</p>
+          )}
+        </div>
+
+        {/* Confirm New Password */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+            <MdCheckCircle className="text-primary text-sm" />
+            <span>Confirm New Password</span>
+          </label>
+          <div className="relative">
+            <input
+              {...register('confirm_newPassword', {
+                required: 'Please confirm your new password',
+                validate: (value) => value === new_password || 'Passwords do not match',
+              })}
+              type={confirmPasswordVisible ? 'text' : 'password'}
+              placeholder="••••••••••••"
+              className="w-full bg-gray-2/50 dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-3 pl-4 pr-11 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium transition-all"
+            />
+            <button
+              type="button"
+              onClick={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer transition-colors"
+            >
+              {confirmPasswordVisible ? <MdVisibilityOff className="text-lg" /> : <MdVisibility className="text-lg" />}
+            </button>
+          </div>
+          {errors.confirm_newPassword && (
+            <p className="text-meta-1 text-xs mt-1.5 font-medium">
+              {errors.confirm_newPassword.message}
+            </p>
+          )}
+        </div>
+
+        {/* Action Button */}
+        <div className="pt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-opacity-90 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-primary/30 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Processing...' : 'Send Verification Code'}
+          </button>
+        </div>
+
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={handler}
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-primary transition-colors cursor-pointer"
+          >
+            <MdArrowBack />
+            <span>Back to Sign In</span>
+          </button>
+        </div>
+      </form>
+
+      {/* OTP Verification Modal */}
+      {showOtpPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-boxdark p-6 sm:p-7 rounded-2xl border border-stroke dark:border-strokedark shadow-2xl w-full max-w-md space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stroke dark:border-strokedark">
+              <div className="flex items-center gap-2 text-primary text-xl">
+                <MdVpnKey />
+                <h3 className="text-base font-bold text-black dark:text-white">
+                  Enter Security OTP
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOtpPopup(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-black dark:hover:text-white hover:bg-gray-2 dark:hover:bg-meta-4 transition-colors"
               >
-                Verify
+                <MdClose className="text-xl" />
               </button>
-              <button onClick={() => setShowOtpPopup(false)}
-                className="ml-2 px-4 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400"
+            </div>
+
+            <p className="text-xs text-body dark:text-bodydark leading-relaxed">
+              We have sent a 6-digit verification code to{' '}
+              <strong className="text-black dark:text-white">{userData.email}</strong>.
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-1.5">
+                Verification Code
+              </label>
+              <input
+                type="text"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => {
+                  setErrorMessage('');
+                  setOtp(e.target.value.trim());
+                }}
+                placeholder="123456"
+                className="w-full tracking-widest text-center font-mono text-lg bg-gray-2/50 dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary font-bold"
+              />
+              {errorMessage && (
+                <p className="text-meta-1 text-xs mt-1.5 font-medium">{errorMessage}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowOtpPopup(false)}
+                className="py-2.5 px-4 rounded-xl text-xs font-bold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-300 hover:bg-gray-2 dark:hover:bg-meta-4 transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                disabled={loading || !otp}
+                onClick={handleVerifyOTP}
+                className="py-2.5 px-5 rounded-xl text-xs font-bold bg-primary text-white hover:bg-opacity-90 transition-all shadow-md shadow-primary/25 disabled:opacity-50"
+              >
+                {loading ? 'Verifying...' : 'Verify & Set Password'}
               </button>
             </div>
           </div>
         </div>
-        }
-      </div>
-
-    </>
+      )}
+    </div>
   );
 };
 

@@ -102,6 +102,7 @@ const LeaveRequestsTab = () => {
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState('all');
+  const [employeeFilter, setEmployeeFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modals
@@ -122,9 +123,7 @@ const LeaveRequestsTab = () => {
       const [reqRes, sumRes, empRes] = await Promise.all([
         axios.get(`${apiPath}/api/leave/requests`, { headers }).catch(() => ({ data: { data: [] } })),
         axios.get(`${apiPath}/api/leave/summary`, { headers }).catch(() => ({ data: {} })),
-        isUserAdmin
-          ? axios.get(`${apiPath}/user/all`, { headers }).catch(() => ({ data: [] }))
-          : Promise.resolve({ data: [] }),
+        axios.get(`${apiPath}/user/all`, { headers }).catch(() => ({ data: [] })),
       ]);
 
       const reqList = reqRes.data?.data || [];
@@ -157,10 +156,18 @@ const LeaveRequestsTab = () => {
         return false;
       }
 
+      // Employee filter
+      if (employeeFilter !== 'all') {
+        const empId = String(r.employeeId?._id || r.employeeId || '');
+        if (empId !== String(employeeFilter)) {
+          return false;
+        }
+      }
+
       // Search term
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
-        const empName = (r.employeeName || '').toLowerCase();
+        const empName = (r.employeeName || r.employeeId?.username || '').toLowerCase();
         const type = (r.leaveType || '').toLowerCase();
         const reason = (r.reason || '').toLowerCase();
         return empName.includes(q) || type.includes(q) || reason.includes(q);
@@ -168,7 +175,7 @@ const LeaveRequestsTab = () => {
 
       return true;
     });
-  }, [requests, statusFilter, searchTerm]);
+  }, [requests, statusFilter, employeeFilter, searchTerm]);
 
   // Submit Approval / Rejection
   const handleConfirmReview = async () => {
@@ -351,7 +358,22 @@ const LeaveRequestsTab = () => {
           </div>
 
           {/* Search and New Application Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {isUserAdmin && employeesList.length > 0 && (
+              <select
+                value={employeeFilter}
+                onChange={(e) => setEmployeeFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
+              >
+                <option value="all">All Employees ({employeesList.length})</option>
+                {employeesList.map((emp) => (
+                  <option key={emp._id} value={emp._id}>
+                    {emp.username} ({emp.role || 'Staff'})
+                  </option>
+                ))}
+              </select>
+            )}
+
             <div className="relative w-full sm:w-64">
               <SearchIcon
                 style={{ fontSize: 18 }}
@@ -406,6 +428,8 @@ const LeaveRequestsTab = () => {
                   const startStr = new Date(req.startDate).toLocaleDateString('en-GB');
                   const endStr = new Date(req.endDate).toLocaleDateString('en-GB');
                   const isMulti = req.durationType === 'Multiple Days';
+                  const empDisplayName = req.employeeName || req.employeeId?.username || 'Employee';
+                  const empRole = req.employeeId?.role || 'Staff Member';
 
                   const canCancel =
                     req.status === 'Pending' &&
@@ -430,14 +454,14 @@ const LeaveRequestsTab = () => {
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center text-xs shadow-xs flex-shrink-0">
-                            {getInitials(req.employeeName)}
+                            {getInitials(empDisplayName)}
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800 dark:text-slate-100">
-                              {req.employeeName}
+                              {empDisplayName}
                             </p>
                             <p className="text-[10px] text-slate-400">
-                              {req.employeeId?.role || 'Staff Member'}
+                              {empRole}
                             </p>
                           </div>
                         </div>
@@ -586,6 +610,7 @@ const LeaveRequestsTab = () => {
           onClose={() => setApplyModalOpen(false)}
           onSuccess={fetchData}
           employeesList={employeesList}
+          defaultEmployeeId={employeeFilter !== 'all' ? employeeFilter : undefined}
         />
       )}
 

@@ -125,6 +125,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
   const [tabIndex, setTabIndex] = useState(0);
   const [isNotesModalShow, setIsNotesModalShow] = useState(false);
   const [open, setOpen] = useState(false);
+  const [invoiceRefreshKey, setInvoiceRefreshKey] = useState(0);
   const {
     handleSubmit,
     register,
@@ -1009,13 +1010,20 @@ const Jobslider: React.FC<JobsliderProps> = ({
       )}
 
       {/* Tab 1: Offers */}
-      {tabIndex === 1 && <JobOffermodule type="offer" job={job} />}
+      {tabIndex === 1 && <JobOffermodule type="offer" job={job} onRefresh={handler} />}
 
       {/* Tab 2: Financial */}
       {tabIndex === 2 && (
         <div className="space-y-6">
-          <FinanceModule data={job?.package} job={job} onSuccess={handler} />
-          <JobOffermodule type="invoice" job={job} />
+          <FinanceModule
+            data={job?.package}
+            job={job}
+            onSuccess={() => {
+              setInvoiceRefreshKey((k) => k + 1);
+              handler();
+            }}
+          />
+          <JobOffermodule type="invoice" job={job} onRefresh={handler} refreshKey={invoiceRefreshKey} />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiPath } from '../../../apiPath';
+import { resolveLogoUrl, fetchCompanyLogo } from '../../utils/logoUtil';
 import { toast } from 'react-toastify';
 import {
   MdCloudUpload,
@@ -7,39 +8,49 @@ import {
   MdCheckCircle,
   MdDeleteOutline,
   MdInfoOutline,
-  MdSave
+  MdSave,
+  MdRefresh
 } from 'react-icons/md';
 
 const LogoUploadForm = () => {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
 
-  useEffect(() => {
-    const savedImageUrl = localStorage.getItem('logoUrl');
-    if (savedImageUrl) {
-      setImageUrl(savedImageUrl);
+  const loadCurrentLogo = async () => {
+    const logo = await fetchCompanyLogo();
+    if (logo) {
+      setImageUrl(logo);
     }
+  };
+
+  useEffect(() => {
+    loadCurrentLogo();
   }, []);
 
   const handleProcessFile = (file) => {
     if (!file) return;
-    if (file.type !== 'image/png') {
-      setError('Only PNG files with transparency are supported.');
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a valid image file (PNG, JPG, SVG, WebP).');
       setSelectedFile(null);
-      toast.error('Please upload a valid PNG image.');
+      setPreviewUrl('');
+      toast.error('Only PNG, JPG, SVG, or WebP images are supported.');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File size exceeds the 5MB limit.');
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size exceeds the 10MB limit.');
       setSelectedFile(null);
-      toast.error('File size must be under 5MB.');
+      setPreviewUrl('');
+      toast.error('File size must be under 10MB.');
       return;
     }
     setError('');
     setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleFileChange = (event) => {
@@ -66,7 +77,7 @@ const LogoUploadForm = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!selectedFile) {
-      setError('Please select a PNG logo before saving.');
+      setError('Please select an image file before saving.');
       toast.error('Please select a logo file.');
       return;
     }
@@ -84,16 +95,20 @@ const LogoUploadForm = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Error uploading the logo');
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Error uploading the logo');
       }
 
       const data = await response.json();
-      if (data.fileUrl) {
-        setImageUrl(data.fileUrl);
-        localStorage.setItem('logoUrl', data.fileUrl);
+      const newUrl = resolveLogoUrl(data.fileUrl || data.logoUrl);
+      if (newUrl) {
+        setImageUrl(newUrl);
+        localStorage.setItem('logoUrl', newUrl);
+        window.dispatchEvent(new CustomEvent('logoUpdated', { detail: newUrl }));
       }
-      toast.success('Company logo uploaded successfully!');
+      toast.success('Company logo uploaded and updated successfully!');
       setSelectedFile(null);
+      setPreviewUrl('');
     } catch (err) {
       setError(err.message || 'Failed to upload logo.');
       toast.error(err.message || 'Failed to upload logo.');
@@ -102,21 +117,20 @@ const LogoUploadForm = () => {
     }
   };
 
-  const currentLogoSrc = imageUrl || `${apiPath}/uploads/logo.png`;
+  const currentLogoSrc = imageUrl || resolveLogoUrl('/uploads/logo.png');
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Current Active Logo Showcase */}
       <div className="bg-gray-2/70 dark:bg-meta-4/20 p-5 rounded-2xl border border-stroke dark:border-strokedark flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
-          <div className="w-24 h-20 bg-white dark:bg-boxdark rounded-xl border border-stroke dark:border-strokedark p-2 flex items-center justify-center shadow-xs overflow-hidden">
+          <div className="w-28 h-20 bg-white dark:bg-boxdark rounded-xl border border-stroke dark:border-strokedark p-2 flex items-center justify-center shadow-xs overflow-hidden">
             <img
               src={currentLogoSrc}
               alt="Current Logo"
               className="max-h-full max-w-full object-contain"
               onError={(e) => {
-                // Fallback placeholder if missing
-                e.currentTarget.src = 'https://placehold.co/180x60/3c50e0/ffffff?text=TECHBEEPS';
+                e.currentTarget.src = 'https://placehold.co/180x60/3c50e0/ffffff?text=COMPANY+LOGO';
               }}
             />
           </div>
@@ -128,7 +142,7 @@ const LogoUploadForm = () => {
               Live Company Emblem
             </p>
             <p className="text-xs text-body dark:text-bodydark">
-              Printed on top-right of all PDF estimates and client invoices
+              Displayed on Login, Sidebar, Quotes, Invoices & PDFs
             </p>
           </div>
         </div>
@@ -142,10 +156,10 @@ const LogoUploadForm = () => {
       {/* Upload Drag & Drop Area */}
       <div>
         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-2">
-          Upload New PNG Logo
+          Upload New Logo
         </label>
         <input
-          accept="image/png"
+          accept="image/png, image/jpeg, image/jpg, image/svg+xml, image/webp"
           type="file"
           id="logo-file-upload"
           onChange={handleFileChange}
@@ -170,7 +184,7 @@ const LogoUploadForm = () => {
             Click or drag & drop new logo here
           </h4>
           <p className="text-xs text-body dark:text-bodydark mt-1 max-w-sm mx-auto">
-            High-resolution PNG with transparent background recommended (Max file size: 5 MB)
+            High-resolution PNG/SVG with transparent background recommended (Max file size: 10 MB)
           </p>
         </div>
 
@@ -183,12 +197,12 @@ const LogoUploadForm = () => {
       </div>
 
       {/* Selected File Live Preview Card */}
-      {selectedFile && (
+      {selectedFile && previewUrl && (
         <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center justify-between gap-4 animate-in fade-in zoom-in duration-200">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-16 h-14 bg-white dark:bg-boxdark rounded-xl border border-primary/30 p-1 flex items-center justify-center shrink-0">
+            <div className="w-20 h-16 bg-white dark:bg-boxdark rounded-xl border border-primary/30 p-1 flex items-center justify-center shrink-0 shadow-xs">
               <img
-                src={URL.createObjectURL(selectedFile)}
+                src={previewUrl}
                 alt="Upload Preview"
                 className="max-h-full max-w-full object-contain"
               />
@@ -198,14 +212,17 @@ const LogoUploadForm = () => {
                 {selectedFile.name}
               </p>
               <p className="text-[11px] text-body dark:text-bodydark">
-                {(selectedFile.size / 1024).toFixed(1)} KB • PNG Format ready
+                {(selectedFile.size / 1024).toFixed(1)} KB • Ready to publish
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => setSelectedFile(null)}
+            onClick={() => {
+              setSelectedFile(null);
+              setPreviewUrl('');
+            }}
             className="p-2 text-slate-400 hover:text-meta-1 hover:bg-meta-1/10 rounded-lg transition-colors cursor-pointer"
             title="Remove selection"
           >
@@ -221,9 +238,9 @@ const LogoUploadForm = () => {
           Logo Specifications & Recommendations:
         </p>
         <ul className="list-disc list-inside space-y-0.5 text-[11px]">
-          <li>Format: PNG (Portable Network Graphics) with alpha transparency</li>
-          <li>Ideal dimensions: 400px × 120px (horizontal orientation preferred)</li>
-          <li>Ensure strong contrast for both white and dark invoice backgrounds</li>
+          <li>Format: PNG with alpha transparency, SVG, WebP, or high-res JPG</li>
+          <li>Ideal dimensions: 400px × 120px (horizontal aspect ratio preferred)</li>
+          <li>Automatically synced with the Login screen, Invoices, Quotations, and Sidebar</li>
         </ul>
       </div>
 
@@ -243,4 +260,3 @@ const LogoUploadForm = () => {
 };
 
 export default LogoUploadForm;
-

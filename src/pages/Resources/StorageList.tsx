@@ -93,6 +93,11 @@ const StorageList: React.FC<any> = ({ customerId }) => {
             const response = await axios.get(`${apiPath}/api/storages?customer=${customerId || ''}`);
             const storageItems = response["data"] || [];
             setData(storageItems);
+            setSelectedStaff((prev: any) => {
+                if (!prev) return null;
+                const updated = storageItems.find((item: any) => item._id === prev._id);
+                return updated || prev;
+            });
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || "Something went wrong. Please try again.";
             notifyError(errorMessage);
@@ -167,6 +172,7 @@ const StorageList: React.FC<any> = ({ customerId }) => {
             const code = (item?.storageCode || '').toLowerCase();
             const type = (item?.storageType || '').toLowerCase();
             const customerName = `${item?.customer?.firstName || ''} ${item?.customer?.lastName || ''}`.toLowerCase();
+            const cubicMeter = (item?.cubicMeter ? `${item.cubicMeter}` : '').toLowerCase();
             const email = (item?.customer?.email || '').toLowerCase();
             const contact = (item?.customer?.contact || item?.customer?.mobile || '').toLowerCase();
             const warehouseName = (item?.warehouse?.name || item?.warehouse?.city || '').toLowerCase();
@@ -179,6 +185,7 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                 customerName.includes(query) ||
                 email.includes(query) ||
                 contact.includes(query) ||
+                cubicMeter.includes(query) ||
                 warehouseName.includes(query) ||
                 country.includes(query)
             );
@@ -202,9 +209,14 @@ const StorageList: React.FC<any> = ({ customerId }) => {
             } else if (sortConfig.key === 'email') {
                 valA = a?.customer?.email || a?.storageType || '';
                 valB = b?.customer?.email || b?.storageType || '';
-            } else if (sortConfig.key === 'contact') {
-                valA = a?.customer?.contact || a?.customer?.mobile || a?.cubicMeter || '';
-                valB = b?.customer?.contact || b?.customer?.mobile || b?.cubicMeter || '';
+            } else if (sortConfig.key === 'cubicMeter' || sortConfig.key === 'contact') {
+                valA = Number(a?.cubicMeter) || (a?.customer?.contact || a?.customer?.mobile || 0);
+                valB = Number(b?.cubicMeter) || (b?.customer?.contact || b?.customer?.mobile || 0);
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
+                }
             } else if (sortConfig.key === 'country') {
                 valA = a?.customer?.address?.[0]?.country || a?.warehouse?.city || a?.warehouse?.name || '';
                 valB = b?.customer?.address?.[0]?.country || b?.warehouse?.city || b?.warehouse?.name || '';
@@ -310,11 +322,11 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                                         </div>
                                     </th>
                                     <th
-                                        onClick={() => handleSort('contact')}
+                                        onClick={() => handleSort('cubicMeter')}
                                         className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
                                     >
                                         <div className="flex items-center gap-1">
-                                            <span>CONTACT</span>
+                                            <span>VOLUME CAPACITY</span>
                                             <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
                                         </div>
                                     </th>
@@ -387,18 +399,8 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                                                     )}
                                                 </td>
 
-                                                <td className="py-3.5 px-4 text-slate-600">
-                                                    {item?.customer?.contact || item?.customer?.mobile ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <PhoneIcon style={{ fontSize: 16 }} className="text-slate-400" />
-                                                            <span>{item?.customer?.contact || item?.customer?.mobile}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2 text-slate-500 text-xs">
-                                                            <PhoneIcon style={{ fontSize: 16 }} className="text-slate-300" />
-                                                            <span className="font-semibold text-slate-700">{item?.cubicMeter ? `${item.cubicMeter} m³` : 'No contact'}</span>
-                                                        </div>
-                                                    )}
+                                                <td className="py-3.5 px-4 text-slate-700 font-semibold text-xs">
+                                                    <span>{item?.cubicMeter ? `${item.cubicMeter} m³` : (item?.customer?.contact || item?.customer?.mobile || '-')}</span>
                                                 </td>
 
                                                 <td className="py-3.5 px-4">
@@ -475,16 +477,16 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                 {selectedStaff && (
                     <div className="w-full lg:w-5/12 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100">
-                            <div>
-                                <div className="flex items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
                                         {selectedStaff.storageCode}
                                     </h3>
-                                    <span className="px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700">
+                                    <span className="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 whitespace-nowrap shrink-0">
                                         {selectedStaff.storageType}
                                     </span>
-                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                        selectedStaff.storageStatus === 'free' ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'
+                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 ${
+                                        selectedStaff.storageStatus?.toLowerCase() === 'free' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-indigo-50 text-indigo-700 border border-indigo-200/60'
                                     }`}>
                                         {selectedStaff.storageStatus}
                                     </span>
@@ -492,10 +494,10 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                                 <p className="text-xs text-slate-400 mt-1">Total Capacity: <span className="font-bold text-slate-700">{selectedStaff.cubicMeter} m³</span></p>
                             </div>
 
-                            <div className="flex items-center gap-4 bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60">
-                                <div className="text-right">
-                                    <span className="text-xs font-bold text-slate-700 block">Filled: {selectedStaff.percentageFill || 0}%</span>
-                                    <div className="w-28 bg-slate-200 h-2.5 rounded-full overflow-hidden mt-1">
+                            <div className="flex items-center gap-3 shrink-0">
+                                <div className="bg-slate-50 px-3 py-2 rounded-2xl border border-slate-200/60 text-right">
+                                    <span className="text-xs font-bold text-slate-700 block whitespace-nowrap">Filled: {selectedStaff.percentageFill || 0}%</span>
+                                    <div className="w-24 sm:w-28 bg-slate-200 h-2 rounded-full overflow-hidden mt-1">
                                         <div 
                                             className="bg-gradient-to-r from-indigo-500 to-violet-600 h-full rounded-full transition-all duration-500" 
                                             style={{ width: `${Math.min(selectedStaff.percentageFill || 0, 100)}%` }}
@@ -504,7 +506,8 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                                 </div>
                                 <button 
                                     onClick={() => setSelectedStaff(null)}
-                                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                                    className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
+                                    title="Close Panel"
                                 >
                                     <CloseIcon fontSize="small" />
                                 </button>

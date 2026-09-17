@@ -36,10 +36,22 @@ const Profile: React.FC = () => {
   const { userData, fetchProfile, setUserData, id } = useContext(UserContext) as any;
   const [loading, setLoading] = useState<boolean>(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [countryList, setCountryList] = useState<any[]>([]);
 
-  // Fetch latest profile from backend on mount
+  // Fetch latest profile and country directory on mount
   useEffect(() => {
     fetchProfile();
+    const fetchCountries = async () => {
+      try {
+        const res = await axios.get(`${apiPath}/api/sale_group?type=country`);
+        if (Array.isArray(res.data)) {
+          setCountryList(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to load country list in profile:', err);
+      }
+    };
+    fetchCountries();
   }, []);
 
   const notify = (message: string) =>
@@ -126,47 +138,76 @@ const Profile: React.FC = () => {
   const updateProfile = async (data: any): Promise<any> => {
     setLoading(true);
     if (!data.username || data.username.trim() === '') {
-      notifyError('Username cannot be empty');
+      notifyError('Name is required');
       setLoading(false);
       return;
     }
-    if (data.username.length < 3 || data.username.length > 50) {
-      notifyError('Username must be between 3 and 50 characters');
+    if (data.username.trim().length < 2 || data.username.trim().length > 55) {
+      notifyError('Name must be between 2 and 55 characters');
       setLoading(false);
       return;
     }
 
-    if (data.telephone) {
+    if (data.telephone && data.telephone.trim() !== '') {
       const cleanPhone = data.telephone.replace(/[\s\-()]/g, '');
       if (!/^\+?[0-9]{7,15}$/.test(cleanPhone)) {
-        notifyError('Invalid telephone number (should be 7 to 15 digits)');
+        notifyError('Invalid phone number (should be 7 to 15 digits)');
         setLoading(false);
         return;
       }
     }
 
-    if (data.city && data.city.trim() !== '' && (data.city.length < 2 || data.city.length > 50)) {
-      notifyError('City must be between 2 and 50 characters');
+    if (!data.houseNumber || data.houseNumber.trim() === '') {
+      notifyError('House number is required');
       setLoading(false);
       return;
     }
-    if (data.country && data.country.trim() !== '' && (data.country.length < 2 || data.country.length > 50)) {
-      notifyError('Country must be between 2 and 50 characters');
+    if (data.houseNumber.trim().length < 2 || data.houseNumber.trim().length > 15) {
+      notifyError('House number must be between 2 and 15 characters');
       setLoading(false);
       return;
     }
-    if (data.houseNumber && data.houseNumber.length > 20) {
-      notifyError('House number must be at most 20 characters');
+
+    if (!data.street || data.street.trim() === '') {
+      notifyError('Street address is required');
       setLoading(false);
       return;
     }
-    if (data.street && data.street.length > 100) {
-      notifyError('Street must be at most 100 characters');
+    if (data.street.trim().length < 2 || data.street.trim().length > 55) {
+      notifyError('Street address must be between 2 and 55 characters');
       setLoading(false);
       return;
     }
-    if (data.postCode && data.postCode.length > 20) {
-      notifyError('Postal code must be at most 20 characters');
+
+    if (!data.city || data.city.trim() === '') {
+      notifyError('City is required');
+      setLoading(false);
+      return;
+    }
+    if (data.city.trim().length < 2 || data.city.trim().length > 56) {
+      notifyError('City must be between 2 and 56 characters');
+      setLoading(false);
+      return;
+    }
+
+    if (!data.country || data.country.trim() === '') {
+      notifyError('Country is required');
+      setLoading(false);
+      return;
+    }
+    if (data.country.trim().length < 2 || data.country.trim().length > 56) {
+      notifyError('Country must be between 2 and 56 characters');
+      setLoading(false);
+      return;
+    }
+
+    if (!data.postCode || data.postCode.trim() === '') {
+      notifyError('Postal code is required');
+      setLoading(false);
+      return;
+    }
+    if (data.postCode.trim().length < 3 || data.postCode.trim().length > 12) {
+      notifyError('Postal code must be between 3 and 12 characters');
       setLoading(false);
       return;
     }
@@ -592,14 +633,32 @@ const Profile: React.FC = () => {
                   <Controller
                     name="username"
                     control={control}
+                    rules={{
+                      required: 'Name is required',
+                      minLength: {
+                        value: 2,
+                        message: 'Name must be between 2 and 55 characters',
+                      },
+                      maxLength: {
+                        value: 55,
+                        message: 'Name must be between 2 and 55 characters',
+                      },
+                    }}
                     render={({ field }) => (
                       <input
                         {...field}
                         placeholder="Enter full name"
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.username ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       />
                     )}
                   />
+                  {errors.username && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.username.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Date of Birth */}
@@ -607,13 +666,15 @@ const Profile: React.FC = () => {
                   <label className="block text-xs font-bold text-black dark:text-white uppercase tracking-wider mb-1.5">
                     Date of Birth <span className="text-meta-1">*</span>
                   </label>
-                  <div className="px-3 py-0.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl">
+                  <div className={`px-3 py-0.5 bg-slate-50/70 dark:bg-form-input border ${
+                    errors.dob ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                  } rounded-xl`}>
                     <DatePickerComponent
                       name="dob"
                       control={control}
                       maxDate={new Date()}
                       label=""
-                      rules={{ required: 'field is required' }}
+                      rules={{ required: 'Date of birth is required' }}
                       errors={errors}
                       textFieldProps={{
                         variant: 'standard',
@@ -624,6 +685,11 @@ const Profile: React.FC = () => {
                       }}
                     />
                   </div>
+                  {errors.dob && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.dob.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Phone Number */}
@@ -634,14 +700,31 @@ const Profile: React.FC = () => {
                   <Controller
                     name="telephone"
                     control={control}
+                    rules={{
+                      validate: (val) => {
+                        if (!val || val.trim() === '') return true;
+                        const cleanPhone = val.replace(/[\s\-()]/g, '');
+                        if (!/^\+?[0-9]{7,15}$/.test(cleanPhone)) {
+                          return 'Please enter a valid phone number (7 to 15 digits)';
+                        }
+                        return true;
+                      },
+                    }}
                     render={({ field }) => (
                       <input
                         {...field}
                         placeholder="e.g. +31 6 12345678"
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.telephone ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       />
                     )}
                   />
+                  {errors.telephone && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.telephone.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Gender */}
@@ -655,15 +738,24 @@ const Profile: React.FC = () => {
                     render={({ field }) => (
                       <select
                         {...field}
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.gender ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       >
-                        <option value="">Select Gender</option>
+                        <option value="" disabled hidden>
+                          Select Gender
+                        </option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
                     )}
                   />
+                  {errors.gender && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.gender.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Preferred Language */}
@@ -677,7 +769,9 @@ const Profile: React.FC = () => {
                     render={({ field }) => (
                       <select
                         {...field}
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.language ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       >
                         <option value="English (EN)">English (EN)</option>
                         <option value="Dutch (NL)">Dutch (NL)</option>
@@ -687,6 +781,11 @@ const Profile: React.FC = () => {
                       </select>
                     )}
                   />
+                  {errors.language && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.language.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Email Address (Read-only) */}
@@ -725,14 +824,32 @@ const Profile: React.FC = () => {
                   <Controller
                     name="houseNumber"
                     control={control}
+                    rules={{
+                      required: 'House number is required',
+                      minLength: {
+                        value: 2,
+                        message: 'House number must be between 2 and 15 characters',
+                      },
+                      maxLength: {
+                        value: 15,
+                        message: 'House number must be between 2 and 15 characters',
+                      },
+                    }}
                     render={({ field }) => (
                       <input
                         {...field}
                         placeholder="e.g. 42A"
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.houseNumber ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       />
                     )}
                   />
+                  {errors.houseNumber && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.houseNumber.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Street */}
@@ -743,14 +860,32 @@ const Profile: React.FC = () => {
                   <Controller
                     name="street"
                     control={control}
+                    rules={{
+                      required: 'Street address is required',
+                      minLength: {
+                        value: 2,
+                        message: 'Street address must be between 2 and 55 characters',
+                      },
+                      maxLength: {
+                        value: 55,
+                        message: 'Street address must be between 2 and 55 characters',
+                      },
+                    }}
                     render={({ field }) => (
                       <input
                         {...field}
                         placeholder="e.g. Main Street"
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.street ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       />
                     )}
                   />
+                  {errors.street && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.street.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* City */}
@@ -761,14 +896,32 @@ const Profile: React.FC = () => {
                   <Controller
                     name="city"
                     control={control}
+                    rules={{
+                      required: 'City is required',
+                      minLength: {
+                        value: 2,
+                        message: 'City must be between 2 and 56 characters',
+                      },
+                      maxLength: {
+                        value: 56,
+                        message: 'City must be between 2 and 56 characters',
+                      },
+                    }}
                     render={({ field }) => (
                       <input
                         {...field}
                         placeholder="e.g. Amsterdam"
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.city ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       />
                     )}
                   />
+                  {errors.city && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.city.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Country */}
@@ -779,14 +932,49 @@ const Profile: React.FC = () => {
                   <Controller
                     name="country"
                     control={control}
+                    rules={{
+                      required: 'Country is required',
+                      minLength: {
+                        value: 2,
+                        message: 'Country must be between 2 and 56 characters',
+                      },
+                      maxLength: {
+                        value: 56,
+                        message: 'Country must be between 2 and 56 characters',
+                      },
+                    }}
                     render={({ field }) => (
-                      <input
+                      <select
                         {...field}
-                        placeholder="e.g. Netherlands"
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                      />
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.country ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
+                      >
+                        <option value="">Select Country</option>
+                        {countryList && countryList.length > 0 ? (
+                          countryList.map((c) => (
+                            <option key={c._id || c.name} value={c.name}>
+                              {c.name}{c.code ? ` (${c.code})` : ''}
+                            </option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="India">India (IN)</option>
+                            <option value="Netherlands">Netherlands (NL)</option>
+                            <option value="United States">United States (US)</option>
+                            <option value="United Kingdom">United Kingdom (UK)</option>
+                            <option value="Germany">Germany (DE)</option>
+                            <option value="France">France (FR)</option>
+                          </>
+                        )}
+                      </select>
                     )}
                   />
+                  {errors.country && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.country.message as string}
+                    </p>
+                  )}
                 </div>
 
                 {/* Postal Code */}
@@ -797,14 +985,32 @@ const Profile: React.FC = () => {
                   <Controller
                     name="postCode"
                     control={control}
+                    rules={{
+                      required: 'Postal code is required',
+                      minLength: {
+                        value: 3,
+                        message: 'Postal code must be between 3 and 12 characters',
+                      },
+                      maxLength: {
+                        value: 12,
+                        message: 'Postal code must be between 3 and 12 characters',
+                      },
+                    }}
                     render={({ field }) => (
                       <input
                         {...field}
                         placeholder="e.g. 1015 CJ"
-                        className="w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border border-slate-200 dark:border-strokedark rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        className={`w-full px-3.5 py-2.5 bg-slate-50/70 dark:bg-form-input border ${
+                          errors.postCode ? 'border-meta-1' : 'border-slate-200 dark:border-strokedark'
+                        } rounded-xl text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all`}
                       />
                     )}
                   />
+                  {errors.postCode && (
+                    <p className="text-meta-1 text-xs mt-1">
+                      {errors.postCode.message as string}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

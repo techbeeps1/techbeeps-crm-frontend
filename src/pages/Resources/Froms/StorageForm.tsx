@@ -149,6 +149,7 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
           sx: {
             borderRadius: '24px',
             overflow: 'hidden',
+            maxHeight: 'calc(100vh - 40px)',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           }
         }}
@@ -156,28 +157,29 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
         {loading && <Loader />}
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-primary/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-primary/5 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs shrink-0">
               <MdWarehouse className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
                 {data ? 'Update Storage Unit' : 'Add New Storage Unit'}
               </h3>
               <p className="text-xs text-slate-500">Configure storage dimensions and location</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={handleCancel}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors shrink-0"
           >
             <MdClose className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4 overflow-y-auto max-h-[calc(100vh-160px)]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">

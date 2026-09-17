@@ -40,9 +40,12 @@ const getTodayStr = () => {
   return `${year}-${month}-${day}`;
 };
 
-const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [] }) => {
+const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], defaultEmployeeId }) => {
   const { userData, username, id, isAdmin, role } = useContext(UserContext) || {};
-  const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
+  const isUserAdmin =
+    Boolean(isAdmin) ||
+    ['admin', 'superadmin', 'manager', 'hr'].includes((role || '').toLowerCase()) ||
+    ['admin', 'superadmin', 'manager', 'hr'].includes((userData?.role || '').toLowerCase());
 
   const todayStr = getTodayStr();
 
@@ -56,6 +59,15 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [] }) => {
   const [userBalance, setUserBalance] = useState(null);
   const [existingRequests, setExistingRequests] = useState([]);
 
+  // When modal opens, sync selected employee
+  useEffect(() => {
+    if (open) {
+      if (!selectedEmployeeId && employeesList.length > 0) {
+        setSelectedEmployeeId(id || employeesList[0]._id || employeesList[0].id);
+      }
+    }
+  }, [open, id, employeesList]);
+
   // Load balance and existing requests for current or selected employee
   useEffect(() => {
     const empId = selectedEmployeeId || id;
@@ -66,10 +78,10 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [] }) => {
 
     // 1. Fetch balance
     axios
-      .get(`${apiPath}/api/leave/balances?year=${new Date().getFullYear()}`, { headers })
+      .get(`${apiPath}/api/leave/balances?employeeId=${empId}&year=${new Date().getFullYear()}`, { headers })
       .then((res) => {
         const list = res.data?.data || [];
-        const found = list.find((b) => String(b.employeeId?._id || b.employeeId) === String(empId));
+        const found = list.find((b) => String(b.employeeId?._id || b.employeeId || b.employee?._id) === String(empId)) || list[0];
         if (found) setUserBalance(found);
       })
       .catch((err) => console.error('Error fetching balance preview:', err));
@@ -164,6 +176,11 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [] }) => {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+      const targetEmpId = selectedEmployeeId || id || userData?._id;
+      const targetEmp = employeesList.find(
+        (emp) => String(emp._id || emp.id) === String(targetEmpId)
+      );
+
       const payload = {
         leaveType,
         durationType,
@@ -171,11 +188,10 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [] }) => {
         endDate: durationType === 'Multiple Days' ? endDate : startDate,
         totalDays: calculatedTotalDays,
         reason: reason.trim(),
+        employeeId: targetEmpId,
+        requestedEmployeeId: targetEmpId,
+        employeeName: targetEmp?.username || targetEmp?.name || (targetEmpId === id ? username : ''),
       };
-
-      if (isUserAdmin && selectedEmployeeId) {
-        payload.requestedEmployeeId = selectedEmployeeId;
-      }
 
       await axios.post(`${apiPath}/api/leave/requests`, payload, { headers });
 
@@ -266,11 +282,14 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [] }) => {
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
               className="w-full bg-transparent font-semibold text-xs text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
             >
-              {employeesList.map((emp) => (
-                <option key={emp._id} value={emp._id} className="dark:bg-boxdark">
-                  {emp.username} ({emp.role}) — {emp.email}
-                </option>
-              ))}
+              {employeesList.map((emp) => {
+                const empVal = emp._id || emp.id;
+                return (
+                  <option key={empVal} value={empVal} className="dark:bg-boxdark">
+                    {emp.username} ({emp.role || 'Staff'}) — {emp.email}
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}

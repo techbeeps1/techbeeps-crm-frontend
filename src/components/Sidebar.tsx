@@ -31,6 +31,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 import { FaUsersCog, FaUserCircle } from 'react-icons/fa';
+import { resolveLogoUrl, fetchCompanyLogo } from '../utils/logoUtil';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -60,6 +61,20 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
+
+  const [logoUrl, setLogoUrl] = useState<string>('');
+
+  useEffect(() => {
+    fetchCompanyLogo().then((url) => {
+      if (url) setLogoUrl(url);
+    });
+
+    const handleLogoUpdate = (e: any) => {
+      if (e.detail) setLogoUrl(resolveLogoUrl(e.detail));
+    };
+    window.addEventListener('logoUpdated', handleLogoUpdate);
+    return () => window.removeEventListener('logoUpdated', handleLogoUpdate);
+  }, []);
 
   // hover expand state
   const [hovered, setHovered] = useState(false);
@@ -284,17 +299,31 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       {/* Header */}
       <div className="h-[75px] border-b border-slate-800 px-4 flex items-center justify-between">
         <div className="flex items-center gap-3 overflow-hidden">
-          {isExpanded && (
-            <>
-              {' '}
-              <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-lg font-bold shrink-0">
-                C
+          {isExpanded ? (
+            logoUrl ? (
+              <div className="h-10 max-w-[170px] flex items-center">
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="max-h-full max-w-full object-contain"
+                  onError={() => setLogoUrl('')}
+                />
               </div>
-              <div>
-                <h1 className="text-white text-lg font-bold">CRM</h1>
-                <p className="text-xs text-slate-400">Dashboard</p>
-              </div>
-            </>
+            ) : (
+              <>
+                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-sm shadow-primary/30">
+                  C
+                </div>
+                <div>
+                  <h1 className="text-white text-base font-bold tracking-tight">CRM</h1>
+                  <p className="text-[11px] text-slate-400">Dashboard</p>
+                </div>
+              </>
+            )
+          ) : (
+            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-sm shadow-primary/30">
+              C
+            </div>
           )}
         </div>
 

@@ -155,8 +155,8 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
       {loading && <Loader />}
 
       {/* Header Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="min-w-0">
           <h3 className="text-lg font-bold text-black dark:text-white capitalize">
             {getTitle()}
           </h3>
@@ -165,26 +165,27 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search Box */}
-          <div className="relative">
+          <div className="relative flex items-center min-w-[160px] flex-1 sm:flex-initial">
             <input
               type="text"
               placeholder={`Search ${type}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2 pl-9 pr-4 outline-none focus:border-primary text-xs w-48 sm:w-60 shadow-xs"
+              className="w-full sm:w-48 md:w-56 bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark h-9 pl-9 pr-4 outline-none focus:border-primary text-xs shadow-xs"
             />
-            <MdSearch className="absolute left-3 top-2.5 text-slate-400 text-sm" />
+            <MdSearch className="absolute left-3 text-slate-400 text-base pointer-events-none" />
           </div>
 
           {/* Add Button */}
           <button
+            type="button"
             onClick={() => openModal()}
-            className="flex items-center gap-1.5 bg-primary hover:bg-opacity-90 text-white font-semibold py-2 px-4 rounded-xl shadow-md shadow-primary/25 transition-all text-xs cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 bg-primary hover:bg-opacity-90 text-white font-semibold h-9 px-4 rounded-xl shadow-md shadow-primary/25 transition-all text-xs cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <MdAdd className="text-base" />
-            <span>Add New {type}</span>
+            <MdAdd className="text-lg shrink-0" />
+            <span className="capitalize">Add New {type}</span>
           </button>
         </div>
       </div>

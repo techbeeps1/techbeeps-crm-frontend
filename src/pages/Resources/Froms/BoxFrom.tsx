@@ -100,21 +100,25 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
                 maxWidth="md"
                 PaperProps={{
                     sx: {
-                        borderRadius: "16px",
+                        borderRadius: "20px",
                         boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                        maxHeight: "calc(100vh - 40px)",
+                        margin: "16px",
+                        display: "flex",
+                        flexDirection: "column",
                         overflow: "hidden",
                     },
                 }}
             >
-                <div className="bg-white flex flex-col">
+                <div className="bg-white flex flex-col max-h-[calc(100vh-40px)] overflow-hidden">
                     {/* Modal Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 bg-slate-50/70 shrink-0">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs shrink-0">
                                 <Icon className="text-xl" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800">
+                                <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
                                     {data ? "Update" : "Create New"} {type} Item
                                 </h3>
                                 <p className="text-xs text-slate-500">
@@ -125,13 +129,13 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
                         <IconButton
                             onClick={handleCancel}
                             size="small"
-                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
+                            className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg shrink-0"
                         >
                             <CloseIcon fontSize="small" />
                         </IconButton>
                     </div>
 
-                    <DialogContent className="px-6 py-5">
+                    <DialogContent className="px-6 py-4 overflow-y-auto flex-1">
                         {loading && <Loader />}
 
                         <form onSubmit={handleSubmit(onSubmit)} id="box-form" className="space-y-4">
@@ -290,19 +294,19 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
                     </DialogContent>
 
                     {/* Actions Footer */}
-                    <div className="px-6 py-4.5 border-t border-slate-100 bg-slate-50/70 flex items-center justify-end gap-3">
+                    <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-end gap-3 shrink-0">
                         <button
                             type="button"
                             onClick={handleCancel}
-                            className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
+                            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
                         >
                             Cancel
                         </button>
                         <button
-                            type="button"
-                            onClick={handleSubmit(onSubmit)}
+                            type="submit"
+                            form="box-form"
                             disabled={loading}
-                            className="px-6 py-2.5 rounded-xl bg-primary hover:bg-opacity-90 text-white font-semibold text-sm shadow-sm shadow-primary/20 transition-all cursor-pointer"
+                            className="px-5 py-2 rounded-xl bg-primary hover:bg-opacity-90 text-white font-semibold text-sm shadow-sm shadow-primary/20 transition-all cursor-pointer disabled:opacity-50"
                         >
                             {data ? `Update ${type}` : `Save ${type}`}
                         </button>
