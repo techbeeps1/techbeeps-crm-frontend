@@ -48,70 +48,266 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
+    const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+
     useEffect(() => {
         const filteredData = filterFurnitureData(rooms);
         const calculatedVolume = filteredData.reduce((sum: any, room: any) => {
             return sum + room.totalVolume;
         }, 0);
         setValue('relocation.totalVolume', calculatedVolume.toFixed(2));
-        setValue('relocation.pricePerMeterCubic', settings.standardPrice?.pricePerMeterCubic || 0);
-        setValue('relocation.pricePerHour', settings.standardPrice?.pricePerHour || 0);
-        setValue('relocation.pricePerKilometer', settings.standardPrice?.pricePerKilometer || 0);
+        if (watch('relocation.pricePerMeterCubic') === undefined || watch('relocation.pricePerMeterCubic') === '') {
+            setValue('relocation.pricePerMeterCubic', settings.standardPrice?.pricePerMeterCubic || 0);
+        }
+        if (watch('relocation.pricePerHour') === undefined || watch('relocation.pricePerHour') === '') {
+            setValue('relocation.pricePerHour', settings.standardPrice?.pricePerHour || 0);
+        }
+        if (watch('relocation.pricePerKilometer') === undefined || watch('relocation.pricePerKilometer') === '') {
+            setValue('relocation.pricePerKilometer', settings.standardPrice?.pricePerKilometer || 0);
+        }
     }, [rooms, settings, setValue]);
+
+    const buildAddressCandidates = (addr: any): string[] => {
+        if (!addr) return [];
+        const candidates: string[] = [];
+        const street = (addr.street || '').trim();
+        const houseNumber = (addr.houseNumber || '').trim();
+        const addition = (addr.addition || '').trim();
+        const postcode = (addr.postcode || '').trim();
+        const city = (addr.city || '').trim();
+        const country = (addr.country || '').trim();
+
+        // 1. Full address
+        const full = [street, houseNumber, addition, city, postcode, country].filter(Boolean).join(' ');
+        if (full) candidates.push(full);
+
+        // 2. Street + House Number + City + Country
+        const streetCity = [street, houseNumber, city, country].filter(Boolean).join(' ');
+        if (streetCity && !candidates.includes(streetCity)) candidates.push(streetCity);
+
+        // 3. Postcode + City + Country
+        const postCodeCity = [postcode, city, country].filter(Boolean).join(' ');
+        if (postCodeCity && !candidates.includes(postCodeCity)) candidates.push(postCodeCity);
+
+        // 4. City + Country
+        const cityCountry = [city, country].filter(Boolean).join(' ');
+        if (cityCountry && !candidates.includes(cityCountry)) candidates.push(cityCountry);
+
+        return candidates;
+    };
+
+    const geocodeAddress = async (addr: any): Promise<[number, number] | null> => {
+        if (!addr) return null;
+        const street = (addr.street || '').trim();
+        const houseNumber = (addr.houseNumber || '').trim();
+        const addition = (addr.addition || '').trim();
+        const postcode = (addr.postcode || '').trim();
+        const city = (addr.city || '').trim();
+        const country = (addr.country || '').trim();
+        const apiKey = '5b3ce3597851110001cf6248495a99f209a54de397d7d927a4a3f00b';
+
+        // 1. Structured Postal Code lookup (Pinpoints exact postal zone & eliminates wrong village with identical name)
+        if (postcode) {
+            try {
+                const params = new URLSearchParams({ format: 'json', postalcode: postcode });
+                if (country) params.append('country', country);
+                if (city) params.append('city', city);
+                const nomUrl = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+                const res = await axios.get(nomUrl, {
+                    timeout: 4000,
+                    headers: { 'User-Agent': 'CRM-Valuation-App' },
+                });
+                if (Array.isArray(res.data) && res.data.length > 0) {
+                    const lon = parseFloat(res.data[0].lon);
+                    const lat = parseFloat(res.data[0].lat);
+                    if (!isNaN(lon) && !isNaN(lat)) {
+                        return [lon, lat];
+                    }
+                }
+            } catch (e) {
+                // proceed
+            }
+        }
+
+        // 2. Clean comma-separated query via Nominatim
+        const cleanParts = [street, houseNumber, addition, city, postcode, country]
+            .filter(Boolean)
+            .map((s) => String(s).trim())
+            .filter((s) => s.length > 0 && s !== '0' && s !== 'undefined');
+
+        if (cleanParts.length > 0) {
+            try {
+                const q = cleanParts.join(', ');
+                const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`;
+                const res = await axios.get(nomUrl, {
+                    timeout: 4000,
+                    headers: { 'User-Agent': 'CRM-Valuation-App' },
+                });
+                if (Array.isArray(res.data) && res.data.length > 0) {
+                    const lon = parseFloat(res.data[0].lon);
+                    const lat = parseFloat(res.data[0].lat);
+                    if (!isNaN(lon) && !isNaN(lat)) {
+                        return [lon, lat];
+                    }
+                }
+            } catch (e) {
+                // proceed
+            }
+        }
+
+        // 3. Fallback candidates via OpenRouteService
+        const candidates = buildAddressCandidates(addr);
+        for (const query of candidates) {
+            try {
+                const orsUrl = `https://api.openrouteservice.org/geocode/search?api_key=${apiKey}&text=${encodeURIComponent(query)}`;
+                const res = await axios.get(orsUrl, { timeout: 4000 });
+                if (res.data?.features?.length > 0) {
+                    const coords = res.data.features[0].geometry?.coordinates;
+                    if (coords && coords.length >= 2) {
+                        return [coords[0], coords[1]]; // [lon, lat]
+                    }
+                }
+            } catch (e) {
+                // proceed
+            }
+        }
+        return null;
+    };
+
+    const calculateRoute = async (
+        startCoords: [number, number],
+        endCoords: [number, number],
+    ): Promise<{ distanceKm: number; durationHours: number }> => {
+        const apiKey = '5b3ce3597851110001cf6248495a99f209a54de397d7d927a4a3f00b';
+
+        // Tier 1: OpenRouteService Driving Directions
+        try {
+            const directionsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${startCoords[0]},${startCoords[1]}&end=${endCoords[0]},${endCoords[1]}`;
+            const res = await axios.get(directionsUrl, { timeout: 5000 });
+            const summary = res.data?.features?.[0]?.properties?.summary;
+            if (summary && summary.distance !== undefined) {
+                return {
+                    distanceKm: summary.distance / 1000,
+                    durationHours: (summary.duration || 0) / 3600,
+                };
+            }
+        } catch (e) {
+            // Fallback to OSRM
+        }
+
+        // Tier 2: OSRM Routing
+        try {
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords[0]},${startCoords[1]};${endCoords[0]},${endCoords[1]}?overview=false`;
+            const res = await axios.get(osrmUrl, { timeout: 5000 });
+            if (res.data?.routes?.length > 0) {
+                const route = res.data.routes[0];
+                return {
+                    distanceKm: route.distance / 1000,
+                    durationHours: route.duration / 3600,
+                };
+            }
+        } catch (e) {
+            // Fallback to Haversine
+        }
+
+        // Tier 3: Haversine distance with road factor
+        const [lon1, lat1] = startCoords;
+        const [lon2, lat2] = endCoords;
+        const R = 6371;
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((lat1 * Math.PI) / 180) *
+                Math.cos((lat2 * Math.PI) / 180) *
+                Math.sin(dLon / 2) *
+                Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const roadKm = R * c * 1.3;
+        const hours = roadKm / 60;
+        return {
+            distanceKm: roadKm,
+            durationHours: hours,
+        };
+    };
+
+    async function getDistanceAndTime(force = false) {
+        const load = watch('load');
+        const unload = watch('unload');
+
+        if (!load || !unload) {
+            return;
+        }
+
+        const hasLoadInfo = load.city || load.postcode || load.street;
+        const hasUnloadInfo = unload.city || unload.postcode || unload.street;
+
+        if (!hasLoadInfo || !hasUnloadInfo) {
+            return;
+        }
+
+        const currentDistance = Number(watch('relocation.distance'));
+        const currentTravelTime = Number(watch('relocation.travelTime'));
+
+        if (!force && currentDistance > 0 && currentTravelTime > 0) {
+            return;
+        }
+
+        setIsCalculatingDistance(true);
+        try {
+            const startCoords = await geocodeAddress(load);
+            const endCoords = await geocodeAddress(unload);
+
+            if (startCoords && endCoords) {
+                const route = await calculateRoute(startCoords, endCoords);
+                setValue('relocation.distance', route.distanceKm.toFixed(2));
+                setValue('relocation.travelTime', route.durationHours.toFixed(2));
+            }
+        } catch (error) {
+            console.error('Error calculating distance and time:', error);
+        } finally {
+            setIsCalculatingDistance(false);
+        }
+    }
 
     useEffect(() => {
         getDistanceAndTime().catch(console.error);
-    }, [])
+    }, [watch('load'), watch('unload')]);
 
-    let totalVolume = watch('relocation.totalVolume') || 0;
-    let pricePerMeterCubic = watch('relocation.pricePerMeterCubic');
-    let travelTime = watch('relocation.travelTime') || 0;
-    let pricePerHour = watch('relocation.pricePerHour');
-    let distance = watch('relocation.distance') || 0;
-    let pricePerKilometer = watch('relocation.pricePerKilometer');
+    let totalVolume = Number(watch('relocation.totalVolume')) || 0;
+    let pricePerMeterCubic = Number(watch('relocation.pricePerMeterCubic')) || 0;
+    let travelTime = Number(watch('relocation.travelTime')) || 0;
+    let pricePerHour = Number(watch('relocation.pricePerHour')) || 0;
+    let distance = Number(watch('relocation.distance')) || 0;
+    let pricePerKilometer = Number(watch('relocation.pricePerKilometer')) || 0;
 
     useEffect(() => {
-        function filterFurnitureData(data: any) {
-            return data.map((room: any) => {
-                const filteredFurniture = room.inventoryItems.filter((box: any) => box.quantity > 0);
-                const boxesPrice = filteredFurniture.reduce((sum: any, boxes: any) => {
-                    return sum + (boxes.price * boxes.quantity);
+        function filterBoxesData(data: any) {
+            if (!Array.isArray(data)) return 0;
+            return data.reduce((sum: number, room: any) => {
+                const boxes = Array.isArray(room.inventoryItems)
+                    ? room.inventoryItems.filter((box: any) => box.quantity > 0)
+                    : [];
+                const roomBoxesPrice = boxes.reduce((bSum: number, box: any) => {
+                    return bSum + ((Number(box.price) || 0) * (Number(box.quantity) || 0));
                 }, 0);
-                return boxesPrice
-            })
+                return sum + roomBoxesPrice;
+            }, 0);
         }
-        const totalBoxesPrice = filterFurnitureData(rooms).reduce((sum: any, price: any) => {
-            return sum + price;
-        }, 0)
+        const totalBoxesPrice = filterBoxesData(rooms);
 
-        let priceCalculation = priceAgreement === 'onhourly_basis' ? (totalVolume / settings.standardPrice?.cubicMeterPerHourPerEmployee) * pricePerMeterCubic : totalVolume * pricePerMeterCubic;
+        const cubicMeterPerHour = Number(settings.standardPrice?.cubicMeterPerHourPerEmployee) || 1;
+        let priceCalculation = priceAgreement === 'onhourly_basis'
+            ? (totalVolume / cubicMeterPerHour) * pricePerMeterCubic
+            : totalVolume * pricePerMeterCubic;
 
-        const totalPrice = priceCalculation + travelTime * pricePerHour + distance * pricePerKilometer + totalBoxesPrice
-        setTotalSum(totalPrice.toFixed(2) || 0)
-        setValue('relocation.requiredHours', convertToTimeFormat(totalVolume / settings.standardPrice?.cubicMeterPerHourPerEmployee));
-    }, [totalVolume, pricePerMeterCubic, travelTime, pricePerHour, distance, pricePerKilometer])
+        const relocationTotal = priceCalculation + (travelTime * pricePerHour) + (distance * pricePerKilometer) + totalBoxesPrice;
+        setTotalSum(relocationTotal.toFixed(2) || '0.00');
 
-    async function getDistanceAndTime() {
-        if (!watch('load') || !watch('unload')) {
-            return;
+        if (cubicMeterPerHour > 0 && totalVolume > 0) {
+            setValue('relocation.requiredHours', convertToTimeFormat(totalVolume / cubicMeterPerHour));
         }
-        const load = watch('load');
-        const unload = watch('unload');
-        const apiKey = '5b3ce3597851110001cf6248495a99f209a54de397d7d927a4a3f00b';
-        const startAddress = `${load.houseNumber}, ${load.addition} ${load.street} ${load.city} ,${load.country} ${load.postcode}`;
-        const endAddress = `${unload.houseNumber}, ${unload.addition} ${unload.street} ${unload.city} ,${unload.country} ${unload.postcode}`;
-        const geocodeUrl = (address: any) => `https://api.openrouteservice.org/geocode/search?api_key=${apiKey}&text=${encodeURIComponent(address)}`;
-        const startResponse = await axios.get(geocodeUrl(startAddress));
-        const endResponse = await axios.get(geocodeUrl(endAddress));
-        const startCoordinates = startResponse.data.features[0].geometry.coordinates;
-        const endCoordinates = endResponse.data.features[0].geometry.coordinates;
-        const directionsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${startCoordinates[0]},${startCoordinates[1]}&end=${endCoordinates[0]},${endCoordinates[1]}`;
-        const directionsResponse = await axios.get(directionsUrl);
-        const distanceInKilometers = directionsResponse.data?.features[0]?.properties?.summary?.distance / 1000 || 0;
-        const durationInHours = directionsResponse.data?.features[0]?.properties?.summary?.duration / 3600 || 0;
-        setValue('relocation.distance', distanceInKilometers.toFixed(2) || 0)
-        setValue('relocation.travelTime', durationInHours.toFixed(2) || 0)
-    }
+    }, [totalVolume, pricePerMeterCubic, travelTime, pricePerHour, distance, pricePerKilometer, priceAgreement, rooms, settings, setValue]);
 
     let packingRate = watch('packing.appliedPrice')
     let unpackingRate = watch('unpacking.appliedPrice')
@@ -255,7 +451,13 @@ useEffect(() => {
                 <span className="text-lg font-bold">{formatCurrency(totalPrice || 0)}</span>
             </div>
             </div>
-            <RelocationCalculation totalSum={totalSum} priceAgreement={priceAgreement} rooms={rooms} />
+            <RelocationCalculation
+                totalSum={totalSum}
+                priceAgreement={priceAgreement}
+                rooms={rooms}
+                onRecalculateDistance={() => getDistanceAndTime(true)}
+                isCalculatingDistance={isCalculatingDistance}
+            />
             { materialsCharge > 0 && (
                 <MaterialsCalculation totalSum={materialsCharge} materials={data.materials} />
             )}

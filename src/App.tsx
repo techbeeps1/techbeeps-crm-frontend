@@ -83,7 +83,6 @@ function App() {
         {token ? (
           <>
             <Route element={<DefaultLayout />}>
-              <Route path="/*" element={<Navigate to="/" />} key="root-dashboard" />
               <Route
                 path="/"
                 element={
@@ -105,6 +104,7 @@ function App() {
                   }
                 />
               ))}
+              <Route path="*" element={<Navigate to="/" />} key="root-dashboard" />
             </Route>
             <Route path="/intake/:type/:Id/" element={<ValuationPage />} />
             <Route path="/intake" element={<ValuationPage />} />

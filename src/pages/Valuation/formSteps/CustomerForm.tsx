@@ -11,6 +11,7 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
     register,
     formState: { errors },
     setValue,
+    watch,
   } = useFormContext() as any;
 
   const [customerMode, setCustomerMode] = useState<'new' | 'existing' | null>(
@@ -19,6 +20,9 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
 
   const [searchCustomer, setSearchCustomer] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+
+  const currentCustomer = watch(type);
 
   const fetchAddresses = async (id: string) => {
     if (!id) return;
@@ -41,6 +45,16 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
       console.error('Error fetching addresses:', error);
     }
   };
+
+  // Auto-detect existing customer data from form context
+  useEffect(() => {
+    if (currentCustomer && (currentCustomer._id || currentCustomer.firstName || currentCustomer.email)) {
+      if (!customerMode) {
+        setCustomerMode('existing');
+        setSelectedCustomer(currentCustomer);
+      }
+    }
+  }, [currentCustomer, customerMode]);
 
   useEffect(() => {
     if (customerid && Array.isArray(customers) && customers.length > 0) {
@@ -65,19 +79,35 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
     fetchCustomers();
   }, []);
 
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-
   const readOnly = customerMode === 'existing';
 
-  const handleCustomerSelect = (id: string) => {
+  const handleCustomerSelect = (target: any) => {
+    const id = typeof target === 'string' ? target : target?._id;
     const safeCustomers = Array.isArray(customers) ? customers : [];
-    const customer = id ? safeCustomers.find((item: any) => item._id === id) : null;
+    let customer = id ? safeCustomers.find((item: any) => item._id === id) : null;
+    if (!customer && typeof target === 'object' && target !== null) {
+      customer = target;
+    }
 
     if (customer) {
       if (customer.address && customer.address.length > 0) {
-        fetchAddresses(customer.address[0]?._id);
+        const addrId = typeof customer.address[0] === 'string' ? customer.address[0] : customer.address[0]?._id;
+        if (addrId) {
+          fetchAddresses(addrId);
+        } else if (customer.address[0]?.postcode || customer.address[0]?.city) {
+          const addr = customer.address[0];
+          setValue(`load.postcode`, addr.postcode || '');
+          setValue(`load.houseNumber`, addr.houseNumber || '');
+          setValue(`load.street`, addr.street || '');
+          setValue(`load.addition`, addr.addition || '');
+          setValue(`load.city`, addr.city || '');
+          setValue(`load.country`, addr.country || '');
+          setValue(`load.typeOfProperty`, addr.typeOfProperty || '');
+          setValue(`load.floor`, addr.floor || '');
+        }
       }
       setSelectedCustomer(customer);
+      setValue(`${type}._id`, customer._id || '');
       setValue(`${type}.customerId`, customer._id || '');
       setValue(`${type}.typeOfCustomer`, customer.typeOfCustomer || '');
       setValue(`${type}.gender`, customer.gender || '');
@@ -91,6 +121,7 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
       setValue(`${type}.findUs`, customer.findUs || '');
     } else {
       setSelectedCustomer(null);
+      setValue(`${type}._id`, '');
       setValue(`${type}.customerId`, '');
       setValue(`${type}.typeOfCustomer`, '');
       setValue(`${type}.gender`, '');

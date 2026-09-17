@@ -6,6 +6,8 @@ const RelocationCalculation: React.FC<any> = ({
   totalSum,
   priceAgreement,
   rooms,
+  onRecalculateDistance,
+  isCalculatingDistance,
 }) => {
   const { setValue, control } = useFormContext() as any;
 
@@ -366,9 +368,31 @@ const RelocationCalculation: React.FC<any> = ({
 
           {/* Travel & Distance */}
           <div className="bg-white border border-slate-200 p-5 shadow-sm">
-            <h4 className="font-semibold text-slate-800 mb-5">
-              Travel Details
-            </h4>
+            <div className="flex items-center justify-between mb-5">
+              <h4 className="font-semibold text-slate-800">
+                Travel Details
+              </h4>
+              {onRecalculateDistance && (
+                <button
+                  type="button"
+                  disabled={isCalculatingDistance}
+                  onClick={onRecalculateDistance}
+                  className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition"
+                >
+                  {isCalculatingDistance ? (
+                    <>
+                      <span className="inline-block animate-spin">⟳</span>
+                      Calculating...
+                    </>
+                  ) : (
+                    <>
+                      <span>⟳</span>
+                      Calculate Distance & Time
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
               <div>

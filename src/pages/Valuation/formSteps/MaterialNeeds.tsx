@@ -23,7 +23,9 @@ const MaterialNeeds: React.FC<any> = ({ useFieldArray }) => {
     const merged = response.data.map((box: any) => {
       const existing = existingMaterials.find(
         (item: any) =>
-          item.material?._id === box._id || item._id === box._id
+          item.material?._id === box._id ||
+          item._id === box._id ||
+          (typeof item.material === 'string' && item.material === box._id)
       );
 
       return {

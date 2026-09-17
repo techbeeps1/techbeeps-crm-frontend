@@ -85,9 +85,9 @@ const AddressVerification: React.FC<any> = ({ watch, type, mode, countries }) =>
             />}
             {type === 'load' && <><AddressSection
                 title="Load"
-                address={`${load?.houseNumber} ${load?.street} ${load?.addition}`}
-                postalCode={load?.postalCode}
-                city={`${load?.city} ${load?.country}`}
+                address={`${load?.houseNumber || ''} ${load?.street || ''} ${load?.addition || ''}`.trim()}
+                postalCode={load?.postcode || load?.postalCode}
+                city={`${load?.city || ''} ${load?.country || ''}`.trim()}
                 notice={load?.typeOfProperty}
                 mode={mode}
             />
@@ -102,9 +102,9 @@ const AddressVerification: React.FC<any> = ({ watch, type, mode, countries }) =>
                 }
                 {!!addressKnown && <AddressSection
                     title="Unload"
-                    address={`${unload?.houseNumber} ${unload?.street} ${unload?.addition}`}
-                    postalCode={unload?.postalCode}
-                    city={`${unload?.city} ${unload?.country}`}
+                    address={`${unload?.houseNumber || ''} ${unload?.street || ''} ${unload?.addition || ''}`.trim()}
+                    postalCode={unload?.postcode || unload?.postalCode}
+                    city={`${unload?.city || ''} ${unload?.country || ''}`.trim()}
                     notice={unload?.typeOfProperty}
                     mode={mode}
                 />}

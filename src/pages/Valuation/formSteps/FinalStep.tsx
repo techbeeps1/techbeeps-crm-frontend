@@ -19,7 +19,7 @@ const FinalStep: React.FC<any> = () => {
                                 type="button"
                                 {...field}
                                 onClick={() => field.onChange(true)} // Set elevator to true
-                                className={`px-5 py-3 w-full shadow text-xl font-medium ${field.value ? "bg-blue text-white" : "bg-white"}`}
+                                className={`px-5 py-3 w-full shadow text-xl font-medium ${field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                             >
                                 Yes
                             </button>
@@ -33,7 +33,7 @@ const FinalStep: React.FC<any> = () => {
                                 type="button"
                                 {...field}
                                 onClick={() => field.onChange(false)} // Set elevator to false
-                                className={`px-5 py-3 w-full shadow text-xl font-medium ${!field.value ? "bg-blue text-white" : "bg-white"}`}>
+                                className={`px-5 py-3 w-full shadow text-xl font-medium ${!field.value ? "bg-blue-500 text-white" : "bg-white"}`}>
                                 No
                             </button>
                         )}
@@ -51,7 +51,7 @@ const FinalStep: React.FC<any> = () => {
                                 type="button"
                                 {...field}
                                 onClick={() => field.onChange(true)} // Set elevator to true
-                                className={`px-5 py-3 w-full shadow text-xl font-medium ${field.value ? "bg-blue text-white" : "bg-white"}`}
+                                className={`px-5 py-3 w-full shadow text-xl font-medium ${field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                             >
                                 Yes
                             </button>
@@ -65,7 +65,7 @@ const FinalStep: React.FC<any> = () => {
                                 type="button"
                                 {...field}
                                 onClick={() => field.onChange(false)} // Set elevator to false
-                                className={`px-5 py-3 w-full shadow text-xl font-medium ${!field.value ? "bg-blue text-white" : "bg-white"}`}>
+                                className={`px-5 py-3 w-full shadow text-xl font-medium ${!field.value ? "bg-blue-500 text-white" : "bg-white"}`}>
                                 No,Prepare Quotation
                             </button>
                         )}

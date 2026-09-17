@@ -34,10 +34,10 @@ const AssembleFurniture: React.FC<any> = ({
     const updatedItems = items.map((item: any) =>
       item._id === id
         ? {
-            ...item,
-            checked: !item.checked,
-            service: type,
-          }
+          ...item,
+          checked: !item.checked,
+          service: type,
+        }
         : item
     );
 
@@ -47,7 +47,7 @@ const AssembleFurniture: React.FC<any> = ({
   return (
     <div className="rounded-lg px-5 pt-3 h-full overflow-y-auto">
       <div
-        className="bg-blue text-white text-center p-4 font-bold rounded cursor-pointer mb-4"
+        className="bg-blue-500 text-white text-center p-4 font-bold rounded cursor-pointer mb-4"
         onClick={toggleSelectAll}
       >
         {selectAll ? 'Unselect All' : 'Select All'}

@@ -661,7 +661,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           minute: '2-digit',
         });
       }
-    } catch {}
+    } catch { }
     return String(timeVal);
   };
 
@@ -1058,8 +1058,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     <Box
                       key={step}
                       className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium ${activeStep === step
-                          ? 'border-blue bg-blue text-white shadow-sm'
-                          : 'border-slate-200 bg-white text-slate-600'
+                        ? 'border-blue bg-blue-500 text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-600'
                         }`}
                     >
                       <Box

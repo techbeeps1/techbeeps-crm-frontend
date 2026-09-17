@@ -29,91 +29,181 @@ export const DragDrawer: React.FC<any> = ({
   });
 
 
-  useEffect(() => {
-    const itemsWithQuantity = furnitureItems.filter(
-      (item: any) => item.quantity > 0,
-    );
-    setStorageItems(itemsWithQuantity);
-
-    const filteredItems = furnitureItems.filter(
-  (item: any) => item.quantity > 0 && item.isDisassambled
-);
-
-const allDismantledItems = selectedRoom.flatMap(
-  (room: any) => room.dismantledItems || []
-);
-
-const allAssembledItems = selectedRoom.flatMap(
-  (room: any) => room.assembledItems || []
-);
-
-// Merge for Dismantled
-const mergedDismantled = [
-  ...allDismantledItems,
-  ...filteredItems
-    .filter(
-      (item: any) =>
-        !allDismantledItems.some(
-          (saved: any) => saved._id === item._id
-        )
-    )
-    .map((item: any) => ({
-      ...item,
-      checked: false,
-      isDisassambled: true, // custom key
-    })),
-];
-
-// Merge for Assembled
-const mergedAssembled = [
-  ...allAssembledItems,
-  ...filteredItems
-    .filter(
-      (item: any) =>
-        !allAssembledItems.some(
-          (saved: any) => saved._id === item._id
-        )
-    )
-    .map((item: any) => ({
-      ...item,
-      checked: false,
-      isDisassambled: true,
-    })),
-];
-
-
-    setDismantledItems(mergedDismantled );
-    setAssembledItems(mergedAssembled);
-
-  }, [furnitureItems]);
-
   const [dismantledItems, setDismantledItems] = useState<any>([]);
   const [assembledItems, setAssembledItems] = useState<any>([]);
   const [storageItems, setStorageItems] = useState<any>([]);
 
+  useEffect(() => {
+    if (!selectItem) return;
 
-      useEffect(() => {
+    const itemsWithQuantity = furnitureItems.filter(
+      (item: any) => item.quantity > 0,
+    );
 
-        if(data && data.length > 0){
+    // 1. Storage items for THIS room
+    const savedStorage = selectItem.storageItems || [];
+    const allStorageList = [
+      ...itemsWithQuantity,
+      ...savedStorage.filter(
+        (saved: any) =>
+          !itemsWithQuantity.some(
+            (it: any) =>
+              it._id === saved._id ||
+              it.furnitureTypeName === saved.furnitureTypeName,
+          ),
+      ),
+    ];
 
+    setStorageItems((prevStorage: any[]) => {
+      return allStorageList.map((item: any) => {
+        const prevItem = (prevStorage || []).find(
+          (p: any) =>
+            p._id === item._id || p.furnitureTypeName === item.furnitureTypeName,
+        );
+        const isChecked =
+          prevItem !== undefined
+            ? prevItem.checked
+            : savedStorage.some(
+                (saved: any) =>
+                  saved._id === item._id ||
+                  saved.furnitureTypeName === item.furnitureTypeName,
+              );
+        return {
+          ...item,
+          checked: !!isChecked,
+        };
+      });
+    });
 
-        const filteredFurnitureItems = data.map(({ _id, quantity, cubicMeter,done, furnitureTypeName, isDisassambled,icon }: any) => ({ _id, quantity,done, cubicMeter, furnitureTypeName,isDisassambled, icon }));
-        setFurnitureItems(filteredFurnitureItems)
+    // 2. Disassembling eligible items for THIS room (ONLY isDisassambled === true)
+    const savedDismantled = selectItem.dismantledItems || [];
+    const eligibleDisassembly = itemsWithQuantity.filter(
+      (item: any) => item.isDisassambled === true,
+    );
+    const allDismantleList = [
+      ...eligibleDisassembly,
+      ...savedDismantled.filter(
+        (saved: any) =>
+          !eligibleDisassembly.some(
+            (it: any) =>
+              it._id === saved._id ||
+              it.furnitureTypeName === saved.furnitureTypeName,
+          ),
+      ),
+    ];
 
-        }
-    }, [data])
+    setDismantledItems((prevDismantled: any[]) => {
+      return allDismantleList.map((item: any) => {
+        const prevItem = (prevDismantled || []).find(
+          (p: any) =>
+            p._id === item._id || p.furnitureTypeName === item.furnitureTypeName,
+        );
+        const isChecked =
+          prevItem !== undefined
+            ? prevItem.checked
+            : savedDismantled.some(
+                (saved: any) =>
+                  saved._id === item._id ||
+                  saved.furnitureTypeName === item.furnitureTypeName,
+              );
+        return {
+          ...item,
+          checked: !!isChecked,
+          isDisassambled: true,
+        };
+      });
+    });
 
+    // 3. Assembling eligible items for THIS room (ONLY isDisassambled === true)
+    const savedAssembled = selectItem.assembledItems || [];
+    const eligibleAssembly = itemsWithQuantity.filter(
+      (item: any) => item.isDisassambled === true,
+    );
+    const allAssembleList = [
+      ...eligibleAssembly,
+      ...savedAssembled.filter(
+        (saved: any) =>
+          !eligibleAssembly.some(
+            (it: any) =>
+              it._id === saved._id ||
+              it.furnitureTypeName === saved.furnitureTypeName,
+          ),
+      ),
+    ];
 
+    setAssembledItems((prevAssembled: any[]) => {
+      return allAssembleList.map((item: any) => {
+        const prevItem = (prevAssembled || []).find(
+          (p: any) =>
+            p._id === item._id || p.furnitureTypeName === item.furnitureTypeName,
+        );
+        const isChecked =
+          prevItem !== undefined
+            ? prevItem.checked
+            : savedAssembled.some(
+                (saved: any) =>
+                  saved._id === item._id ||
+                  saved.furnitureTypeName === item.furnitureTypeName,
+              );
+        return {
+          ...item,
+          checked: !!isChecked,
+          isDisassambled: true,
+        };
+      });
+    });
+  }, [furnitureItems, selectItem]);
 
+  useEffect(() => {
+    if (data && data.length > 0) {
+      const filteredFurnitureItems = data.map(
+        ({ _id, quantity, cubicMeter, done, furnitureTypeName, isDisassambled, icon }: any) => ({
+          _id,
+          quantity,
+          done,
+          cubicMeter,
+          furnitureTypeName,
+          isDisassambled,
+          icon,
+        }),
+      );
+      setFurnitureItems(filteredFurnitureItems);
+    } else {
+      setFurnitureItems([]);
+    }
+  }, [data]);
 
   const fetchRoomInner = async () => {
     try {
+      let masterFurniture: any[] = [];
+      try {
+        const res = await axios.get(`${apiPath}/api/furniture`);
+        masterFurniture = res.data || [];
+      } catch (e) {
+        console.error('Error fetching master furniture:', e);
+      }
+
       setData(
-        selectItem?.furnitureType.map((item: any) => ({
-          ...item,
-          quantity: item.quantity || 0,
-          done: item.done || false,
-        })),
+        (selectItem?.furnitureType || []).map((item: any) => {
+          let isDis = item.isDisassambled;
+          if ((isDis === undefined || isDis === null) && masterFurniture.length > 0) {
+            const match = masterFurniture.find(
+              (m: any) =>
+                m._id === item._id ||
+                (m.furnitureTypeName &&
+                  item.furnitureTypeName &&
+                  m.furnitureTypeName.trim().toLowerCase() ===
+                    item.furnitureTypeName.trim().toLowerCase()),
+            );
+            isDis = match ? match.isDisassambled : false;
+          }
+          return {
+            ...item,
+            quantity: item.quantity || 0,
+            done: item.done || false,
+            isDisassambled: !!isDis,
+          };
+        }),
       );
     } catch (err: any) {
       console.error('Failed to fetch room inner:', err);
@@ -121,7 +211,7 @@ const mergedAssembled = [
   };
 
   useEffect(() => {
-    setRoomName(selectItem?.name || selectItem?.roomTypeName);
+    setRoomName(selectItem?.name || selectItem?.roomTypeName || '');
     if (selectItem) {
       fetchRoomInner();
     }
@@ -132,45 +222,65 @@ const mergedAssembled = [
       const newSteps = [
         {
           label: `Do You want to give the ${selectItem?.roomTypeName} a different Name ?`,
+          id: 'name',
         },
-        { label: `What furniture is in the ${roomName} ?` },
-        { label: 'What Material is Needed ?' },
+        { label: `What furniture is in the ${roomName} ?`, id: 'furniture' },
+        { label: 'What Material is Needed ?', id: 'material' },
       ];
       if (
         services.find(
           (service: any) => service.serviceTypeName === 'disassembling',
         ) &&
-        !newSteps.some(
-          (step) => step.label === 'Does anything need to be Disassambled ?',
-        )
+        dismantledItems &&
+        dismantledItems.length > 0
       ) {
-        newSteps.push({ label: 'Does anything need to be Disassambled ?' });
+        newSteps.push({
+          label: 'Does anything need to be Disassambled ?',
+          id: 'disassembling',
+        });
       }
       if (
         services.find(
           (service: any) => service.serviceTypeName === 'assembling',
         ) &&
-        !newSteps.some(
-          (step) => step.label === 'Does anything need to be Assembling ?',
-        )
+        assembledItems &&
+        assembledItems.length > 0
       ) {
-        newSteps.push({ label: 'Does anything need to be Assembling ?' });
+        newSteps.push({
+          label: 'Does anything need to be Assembling ?',
+          id: 'assembling',
+        });
       }
       if (
         services.find(
           (service: any) => service.serviceTypeName === 'storage',
         ) &&
-        !newSteps.some(
-          (step) => step.label === 'Does anything need to go in storage ?',
-        )
+        storageItems &&
+        storageItems.length > 0
       ) {
-        newSteps.push({ label: 'Does anything need to go in storage ?' });
+        newSteps.push({
+          label: 'Does anything need to go in storage ?',
+          id: 'storage',
+        });
       }
       return newSteps;
     });
-  }, [services, selectItem, roomName]);
+  }, [
+    services,
+    selectItem,
+    roomName,
+    dismantledItems?.length,
+    assembledItems?.length,
+    storageItems?.length,
+  ]);
 
-  const handleBack = () => setActiveStep((prev) => prev - 1);
+  useEffect(() => {
+    if (steps.length > 0 && activeStep >= steps.length) {
+      setActiveStep(Math.max(0, steps.length - 1));
+    }
+  }, [steps.length, activeStep]);
+
+  const handleBack = () => setActiveStep((prev) => Math.max(0, prev - 1));
 
   const handleNext = () => {
     setActiveStep((prev) => prev + 1);
@@ -257,7 +367,7 @@ useEffect(() => {
           <h3 className="text-white text-center font-bold text-xl mb-1 flex flex-col">
             {steps[activeStep]?.label}
           </h3>
-          {activeStep === 1 && (
+          {steps[activeStep]?.id === 'furniture' && (
             <span className="text-sm text-gray-100 block mt-1 text-right">
               Total {roomName}:{' '}
               {furnitureItems
@@ -270,7 +380,7 @@ useEffect(() => {
               m³
             </span>
           )}
-          {activeStep === 0 && (
+          {steps[activeStep]?.id === 'name' && (
             <>
               <div className="mb-4 h-full">
                 <label
@@ -292,7 +402,7 @@ useEffect(() => {
               </div>
             </>
           )}
-          {activeStep === 1 && (
+          {steps[activeStep]?.id === 'furniture' && (
             <FurntureSelection
               roomId={selectItem?._id}
             
@@ -301,7 +411,7 @@ useEffect(() => {
               handler={fetchRoomInner}
             />
           )}
-          {activeStep === 2 && (
+          {steps[activeStep]?.id === 'material' && (
             <>
               <div className='text-right pe-5'>
                 Total Boxes:{' '}
@@ -314,55 +424,27 @@ useEffect(() => {
               <PackingBox  />
             </>
           )}
-          {services.find(
-            (service: any) => service.serviceTypeName === 'disassembling',
-          ) &&
-            activeStep === 3 && (
-              <AssembleFurniture
-                type="disassemble"
-                items={dismantledItems}
-                setItems={setDismantledItems}
-              />
-            )}
-          {services.find(
-            (service: any) => service.serviceTypeName === 'assembling',
-          ) &&
-            activeStep ===
-              (services.find(
-                (service: any) => service.serviceTypeName === 'disassembling',
-              )
-                ? 4
-                : 3) && (
-              <AssembleFurniture
-                type="assemble"
-                items={assembledItems}
-                setItems={setAssembledItems}
-              />
-            )}
-          {services.find(
-            (service: any) => service.serviceTypeName === 'storage',
-          ) &&
-            activeStep ===
-              (services.find(
-                (service: any) => service.serviceTypeName === 'disassembling',
-              ) &&
-              services.find(
-                (service: any) => service.serviceTypeName === 'assembling',
-              )
-                ? 5
-                : services.find(
-                      (service: any) =>
-                        service.serviceTypeName === 'disassembling' ||
-                        'assembling',
-                    )
-                  ? 4
-                  : 3) && (
-              <AssembleFurniture
-                type="storage"
-                items={storageItems}
-                setItems={setStorageItems}
-              />
-            )}
+          {steps[activeStep]?.id === 'disassembling' && (
+            <AssembleFurniture
+              type="disassemble"
+              items={dismantledItems}
+              setItems={setDismantledItems}
+            />
+          )}
+          {steps[activeStep]?.id === 'assembling' && (
+            <AssembleFurniture
+              type="assemble"
+              items={assembledItems}
+              setItems={setAssembledItems}
+            />
+          )}
+          {steps[activeStep]?.id === 'storage' && (
+            <AssembleFurniture
+              type="storage"
+              items={storageItems}
+              setItems={setStorageItems}
+            />
+          )}
 
           <div className="bg-sky-900 flex justify-between">
             <Button

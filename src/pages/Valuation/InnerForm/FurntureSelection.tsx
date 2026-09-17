@@ -16,14 +16,14 @@ const FurnitureSelection: React.FC<any> = ({  data, setData }) => {
     const [loading,setLoading] = useState<boolean>(false);
     const [search, setSearch] = useState('');
 
-    const filteredFurniture = furniture.filter((item: any) =>
+    const filteredFurniture = (furniture || []).filter((item: any) =>
     item?.furnitureTypeName
         ?.toLowerCase()
         .includes(search.toLowerCase())
 );
 
 
-    const filteredFurniturelist = data.filter((item: any) =>
+    const filteredFurniturelist = (data || []).filter((item: any) =>
     item?.furnitureTypeName
         ?.toLowerCase()
         .includes(search.toLowerCase())

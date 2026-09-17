@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../../UserContext';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
@@ -49,6 +50,7 @@ interface JobData {
 }
 
 const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
+  const navigate = useNavigate();
   const [data, setData] = useState<JobData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -482,7 +484,7 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
                       return (
                         <tr
                           key={item._id}
-                          onClick={() => getJobDetail(item._id)}
+                          onClick={() => navigate(`/jobs/${item._id}`)}
                           className="hover:bg-slate-50/80 dark:hover:bg-meta-4/30 transition-colors group cursor-pointer"
                         >
                           {/* Client & Avatar */}
@@ -535,7 +537,7 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                getJobDetail(item._id);
+                                navigate(`/jobs/${item._id}`);
                               }}
                               className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-all"
                             >

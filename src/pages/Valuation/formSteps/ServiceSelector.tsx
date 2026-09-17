@@ -1,17 +1,15 @@
 import React from "react";
 
-const ServiceSelector: React.FC<any> = ({ services, setItem, item }) => {
-
-
+const ServiceSelector: React.FC<any> = ({ services, setItem, item = [] }) => {
+  const safeItem = Array.isArray(item) ? item : [];
 
   const toggleService = (service: any) => {
-
-    const isSelected = item.some((selectedService: any) => selectedService._id === service._id);
+    const isSelected = safeItem.some((selectedService: any) => selectedService._id === service._id);
 
     if (isSelected) {
-      setItem(item.filter((selectedService: any) => selectedService._id !== service._id));
+      setItem(safeItem.filter((selectedService: any) => selectedService._id !== service._id));
     } else {
-      setItem([...item, {...service,name:"",inventoryItems:[],finished:false}]);
+      setItem([...safeItem, {...service, name: "", inventoryItems: [], finished: false}]);
     }
   };
 
@@ -20,7 +18,7 @@ const ServiceSelector: React.FC<any> = ({ services, setItem, item }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         {services &&
           services.map((service: any) => {
-            const isSelected = item.some((selectedService: any) => selectedService._id === service._id);
+            const isSelected = safeItem.some((selectedService: any) => selectedService._id === service._id);
             return (
               <div
                 key={service?._id}

@@ -277,7 +277,7 @@ function Resources() {
       });
   }, []);
 
-  function handleStaffFormSubmission(){
+  function handleStaffFormSubmission() {
     console.log('Submission')
   }
 
@@ -2654,8 +2654,8 @@ function Resources() {
                             placeholder="Customer"
                             className="w-50 rounded border-[1.5px] border-stroke py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                             name="firstName"
-                            // value={searchData.firstName}
-                            // onChange={handleSearchInputChange}
+                          // value={searchData.firstName}
+                          // onChange={handleSearchInputChange}
                           />
                         </div>
                       </div>
@@ -2667,8 +2667,8 @@ function Resources() {
                             placeholder="Storage Number"
                             className="w-50 rounded border-[1.5px] border-stroke py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                             name="firstName"
-                            // value={searchData.firstName}
-                            // onChange={handleSearchInputChange}
+                          // value={searchData.firstName}
+                          // onChange={handleSearchInputChange}
                           />
                         </div>
                       </div>
@@ -2679,8 +2679,8 @@ function Resources() {
                             placeholder="Seal"
                             className="w-50 rounded border-[1.5px] border-  stroke py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                             name="Seal"
-                            // value={searchData.firstName}
-                            // onChange={handleSearchInputChange}
+                          // value={searchData.firstName}
+                          // onChange={handleSearchInputChange}
                           />
                         </div>
                       </div>
@@ -2691,8 +2691,8 @@ function Resources() {
                             placeholder="Minimum Value"
                             className="w-50 rounded border-[1.5px] border-stroke py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                             name="firstName"
-                            // value={searchData.firstName}
-                            // onChange={handleSearchInputChange}
+                          // value={searchData.firstName}
+                          // onChange={handleSearchInputChange}
                           />
                         </div>
                       </div>
@@ -2703,8 +2703,8 @@ function Resources() {
                             placeholder="Last billed for"
                             className="w-50 rounded border-[1.5px] border-stroke py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                             name="firstName"
-                            // value={searchData.firstName}
-                            // onChange={handleSearchInputChange}
+                          // value={searchData.firstName}
+                          // onChange={handleSearchInputChange}
                           />
                         </div>
                       </div>
@@ -2761,9 +2761,8 @@ function Resources() {
                                 <tr
                                   key={bulletin._id}
                                   style={{ cursor: 'pointer' }}
-                                  className={`${
-                                    index % 2 === 0 ? 'bg-gray-100' : ''
-                                  } border-b dark:border-neutral-500`}
+                                  className={`${index % 2 === 0 ? 'bg-gray-100' : ''
+                                    } border-b dark:border-neutral-500`}
                                   onClick={() => {
                                     setSelectedBulletin(bulletin);
                                   }}
@@ -2923,9 +2922,8 @@ function Resources() {
           <div className="flex items-center justify-center">
             {showModal && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50  ${
-                  showModal ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50  ${showModal ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div className="inset-0 flex items-center justify-center z-50 md:w-[80%] lg:w-[85%] xl:w-[95%]">
@@ -3207,9 +3205,8 @@ function Resources() {
           <div className="max-h-screen flex items-center justify-center">
             {isStorageRemoveModalOpen && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isStorageRemoveModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${isStorageRemoveModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div className="inset-0 w-full flex items-center justify-center z-50">
@@ -3257,9 +3254,8 @@ function Resources() {
           <div className="max-h-screen flex items-center justify-center">
             {showLoadStorageModal && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  showLoadStorageModal ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${showLoadStorageModal ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div className="inset-0 w-full flex items-center justify-center z-50">
@@ -3359,8 +3355,8 @@ function Resources() {
                         placeholder="Type"
                         className="w-50 rounded border-[1.5px] border-stroke py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                         name="firstName"
-                        // value={searchData.firstName}
-                        // onChange={handleSearchInputChange}
+                      // value={searchData.firstName}
+                      // onChange={handleSearchInputChange}
                       />
                     </div>
                   </div>
@@ -3399,11 +3395,10 @@ function Resources() {
                           <tr
                             key={box._id}
                             style={{ cursor: 'pointer' }}
-                            className={`${
-                              index % 2 === 0
+                            className={`${index % 2 === 0
                                 ? 'bg-button-color text-black'
                                 : ''
-                            } border-b dark:border-blue`}
+                              } border-b dark:border-blue`}
                             onClick={() => {
                               setSelectedBox(box);
                               ReceivedInventoryList(box);
@@ -3529,7 +3524,7 @@ function Resources() {
                             id="dropdown"
                             className="p-2 border bg-danger rounded-md focus:outline-none focus:border-blue-500 text-black ml-2"
                             onChange={handleOptionChange}
-                            // value={selectedOption}
+                          // value={selectedOption}
                           >
                             <option value="">More Actions</option>
                             <option value="Throw away">Throw away</option>
@@ -3561,8 +3556,8 @@ function Resources() {
                             type="search"
                             className="border rounded-lg w-40 px-3 py-2 pl-10 pr-4 ml-10 focus:outline-none focus:border-blue-500"
                             placeholder="Search..."
-                            // value={searchTerm}
-                            // onChange={(e) => setSearchTerm(e.target.value)}
+                          // value={searchTerm}
+                          // onChange={(e) => setSearchTerm(e.target.value)}
                           />
                         </div>
                         <div className="col-span-1">
@@ -3821,7 +3816,7 @@ function Resources() {
 
                               <div className="flex">
                                 <button
-                                  className="bg-button-color text-black active:bg-blue   
+                                  className="bg-button-color text-black active:bg-blue-500   
       font-bold px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
                                   type="button"
                                   onClick={() => {
@@ -3884,7 +3879,7 @@ function Resources() {
                               </div>
                               <div className="flex">
                                 <button
-                                  className="bg-button-color text-black active:bg-blue   
+                                  className="bg-button-color text-black active:bg-blue-500   
       font-bold px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
                                   type="button"
                                   onClick={() => {
@@ -4190,8 +4185,8 @@ function Resources() {
                             type="search"
                             className="border rounded-lg w-40 px-3 py-2 pl-10 pr-4 ml-10 focus:outline-none focus:border-blue-500"
                             placeholder="Search..."
-                            // value={searchTerm}
-                            // onChange={(e) => setSearchTerm(e.target.value)}
+                          // value={searchTerm}
+                          // onChange={(e) => setSearchTerm(e.target.value)}
                           />
                         </div>
                         <div className="col-span-1">
@@ -4217,11 +4212,10 @@ function Resources() {
                                       <tr
                                         key={order._id}
                                         style={{ cursor: 'pointer' }}
-                                        className={`${
-                                          index % 2 === 0
+                                        className={`${index % 2 === 0
                                             ? 'bg-button-color text-black'
                                             : ''
-                                        } border-b dark:border-blue`}
+                                          } border-b dark:border-blue`}
                                       >
                                         <td className="whitespace-nowrap px-6 py-4 font-medium">
                                           {getSupplierName(order.supplier)}
@@ -4255,9 +4249,8 @@ function Resources() {
             <div className="flex items-center justify-center">
               {showBoxModal && (
                 <div
-                  className={`fixed inset-0 flex items-center justify-center z-50   ${
-                    showBoxModal ? '' : 'hidden'
-                  }`}
+                  className={`fixed inset-0 flex items-center justify-center z-50   ${showBoxModal ? '' : 'hidden'
+                    }`}
                 >
                   <div className="fixed inset-0 bg-black opacity-80"></div>
                   <div className="inset-0 flex items-center justify-center z-50 md:w-[80%] lg:w-[85%] xl:w-[95%]">
@@ -4408,9 +4401,8 @@ function Resources() {
           <div className="max-h-screen flex items-center justify-center">
             {selectedOption === 'Throw away' && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isRemoveModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${isRemoveModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div className="inset-0 w-full flex items-center justify-center z-50">
@@ -4496,122 +4488,120 @@ function Resources() {
             {(selectedOption === 'To sell' ||
               selectedOption === 'Rent out' ||
               selectedOption === 'Received return') && (
-              <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isRemoveModalOpen ? '' : 'hidden'
-                }`}
-              >
-                <div className="fixed inset-0 bg-black opacity-80"></div>
-                <div className="inset-0 w-full flex items-center justify-center z-50">
-                  <div
-                    className=" bg-white p-4 rounded-lg shadow-lg"
-                    ref={modalRef}
-                  >
-                    <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                      <h1 className="font-extrabold text-danger ml-2">
-                        {' '}
-                        {selectedOption === 'Rent out'
-                          ? 'Rent out stuff'
-                          : selectedOption === 'Received return'
-                          ? 'Received return stuff'
-                          : 'Sell stuff'}
-                      </h1>
-                      <form onSubmit={handleSold}>
-                        <div className="inline-block sm:flex mt-5">
-                          <div>
-                            <div className="mb-4.5 ml-5">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Customer
-                              </label>
-                              <select
-                                className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="customer"
-                                onChange={handleOtherformsChange}
+                <div
+                  className={`fixed inset-0 flex items-center justify-center z-50 ${isRemoveModalOpen ? '' : 'hidden'
+                    }`}
+                >
+                  <div className="fixed inset-0 bg-black opacity-80"></div>
+                  <div className="inset-0 w-full flex items-center justify-center z-50">
+                    <div
+                      className=" bg-white p-4 rounded-lg shadow-lg"
+                      ref={modalRef}
+                    >
+                      <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+                        <h1 className="font-extrabold text-danger ml-2">
+                          {' '}
+                          {selectedOption === 'Rent out'
+                            ? 'Rent out stuff'
+                            : selectedOption === 'Received return'
+                              ? 'Received return stuff'
+                              : 'Sell stuff'}
+                        </h1>
+                        <form onSubmit={handleSold}>
+                          <div className="inline-block sm:flex mt-5">
+                            <div>
+                              <div className="mb-4.5 ml-5">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Customer
+                                </label>
+                                <select
+                                  className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="customer"
+                                  onChange={handleOtherformsChange}
+                                >
+                                  <option value="">select customer</option>
+                                  {customers.map((customer: any) => (
+                                    <option
+                                      key={customer._id}
+                                      value={customer.firstName}
+                                    >
+                                      {customer.firstName}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="mb-4.5 ml-5">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Job
+                                </label>
+                                <select
+                                  className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="job"
+                                  onChange={handleOtherformsChange}
+                                >
+                                  <option value="">select job</option>
+                                  <option value="test data">test data</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <div className="mb-4.5 ml-10">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Date
+                                </label>
+                                <input
+                                  type="date"
+                                  placeholder="File name"
+                                  className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="date"
+                                  onChange={handleOtherformsChange}
+                                />
+                              </div>
+                              <div className="mb-4.5 ml-5">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Number
+                                </label>
+                                <input
+                                  type="number"
+                                  placeholder="sender"
+                                  className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="number"
+                                  onChange={handleOtherformsChange}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
+                            <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
+                              <button
+                                className="text-red bg-gray font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-1 mb-1"
+                                type="button"
+                                onClick={() => setSelectedOption(null)}
                               >
-                                <option value="">select customer</option>
-                                {customers.map((customer: any) => (
-                                  <option
-                                    key={customer._id}
-                                    value={customer.firstName}
-                                  >
-                                    {customer.firstName}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="mb-4.5 ml-5">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Job
-                              </label>
-                              <select
-                                className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="job"
-                                onChange={handleOtherformsChange}
+                                Cancel
+                              </button>
+                              <button
+                                className="text-black bg-danger active:bg-yellow-700 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
+                                type="submit"
                               >
-                                <option value="">select job</option>
-                                <option value="test data">test data</option>
-                              </select>
+                                To sell
+                              </button>
                             </div>
                           </div>
-                          <div>
-                            <div className="mb-4.5 ml-10">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Date
-                              </label>
-                              <input
-                                type="date"
-                                placeholder="File name"
-                                className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="date"
-                                onChange={handleOtherformsChange}
-                              />
-                            </div>
-                            <div className="mb-4.5 ml-5">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Number
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="sender"
-                                className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="number"
-                                onChange={handleOtherformsChange}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
-                          <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
-                            <button
-                              className="text-red bg-gray font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-1 mb-1"
-                              type="button"
-                              onClick={() => setSelectedOption(null)}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="text-black bg-danger active:bg-yellow-700 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
-                              type="submit"
-                            >
-                              To sell
-                            </button>
-                          </div>
-                        </div>
-                      </form>
+                        </form>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           {/* to order modal */}
           <div className="max-h-screen flex items-center justify-center">
             {isOrderModalOpen && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isOrderModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${isOrderModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div
@@ -4710,9 +4700,8 @@ function Resources() {
           <div className="max-h-screen flex items-center justify-center">
             {isLoginModalOpen && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isOrderModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${isOrderModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div
@@ -4920,9 +4909,8 @@ function Resources() {
                               key={vehicle._id}
                               onClick={() => handleVehicleClick(vehicle)}
                               style={{ cursor: 'pointer' }}
-                              className={`${
-                                index % 2 === 0 ? 'bg-gray-100' : ''
-                              } border-b dark:border-neutral-500`}
+                              className={`${index % 2 === 0 ? 'bg-gray-100' : ''
+                                } border-b dark:border-neutral-500`}
                             >
                               <td className="whitespace-nowrap px-6 py-4 font-medium">
                                 {vehicle.vehicleName}
@@ -5090,9 +5078,8 @@ function Resources() {
             <div className="flex items-center justify-center">
               {showVehicleModal && (
                 <div
-                  className={`fixed inset-0 flex items-center justify-center z-50  ${
-                    showVehicleModal ? '' : 'hidden'
-                  }`}
+                  className={`fixed inset-0 flex items-center justify-center z-50  ${showVehicleModal ? '' : 'hidden'
+                    }`}
                 >
                   <div className="fixed inset-0 bg-black opacity-80"></div>
                   <div className="inset-0 flex items-center justify-center z-50 md:w-[80%] lg:w-[85%] xl:w-[95%]">
@@ -5159,9 +5146,8 @@ function Resources() {
           <div className="flex items-center justify-center">
             {isVehicleRemoveModalOpen && (
               <div
-                className={`fixed w-100 inset-0 flex items-center justify-center z-50 ml-100 ${
-                  isRemoveModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed w-100 inset-0 flex items-center justify-center z-50 ml-100 ${isRemoveModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div className="inset-0 flex items-center justify-center z-50 h-80">
@@ -5244,8 +5230,8 @@ function Resources() {
                         placeholder="Type"
                         className="w-50 rounded border-[1.5px] border-stroke py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                         name="firstName"
-                        // value={searchData.firstName}
-                        // onChange={handleSearchInputChange}
+                      // value={searchData.firstName}
+                      // onChange={handleSearchInputChange}
                       />
                     </div>
                   </div>
@@ -5282,9 +5268,8 @@ function Resources() {
                             key={material._id}
                             style={{ cursor: 'pointer' }}
                             onClick={() => handleMaterialClick(material)}
-                            className={`${
-                              index % 2 === 0 ? 'bg-gray-100' : ''
-                            } border-b dark:border-neutral-500`}
+                            className={`${index % 2 === 0 ? 'bg-gray-100' : ''
+                              } border-b dark:border-neutral-500`}
                           >
                             <td className="whitespace-nowrap px-6 py-4 font-medium">
                               {material.name}
@@ -5406,7 +5391,7 @@ function Resources() {
                             id="dropdown"
                             className="p-2 border bg-danger rounded-md focus:outline-none focus:border-blue-500 text-black ml-2"
                             onChange={handleOptionChange}
-                            // value={selectedOption}
+                          // value={selectedOption}
                           >
                             <option value="">More Actions</option>
                             <option value="Throw away">Throw away</option>
@@ -5435,8 +5420,8 @@ function Resources() {
                             type="search"
                             className="border rounded-lg w-40 px-3 py-2 pl-10 pr-4 ml-10 focus:outline-none focus:border-blue-500"
                             placeholder="Search..."
-                            // value={searchTerm}
-                            // onChange={(e) => setSearchTerm(e.target.value)}
+                          // value={searchTerm}
+                          // onChange={(e) => setSearchTerm(e.target.value)}
                           />
                         </div>
                         <div className="col-span-1">
@@ -5695,7 +5680,7 @@ function Resources() {
 
                               <div className="flex">
                                 <button
-                                  className="bg-button-color text-black active:bg-blue   
+                                  className="bg-button-color text-black active:bg-blue-500   
       font-bold px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
                                   type="button"
                                   onClick={() => {
@@ -5758,7 +5743,7 @@ function Resources() {
                               </div>
                               <div className="flex">
                                 <button
-                                  className="bg-button-color text-black active:bg-blue   
+                                  className="bg-button-color text-black active:bg-blue-500   
       font-bold px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
                                   type="button"
                                   onClick={() => {
@@ -6064,8 +6049,8 @@ function Resources() {
                             type="search"
                             className="border rounded-lg w-40 px-3 py-2 pl-10 pr-4 ml-10 focus:outline-none focus:border-blue-500"
                             placeholder="Search..."
-                            // value={searchTerm}
-                            // onChange={(e) => setSearchTerm(e.target.value)}
+                          // value={searchTerm}
+                          // onChange={(e) => setSearchTerm(e.target.value)}
                           />
                         </div>
                         <div className="col-span-1">
@@ -6091,11 +6076,10 @@ function Resources() {
                                       <tr
                                         key={order._id}
                                         style={{ cursor: 'pointer' }}
-                                        className={`${
-                                          index % 2 === 0
+                                        className={`${index % 2 === 0
                                             ? 'bg-button-color text-black'
                                             : ''
-                                        } border-b dark:border-blue`}
+                                          } border-b dark:border-blue`}
                                       >
                                         <td className="whitespace-nowrap px-6 py-4 font-medium">
                                           {getSupplierName(order.supplier)}
@@ -6128,9 +6112,8 @@ function Resources() {
           <div className="flex items-center justify-center">
             {showMaterialModal && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50  ${
-                  showMaterialModal ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50  ${showMaterialModal ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div
@@ -6281,9 +6264,8 @@ function Resources() {
           <div className="max-h-screen flex items-center justify-center">
             {selectedOption === 'Throw away' && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isRemoveModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${isRemoveModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div className="inset-0 w-full flex items-center justify-center z-50">
@@ -6369,121 +6351,119 @@ function Resources() {
             {(selectedOption === 'To sell' ||
               selectedOption === 'Rent out' ||
               selectedOption === 'Received return') && (
-              <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isRemoveModalOpen ? '' : 'hidden'
-                }`}
-              >
-                <div className="fixed inset-0 bg-black opacity-80"></div>
-                <div className="inset-0 flex items-center justify-center z-50 h-80">
-                  <div
-                    className=" bg-white p-4 rounded-lg shadow-lg"
-                    ref={modalRef}
-                  >
-                    <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                      <h1 className="font-extrabold text-danger ml-2">
-                        {' '}
-                        {selectedOption === 'Rent out'
-                          ? 'Rent out stuff'
-                          : selectedOption === 'Received return'
-                          ? 'Received return stuff'
-                          : 'Sell stuff'}
-                      </h1>
-                      <form onSubmit={handleSold}>
-                        <div className="flex mt-5">
-                          <div>
-                            <div className="mb-4.5 ml-5">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Customer
-                              </label>
-                              <select
-                                className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="customer"
-                                onChange={handleOtherformsChange}
+                <div
+                  className={`fixed inset-0 flex items-center justify-center z-50 ${isRemoveModalOpen ? '' : 'hidden'
+                    }`}
+                >
+                  <div className="fixed inset-0 bg-black opacity-80"></div>
+                  <div className="inset-0 flex items-center justify-center z-50 h-80">
+                    <div
+                      className=" bg-white p-4 rounded-lg shadow-lg"
+                      ref={modalRef}
+                    >
+                      <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+                        <h1 className="font-extrabold text-danger ml-2">
+                          {' '}
+                          {selectedOption === 'Rent out'
+                            ? 'Rent out stuff'
+                            : selectedOption === 'Received return'
+                              ? 'Received return stuff'
+                              : 'Sell stuff'}
+                        </h1>
+                        <form onSubmit={handleSold}>
+                          <div className="flex mt-5">
+                            <div>
+                              <div className="mb-4.5 ml-5">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Customer
+                                </label>
+                                <select
+                                  className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="customer"
+                                  onChange={handleOtherformsChange}
+                                >
+                                  <option value="">select customer</option>
+                                  {customers.map((customer: any) => (
+                                    <option
+                                      key={customer._id}
+                                      value={customer.firstName}
+                                    >
+                                      {customer.firstName}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="mb-4.5 ml-5">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Job
+                                </label>
+                                <select
+                                  className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="communicationType"
+                                  onChange={handleOtherformsChange}
+                                >
+                                  <option value="">select job</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div>
+                              <div className="mb-4.5 ml-10">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Date
+                                </label>
+                                <input
+                                  type="date"
+                                  placeholder="File name"
+                                  className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="date"
+                                  onChange={handleOtherformsChange}
+                                />
+                              </div>
+                              <div className="mb-4.5">
+                                <label className="mb-2.5 block text-black dark:text-white">
+                                  Number
+                                </label>
+                                <input
+                                  type="number"
+                                  placeholder="sender"
+                                  className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                                  name="number"
+                                  onChange={handleOtherformsChange}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
+                            <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
+                              <button
+                                className="text-red bg-gray font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-1 mb-1"
+                                type="button"
+                                onClick={() => setSelectedOption(null)}
                               >
-                                <option value="">select customer</option>
-                                {customers.map((customer: any) => (
-                                  <option
-                                    key={customer._id}
-                                    value={customer.firstName}
-                                  >
-                                    {customer.firstName}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="mb-4.5 ml-5">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Job
-                              </label>
-                              <select
-                                className="relative z-20  appearance-none rounded border border-stroke bg-transparent py-3 px-5 outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="communicationType"
-                                onChange={handleOtherformsChange}
+                                Cancel
+                              </button>
+                              <button
+                                className="text-black bg-danger active:bg-yellow-700 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
+                                type="submit"
                               >
-                                <option value="">select job</option>
-                              </select>
+                                To sell
+                              </button>
                             </div>
                           </div>
-                          <div>
-                            <div className="mb-4.5 ml-10">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Date
-                              </label>
-                              <input
-                                type="date"
-                                placeholder="File name"
-                                className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="date"
-                                onChange={handleOtherformsChange}
-                              />
-                            </div>
-                            <div className="mb-4.5">
-                              <label className="mb-2.5 block text-black dark:text-white">
-                                Number
-                              </label>
-                              <input
-                                type="number"
-                                placeholder="sender"
-                                className="rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                                name="number"
-                                onChange={handleOtherformsChange}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="border-b border-stroke py-4 px-6.5 dark:border-strokedark">
-                          <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
-                            <button
-                              className="text-red bg-gray font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-1 mb-1"
-                              type="button"
-                              onClick={() => setSelectedOption(null)}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="text-black bg-danger active:bg-yellow-700 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
-                              type="submit"
-                            >
-                              To sell
-                            </button>
-                          </div>
-                        </div>
-                      </form>
+                        </form>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           {/* to order modal */}
           <div className="max-h-screen flex items-center justify-center">
             {isOrderModalOpen && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isOrderModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${isOrderModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div
@@ -6582,9 +6562,8 @@ function Resources() {
           <div className="max-h-screen flex items-center justify-center">
             {isLoginModalOpen && (
               <div
-                className={`fixed inset-0 flex items-center justify-center z-50 ${
-                  isOrderModalOpen ? '' : 'hidden'
-                }`}
+                className={`fixed inset-0 flex items-center justify-center z-50 ${isOrderModalOpen ? '' : 'hidden'
+                  }`}
               >
                 <div className="fixed inset-0 bg-black opacity-80"></div>
                 <div

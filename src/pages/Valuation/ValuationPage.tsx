@@ -87,9 +87,19 @@ const ValuationPage: React.FC = () => {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stepParam = params.get('step');
+    if (stepParam === 'services' || stepParam === '4') {
+      setActiveStep(4);
+    } else if (stepParam && !isNaN(Number(stepParam))) {
+      setActiveStep(Number(stepParam));
+    }
+  }, []);
+
+  useEffect(() => {
     if (fetchservices.length > 0 && services.length > 0) {
       const updatedSelectedServices = services.filter((service: any) =>
-        fetchservices.includes(service._id),
+        fetchservices.some((fs: any) => (fs?._id || fs) === service._id)
       );
 
       setSelectedServices(updatedSelectedServices);
@@ -145,7 +155,7 @@ const ValuationPage: React.FC = () => {
 
         notifyError(
           loadErrors?.[firstKey]?.message ||
-            'Please fill all required fields in the current step before proceeding.',
+          'Please fill all required fields in the current step before proceeding.',
         );
       },
     )();
@@ -155,9 +165,31 @@ const ValuationPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await axios.get(`${apiPath}/api/jobs/${OpenId}`);
-      const offer = response.data?.offer[response.data?.offer.length - 1];
-      if (offer) {
-        Object.entries(offer).forEach(([key, value]: any) => {
+      const jobData = response.data;
+      if (!jobData) return;
+
+      const offer = Array.isArray(jobData.offer) && jobData.offer.length > 0
+        ? jobData.offer[jobData.offer.length - 1]
+        : jobData.offer;
+
+      if (offer && typeof offer === 'object') {
+        const sanitizedOffer = { ...offer };
+        if (sanitizedOffer.financialTemplate) {
+          sanitizedOffer.financialTemplate =
+            sanitizedOffer.financialTemplate?._id || sanitizedOffer.financialTemplate;
+        }
+        if (Array.isArray(sanitizedOffer.items)) {
+          sanitizedOffer.items = sanitizedOffer.items.map((it: any) => ({
+            ...it,
+            salesgroup:
+              it.salesgroup?._id ||
+              it.salesgroup ||
+              it.salesGroup?._id ||
+              it.salesGroup ||
+              '',
+          }));
+        }
+        Object.entries(sanitizedOffer).forEach(([key, value]: any) => {
           if (key.toLowerCase().includes('date') && value) {
             const formattedDate = new Date(value).toISOString().split('T')[0];
             methods.setValue(`offer.${key}`, formattedDate);
@@ -167,10 +199,10 @@ const ValuationPage: React.FC = () => {
         });
       }
 
-      setFetchServices(response.data?.services || []);
+      setFetchServices(jobData.services || []);
 
       setSelectedRoom(() => {
-        const roomsWithFinishedStatus = response.data?.rooms?.map(
+        const roomsWithFinishedStatus = jobData.rooms?.map(
           (room: any) => ({
             ...room,
             finished: true,
@@ -178,18 +210,113 @@ const ValuationPage: React.FC = () => {
         );
         return roomsWithFinishedStatus || [];
       });
-      methods.setValue('materials', response.data?.materials || []);
-      methods.setValue('load', response.data?.load);
-      methods.setValue('unload', response.data?.unload);
-      methods.setValue('knownAddress', response.data?.knownAddress);
-      methods.setValue('customer', response.data?.customer);
-      methods.setValue('priceAgree', response.data?.package?.priceAgree);
+      methods.setValue('materials', jobData.materials || []);
+      methods.setValue('load', jobData.load);
+      methods.setValue('unload', jobData.unload);
+      methods.setValue('knownAddress', jobData.knownAddress !== undefined ? jobData.knownAddress : (jobData.unload?.city || jobData.unload?.postcode ? true : false));
+      methods.setValue('customer', jobData.customer);
+
+      if (jobData.package) {
+        if (typeof jobData.package === 'object') {
+          setPackageData(jobData.package);
+          methods.setValue('package', jobData.package._id);
+          methods.setValue('priceAgree', jobData.package.priceAgree);
+        } else {
+          methods.setValue('package', jobData.package);
+          methods.setValue('priceAgree', jobData.priceAgree);
+          axios
+            .get(`${apiPath}/api/packages/${jobData.package}`)
+            .then((res) => {
+              if (res.data) {
+                setPackageData(res.data);
+                if (res.data.priceAgree) {
+                  methods.setValue('priceAgree', res.data.priceAgree);
+                }
+              }
+            })
+            .catch(console.error);
+        }
+      }
+      if (jobData.relocation) {
+        const relData = jobData.relocation;
+        const prefixes = [
+          'relocation',
+          'movingLift',
+          'packing',
+          'unpacking',
+          'assembling',
+          'certificate',
+          'disassembling',
+          'storage',
+          'insurance',
+        ];
+        const unpacked: Record<string, any> = {};
+        prefixes.forEach((p) => {
+          unpacked[p] = {};
+        });
+
+        Object.entries(relData).forEach(([key, value]) => {
+          let matched = false;
+          for (const prefix of prefixes) {
+            if (key.startsWith(`${prefix}_`)) {
+              const subKey = key.slice(prefix.length + 1);
+              unpacked[prefix][subKey] = value;
+              matched = true;
+              break;
+            }
+          }
+          if (!matched) {
+            unpacked.relocation[key] = value;
+          }
+        });
+
+        prefixes.forEach((p) => {
+          if (Object.keys(unpacked[p]).length > 0) {
+            methods.setValue(p, unpacked[p]);
+          }
+        });
+        methods.setValue('estimateData', jobData.relocation);
+      }
+      methods.setValue('signWithCustomer', jobData.signWithCustomer);
+      methods.setValue('sendImmediately', jobData.sendImmediately);
     } catch (err: any) {
-      notifyError(err?.response?.data?.message);
+      console.error('Error fetching job in valuation:', err);
+      notifyError(err?.response?.data?.message || 'Failed to fetch job details');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleCustomer = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${apiPath}/customer/customerdetial`, { id: OpenId });
+      const customer = response.data?.customer;
+      if (customer) {
+        methods.setValue('customer', customer);
+        const headAddress = Array.isArray(customer.address)
+          ? customer.address.find((addr: any) => addr.addressType === 'head') || customer.address[0]
+          : null;
+
+        if (headAddress) {
+          methods.setValue('load.postcode', headAddress.postcode || '');
+          methods.setValue('load.houseNumber', headAddress.houseNumber || '');
+          methods.setValue('load.street', headAddress.street || '');
+          methods.setValue('load.addition', headAddress.addition || '');
+          methods.setValue('load.city', headAddress.city || '');
+          methods.setValue('load.country', headAddress.country || '');
+          methods.setValue('load.typeOfProperty', headAddress.typeOfProperty || '');
+          methods.setValue('load.floor', headAddress.floor || '');
+        }
+      }
+    } catch (err: any) {
+      console.error('Error fetching customer for valuation:', err);
+      notifyError(err?.response?.data?.message || 'Failed to fetch customer details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleNotes = async () => {
     try {
       const response = await axios.get(
@@ -204,7 +331,9 @@ const ValuationPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (OpenId && OpenType !== 'customer') {
+    if (OpenId && OpenType === 'customer') {
+      handleCustomer();
+    } else if (OpenId && OpenType !== 'customer') {
       handleJob();
       handleNotes();
     }
@@ -225,7 +354,12 @@ const ValuationPage: React.FC = () => {
 
       if (response.status === 200) {
         notify('Valuation Success');
-        navigate('/');
+        const targetJobId = (OpenType !== 'customer' && OpenId) || response.data?.job?._id || data?.jobId;
+        if (targetJobId && targetJobId !== 'new') {
+          navigate(`/jobs/${targetJobId}`);
+        } else {
+          navigate('/jobs');
+        }
         if (data.sendImmediately) {
           SendInvoice({
             ...response.data?.finance,
@@ -373,7 +507,7 @@ const ValuationPage: React.FC = () => {
                   className="text-lg font-bold flex items-center gap-2 cursor-pointer"
                 >
                   <KeyboardBackspaceIcon
-                    className="hover:bg-blue hover:text-white p-1 bg-gray"
+                    className="hover:bg-blue-500 hover:text-white p-1 bg-gray"
                     style={{
                       fontSize: '40px',
                       borderRadius: '50%',
@@ -401,7 +535,7 @@ const ValuationPage: React.FC = () => {
                       customerid={
                         OpenType === 'customer'
                           ? OpenId
-                          : methods.watch('customer._id')
+                          : (methods.watch('customer')?._id || methods.watch('customer._id'))
                       }
                     />
                   )}
@@ -501,9 +635,8 @@ const ValuationPage: React.FC = () => {
                           onClick={() =>
                             index <= activeStep && setActiveStep(index)
                           }
-                          className={`w-1 h-3 rounded-full cursor-pointer transition-colors ${
-                            index === activeStep ? 'bg-danger' : 'bg-primary'
-                          }`}
+                          className={`w-1 h-3 rounded-full cursor-pointer transition-colors ${index === activeStep ? 'bg-danger' : 'bg-primary'
+                            }`}
                         ></div>
                       ))}
                     </div>

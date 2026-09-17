@@ -20,7 +20,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                 type="button"
                                 {...field}
                                 onClick={() => field.onChange(true)} // Set elevator to true
-                                className={`px-10 py-2 rounded-md ${field.value ? "bg-blue text-white" : "bg-white"}`}
+                                className={`px-10 py-2 rounded-md ${field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                             >
                                 Yes
                             </button>
@@ -34,7 +34,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                 type="button"
                                 {...field}
                                 onClick={() => field.onChange(false)} // Set elevator to false
-                                className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue text-white" : "bg-white"}`}>
+                                className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue-500 text-white" : "bg-white"}`}>
                                 No
                             </button>
                         )}
@@ -49,7 +49,6 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         {...register(`${type}.postcode`, { required: "Postcode is required." })}
                         type="text"
                         id="postcode"
-                        value={watch(`${type}.postcode`)}
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                     {errors[type]?.postcode && <p className="text-danger text-md mt-1">{errors[type]?.postcode.message}</p>}
@@ -164,7 +163,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                     type="button"
                                     {...field}
                                     onClick={() => field.onChange(true)} // Set elevator to true
-                                    className={`px-10 py-2  rounded-md ${field.value ? "bg-blue text-white" : "bg-white"}`}
+                                    className={`px-10 py-2  rounded-md ${field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                                 >
                                     Yes
                                 </button>
@@ -178,7 +177,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                     type="button"
                                     {...field}
                                     onClick={() => field.onChange(false)} // Set elevator to false
-                                    className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue text-white" : "bg-white"}`}
+                                    className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                                 >
                                     No
                                 </button>
@@ -230,7 +229,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                     type="button"
                                     {...field}
                                     onClick={() => field.onChange(true)} // Set elevator to true
-                                    className={`px-10 py-2 rounded-md ${field.value ? "bg-blue text-white" : "bg-white"}`}
+                                    className={`px-10 py-2 rounded-md ${field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                                 >
                                     Yes
                                 </button>
@@ -244,7 +243,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                     type="button"
                                     {...field}
                                     onClick={() => field.onChange(false)} // Set elevator to false
-                                    className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue text-white" : "bg-white"}`}
+                                    className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                                 >
                                     No
                                 </button>
@@ -263,7 +262,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                     type="button"
                                     {...field}
                                     onClick={() => field.onChange(true)} // Set elevator to true
-                                    className={`px-10 py-2 rounded-md ${field.value ? "bg-blue text-white" : "bg-white"}`}
+                                    className={`px-10 py-2 rounded-md ${field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                                 >
                                     Yes
                                 </button>
@@ -277,7 +276,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                                     type="button"
                                     {...field}
                                     onClick={() => field.onChange(false)} // Set elevator to false
-                                    className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue text-white" : "bg-white"}`}
+                                    className={`px-10 py-2 rounded-md ${!field.value ? "bg-blue-500 text-white" : "bg-white"}`}
                                 >
                                     No
                                 </button>

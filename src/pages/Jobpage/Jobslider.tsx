@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, { useContext, useEffect, useState, useRef, useMemo } from 'react';
 import { UserContext } from '../../UserContext';
 import { toast } from 'react-toastify';
 import {
@@ -29,6 +29,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import CheckIcon from '@mui/icons-material/Check';
+import MiscellaneousServicesIcon from '@mui/icons-material/MiscellaneousServices';
 import { DeleteForever } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
@@ -39,7 +40,8 @@ import JobOffermodule from './jobDetailmodules/JobOffermodule';
 import CommunicationLog from '../InvoicePage/Communication';
 import FinanceModule from './jobDetailmodules/FinanceModule';
 import QuotesActivity from '../Quotes/QuotesActivity';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import Loader from '../../common/Loader';
 import DocumentSelected from '../customerDetails/DocumentSelected';
 import EmailLayout from '../Emailpage/EmailComponent';
 import TaskPage from '../Taskcomponent/TaskPage';
@@ -47,10 +49,10 @@ import JobOfferRooms from './jobDetailmodules/JobOfferRooms';
 import { formatCurrency } from '../../utils/currencyUtil';
 
 interface JobsliderProps {
-  job: any | null;
-  onClose: () => void;
-  handler: () => void;
-  Ondelete: () => void;
+  job?: any | null;
+  onClose?: () => void;
+  handler?: () => void;
+  Ondelete?: () => void;
 }
 interface NotesFormInputs {
   _id: string;
@@ -117,11 +119,52 @@ const notifyError = (message: string) =>
   });
 
 const Jobslider: React.FC<JobsliderProps> = ({
-  job,
-  onClose = () => { },
-  handler = () => { },
-  Ondelete = () => { },
+  job: propJob,
+  onClose,
+  handler,
+  Ondelete,
 }) => {
+  const { id: paramJobId } = useParams<{ id: string }>();
+  const [fetchedJob, setFetchedJob] = useState<any>(null);
+  const [loadingJob, setLoadingJob] = useState<boolean>(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const job = propJob || fetchedJob;
+  const navigate = useNavigate();
+
+  const fetchJobById = async (id: string) => {
+    setLoadingJob(true);
+    setFetchError(null);
+    try {
+      const response = await axios.get(`${apiPath}/api/jobs/${id}`);
+      if (response.status === 200 && response.data) {
+        setFetchedJob(response.data);
+      } else {
+        setFetchError('Job details not found.');
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch job detail in Jobslider:', err);
+      setFetchError(err?.response?.data?.message || 'Failed to retrieve job details.');
+    } finally {
+      setLoadingJob(false);
+    }
+  };
+
+  useEffect(() => {
+    if (propJob) {
+      setFetchedJob(null);
+    } else if (paramJobId) {
+      fetchJobById(paramJobId);
+    }
+  }, [propJob, paramJobId]);
+
+  const handleClose = () => {
+    if (typeof onClose === 'function' && propJob) {
+      onClose();
+    } else {
+      navigate('/jobs');
+    }
+  };
+
   const [tabIndex, setTabIndex] = useState(0);
   const [isNotesModalShow, setIsNotesModalShow] = useState(false);
   const [open, setOpen] = useState(false);
@@ -149,8 +192,103 @@ const Jobslider: React.FC<JobsliderProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>(job?.status || 'PROCESSING');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [allServices, setAllServices] = useState<any[]>([]);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await axios.get(`${apiPath}/api/services`);
+        if (response.data && Array.isArray(response.data)) {
+          setAllServices(response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching service types:', err);
+      }
+    };
+    fetchServices();
+  }, []);
+
+  const resolvedServices = useMemo(() => {
+    const jobServices = job?.services || [];
+    if (Array.isArray(jobServices) && jobServices.length > 0) {
+      return jobServices.map((svc: any) => {
+        if (typeof svc === 'object' && (svc.serviceName || svc.serviceTypeName)) {
+          return svc;
+        }
+        const svcId = typeof svc === 'string' ? svc : svc?._id;
+        const matched = allServices.find((s: any) => s._id === svcId);
+        return matched || { _id: svcId, serviceName: 'Service', serviceTypeName: 'service' };
+      });
+    }
+
+    // Fallback: check if relocation object contains active services
+    const activeRelocationServices: any[] = [];
+    const rel = job?.relocation || {};
+    if (rel.movingLift_quantity > 0 || rel.movingLift_price > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Moving Lift',
+        serviceTypeName: 'movingLift',
+        quantity: rel.movingLift_quantity,
+        price: rel.movingLift_price,
+      });
+    }
+    if (rel.packing_requiredHours > 0 || rel.packing_appliedPrice > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Packing Service',
+        serviceTypeName: 'packing',
+        hours: rel.packing_requiredHours,
+        price: rel.packing_appliedPrice,
+      });
+    }
+    if (rel.unpacking_requiredHours > 0 || rel.unpacking_appliedPrice > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Unpacking Service',
+        serviceTypeName: 'unpacking',
+        hours: rel.unpacking_requiredHours,
+        price: rel.unpacking_appliedPrice,
+      });
+    }
+    if (rel.assembling_requiredHours > 0 || rel.assembling_appliedPrice > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Assembling Service',
+        serviceTypeName: 'assembling',
+        hours: rel.assembling_requiredHours,
+        price: rel.assembling_appliedPrice,
+      });
+    }
+    if (rel.disassembling_requiredHours > 0 || rel.disassembling_appliedPrice > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Disassembling Service',
+        serviceTypeName: 'disassembling',
+        hours: rel.disassembling_requiredHours,
+        price: rel.disassembling_appliedPrice,
+      });
+    }
+    if (rel.storage_storageVolume > 0 || rel.storage_appliedPrice > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Storage Service',
+        serviceTypeName: 'storage',
+        volume: rel.storage_storageVolume,
+        price: rel.storage_appliedPrice,
+      });
+    }
+    if (rel.insurance_quantity > 0 || rel.insurance_price > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Insurance Protection',
+        serviceTypeName: 'insurance',
+        price: rel.insurance_price,
+      });
+    }
+    if (rel.certificate_quantity > 0 || rel.certificate_price > 0) {
+      activeRelocationServices.push({
+        serviceName: 'Parking / Transport Certificate',
+        serviceTypeName: 'certificate',
+        price: rel.certificate_price,
+      });
+    }
+    return activeRelocationServices;
+  }, [job?.services, job?.relocation, allServices]);
 
   const { role, userData, isAdmin } = useContext(UserContext) || {};
   const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
@@ -183,7 +321,9 @@ const Jobslider: React.FC<JobsliderProps> = ({
         setCurrentStatus(selectedStatus);
         if (job) job.status = selectedStatus;
         toast.success(`Job status updated to ${selectedStatus}`);
-        handler();
+        if (typeof handler === 'function') {
+          handler();
+        }
       }
     } catch (err: any) {
       console.error('Failed to update job status:', err);
@@ -325,14 +465,35 @@ const Jobslider: React.FC<JobsliderProps> = ({
     handleNotesForm(data);
   };
 
-  if (!job) {
+  if (loadingJob && !job) {
     return (
-      <div className="flex h-full max-h-full overflow-y-auto items-center justify-center bg-white dark:bg-boxdark">
-        <img
-          className="h-24 w-24 rounded-full"
-          src="https://cdn.dribbble.com/users/1238723/screenshots/4794365/loading.gif"
-          alt="Loading..."
-        />
+      <div className="flex h-screen items-center justify-center bg-white dark:bg-boxdark p-12">
+        <Loader />
+      </div>
+    );
+  }
+
+  if (fetchError || (!job && !loadingJob)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[450px] p-12 bg-white dark:bg-boxdark rounded-2xl border border-slate-200 dark:border-strokedark m-6 space-y-4 text-center">
+        <div className="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center font-bold text-xl">
+          !
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-800 dark:text-white">
+            {fetchError || 'Job Not Found'}
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            The requested job ID could not be loaded or may not exist.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/jobs')}
+          className="px-5 py-2.5 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary/90 transition shadow-sm cursor-pointer"
+        >
+          Back to Jobs List
+        </button>
       </div>
     );
   }
@@ -390,8 +551,8 @@ const Jobslider: React.FC<JobsliderProps> = ({
         </div>
 
         <IconButton
-          onClick={onClose}
-          className="bg-white dark:bg-boxdark shadow-xs border border-slate-200/80 dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300"
+          onClick={handleClose}
+          className="bg-white dark:bg-boxdark shadow-xs border border-slate-200/80 dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
         >
           <CloseIcon fontSize="small" />
         </IconButton>
@@ -752,6 +913,98 @@ const Jobslider: React.FC<JobsliderProps> = ({
               </div>
             </div>
           )}
+
+          {/* Selected Services / Service Types Breakdown */}
+          <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-strokedark">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <MiscellaneousServicesIcon className="text-primary" fontSize="small" />
+                <span>Selected Service Types</span>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-primary border border-blue-200 dark:border-blue-800">
+                  {resolvedServices.length} {resolvedServices.length === 1 ? 'Service' : 'Services'}
+                </span>
+              </h3>
+              {job?.status !== 'execution' && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/intake/job/${job?._id}?step=services`)}
+                  className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <EditIcon style={{ fontSize: 13 }} />
+                  <span>Modify in Valuation</span>
+                </button>
+              )}
+            </div>
+
+            {resolvedServices.length === 0 ? (
+              <div className="p-5 text-center rounded-xl border border-dashed border-slate-200 dark:border-strokedark bg-slate-50/50 dark:bg-meta-4/10 space-y-1.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  No additional service types selected for this job.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/intake/job/${job?._id}?step=services`)}
+                  className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                >
+                  + Select Services via Valuation
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                {resolvedServices.map((service: any, idx: number) => {
+                  const sName = service.serviceName || service.serviceTypeName || 'Service';
+                  const sType = service.serviceTypeName || 'service';
+                  const sPrice = service.price ?? service.appliedPrice ?? 0;
+                  const sHours = service.hours ? `${service.hours} hrs` : null;
+                  const sQty = service.quantity ? `Qty: ${service.quantity}` : null;
+                  const sVol = service.volume ? `${service.volume} m³` : null;
+
+                  return (
+                    <div
+                      key={service._id || idx}
+                      className="p-3.5 rounded-xl border border-slate-200/80 dark:border-strokedark bg-gradient-to-br from-white to-slate-50 dark:from-boxdark dark:to-meta-4/20 shadow-xs flex items-center gap-3 hover:border-primary/50 transition-all"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900/40 text-primary flex items-center justify-center shrink-0">
+                        {service.icon ? (
+                          <div
+                            className="w-6 h-6 flex items-center justify-center [&>svg]:w-6 [&>svg]:h-6 [&>svg]:fill-primary"
+                            dangerouslySetInnerHTML={{ __html: service.icon }}
+                          />
+                        ) : (
+                          <MiscellaneousServicesIcon fontSize="small" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {sName}
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            {sType}
+                          </span>
+                          {sHours && (
+                            <span className="text-[10px] font-bold bg-slate-100 dark:bg-meta-4 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                              {sHours}
+                            </span>
+                          )}
+                          {sQty && (
+                            <span className="text-[10px] font-bold bg-slate-100 dark:bg-meta-4 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                              {sQty}
+                            </span>
+                          )}
+                          {sVol && (
+                            <span className="text-[10px] font-bold bg-slate-100 dark:bg-meta-4 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                              {sVol}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Valuation Rooms Breakdown Component */}
           <JobOfferRooms job={job} type="offer" />

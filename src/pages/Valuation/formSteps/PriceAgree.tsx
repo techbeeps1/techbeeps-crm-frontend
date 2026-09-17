@@ -14,20 +14,19 @@ const PriceAgree: React.FC<any> = ({ setPackageData, setAppendedItems }) => {
 
     const priceAgreement = watch("priceAgree");
     const selectedPackage = watch("package");
+    const prevPackageRef = React.useRef<string | null>(null);
 
     useEffect(() => {
-
-        console.log("priceAgreement", priceAgreement)
-        console.log("selectedPackage", selectedPackage)
         const fetchPackages = async () => {
             if (priceAgreement) {
                 try {
                     const response = await axios.get(
                         `${apiPath}/api/packages?priceAgree=${priceAgreement}`
                     );
-                    setPackageList(response.data);
+                    setPackageList(response.data || []);
                 } catch (error: any) {
                     console.error("Error fetching packages:", error.message);
+                    setPackageList([]);
                 }
             } else {
                 setPackageList([]);
@@ -37,17 +36,26 @@ const PriceAgree: React.FC<any> = ({ setPackageData, setAppendedItems }) => {
     }, [priceAgreement]);
 
     useEffect(() => {
-        setValue('offer.items', []);
-        setAppendedItems([]);
         if (selectedPackage) {
             const selectedPackageData = packageList.find(
                 (item: any) => item._id === selectedPackage
             );
             setPackageData(selectedPackageData || null);
+
+            // Only clear items if user explicitly switched package
+            if (prevPackageRef.current !== null && prevPackageRef.current !== selectedPackage) {
+                setValue('offer.items', []);
+                setAppendedItems(new Set());
+            }
+            prevPackageRef.current = selectedPackage;
         } else {
-            setPackageData(null); // Reset if no package selected
+            setPackageData(null);
+            if (prevPackageRef.current !== null) {
+                setValue('offer.items', []);
+                setAppendedItems(new Set());
+            }
         }
-    }, [selectedPackage, packageList, setPackageData]);
+    }, [selectedPackage, packageList, setPackageData, setValue, setAppendedItems]);
 
 
     return (
@@ -68,7 +76,7 @@ const PriceAgree: React.FC<any> = ({ setPackageData, setAppendedItems }) => {
                                         setValue("package", ""); // Reset package on change
                                     }}
                                     className={`w-full py-2 px-4 text-lg font-medium shadow ${field.value === "fixed_price"
-                                        ? "bg-blue text-white"
+                                        ? "bg-blue-500 text-white"
                                         : "bg-white hover:bg-gray"
                                         }`}
                                 >
@@ -81,7 +89,7 @@ const PriceAgree: React.FC<any> = ({ setPackageData, setAppendedItems }) => {
                                         setValue("package", ""); // Reset package on change
                                     }}
                                     className={`w-full py-2 px-4 text-lg font-medium shadow ${field.value === "onhourly_basis"
-                                        ? "bg-blue text-white"
+                                        ? "bg-blue-500 text-white"
                                         : "bg-white hover:bg-gray"
                                         }`}
                                 >

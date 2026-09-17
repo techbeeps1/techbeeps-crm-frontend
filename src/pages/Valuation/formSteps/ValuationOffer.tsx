@@ -94,16 +94,25 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
 
 
     const replacePlaceholders = (value: string, data: Record<string, string | number>): string => {
-        return value.replace(/{{(.*?)}}/g, (_ , key) => {
+        return value.replace(/{{(.*?)}}/g, (_, key) => {
             return data[key.trim()]?.toString() || "0";
         });
     };
 
 
-    let handlerPreviewRules = () => {
+    let handlerPreviewRules = (customSgList?: any[]) => {
+        const availableSalesGroups = customSgList || salesgroup || [];
         if (packageData && estimateData) {
             if (Array.isArray(packageData?.offers?.rules)) {
-                let newItems = new Set(appendedItemsRef);
+                let newItems = new Set(appendedItemsRef instanceof Set ? appendedItemsRef : []);
+
+                const currentItems = watch('offer.items') || [];
+                currentItems.forEach((it: any) => {
+                    if (it.description && it.price !== undefined) {
+                        newItems.add(`${it.description}/${it.price}`);
+                    }
+                });
+
                 packageData?.offers?.rules.forEach((item: any) => {
                     const uniqueKey = `${item.description}/${item.unitPrice}`;
                     if (!newItems.has(uniqueKey)) {
@@ -114,8 +123,22 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                             ? replacePlaceholders(item.unitPrice, estimateData || {})
                             : item.unitPrice;
 
+                        const rawSg = item.salesGroup || item.salesgroup || '';
+                        let matchedSgId = '';
+                        if (typeof rawSg === 'object' && rawSg !== null) {
+                            matchedSgId = rawSg._id || '';
+                        } else if (rawSg) {
+                            const found = availableSalesGroups.find(
+                                (s: any) => s._id === rawSg || s.name?.trim().toLowerCase() === String(rawSg).trim().toLowerCase()
+                            );
+                            matchedSgId = found ? found._id : rawSg;
+                        }
+                        if (!matchedSgId && availableSalesGroups.length > 0) {
+                            matchedSgId = availableSalesGroups[0]._id;
+                        }
+
                         append({
-                            salesgroup: item.salesGroup,
+                            salesgroup: matchedSgId,
                             description: item.description,
                             quantity: resolvedNumber,
                             btw: item.btw,
@@ -320,47 +343,104 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
 
     const handlesalesgroup = async () => {
         try {
-            let response = await axios.get(apiPath + "/api/sale_group?type=salesGroup")
-            setSales(response.data)
+            let response = await axios.get(apiPath + "/api/sale_group?type=salesGroup");
+            const sgList = response.data || [];
+            setSales(sgList);
+
+            const currentItems = watch('offer.items') || [];
+            if (Array.isArray(currentItems) && currentItems.length > 0 && sgList.length > 0) {
+                currentItems.forEach((it: any, idx: number) => {
+                    let sgVal = it.salesgroup || it.salesGroup || '';
+                    if (typeof sgVal === 'object' && sgVal !== null) {
+                        sgVal = sgVal._id || '';
+                    }
+                    if (sgVal) {
+                        const match = sgList.find(
+                            (s: any) => s._id === sgVal || s.name?.trim().toLowerCase() === String(sgVal).trim().toLowerCase()
+                        );
+                        if (match) {
+                            setValue(`offer.items.${idx}.salesgroup`, match._id);
+                        } else {
+                            setValue(`offer.items.${idx}.salesgroup`, sgVal);
+                        }
+                    } else if (sgList[0]?._id) {
+                        setValue(`offer.items.${idx}.salesgroup`, sgList[0]._id);
+                    }
+                });
+            }
+            handlerPreviewRules(sgList);
         } catch (error) {
-            console.error('Error fetching package:');
-        } finally {
-            handlerPreviewRules()
+            console.error('Error fetching sales group:', error);
+            handlerPreviewRules();
         }
-    }
+    };
+
     const handleAllinputs = async () => {
         try {
             const response = await axios.get(`${apiPath}/api/input?inputFor=Template&name=${selectedTemplate}`);
-            setInputFields(response.data[0]?.extraFields)
+            setInputFields(response.data[0]?.extraFields || []);
         } catch (err) {
             console.error(err);
         }
     };
+
     const handletemplate = async () => {
         try {
-            let response = await axios.get(apiPath + "/api/templates?type=quote")
-            setTemplate(response.data)
-            setValue('offer.financialTemplate', packageData?.offers?.financialTemplate);
-            setValue('offer.discount_description', packageData?.offers?.discountDescription);
-            setValue('offer.discount', packageData?.offers?.percentage);
+            let response = await axios.get(apiPath + "/api/templates?type=quote");
+            const list = response.data || [];
+            setTemplate(list);
+
+            const currentTemplate = watch('offer.financialTemplate');
+            let templateId = typeof currentTemplate === 'object' && currentTemplate !== null
+                ? currentTemplate._id
+                : currentTemplate;
+
+            if (templateId && list.length > 0) {
+                const found = list.find((t: any) => t._id === templateId || t.name === templateId);
+                if (found) templateId = found._id;
+            }
+
+            if (!templateId && packageData?.offers?.financialTemplate) {
+                const pkgTemplate = packageData.offers.financialTemplate;
+                const pkgTemplateId = typeof pkgTemplate === 'object' && pkgTemplate !== null
+                    ? pkgTemplate._id
+                    : pkgTemplate;
+                const found = list.find((t: any) => t._id === pkgTemplateId || t.name === pkgTemplateId);
+                templateId = found ? found._id : pkgTemplateId;
+            }
+
+            if (!templateId && list.length > 0) {
+                templateId = list[0]._id;
+            }
+
+            if (templateId) {
+                setValue('offer.financialTemplate', templateId);
+            }
+
+            if (packageData?.offers?.discountDescription && !watch('offer.discount_description')) {
+                setValue('offer.discount_description', packageData?.offers?.discountDescription);
+            }
+            if (packageData?.offers?.percentage !== undefined && (watch('offer.discount') === undefined || watch('offer.discount') === null)) {
+                setValue('offer.discount', packageData?.offers?.percentage);
+            }
         } catch (error) {
-            console.error('Error fetching package:');
+            console.error('Error fetching template/package:', error);
         }
-    }
+    };
 
     useEffect(() => {
         if (selectedTemplate) {
-            handleAllinputs()
-            console.log('function selectedTemplate')
+            handleAllinputs();
         }
     }, [selectedTemplate]);
 
     useEffect(() => {
-        handletemplate()
-        if (estimateData) {
-            handlesalesgroup()
-        }
-    }, [estimateData])
+        handletemplate();
+    }, [packageData]);
+
+    useEffect(() => {
+        handlesalesgroup();
+    }, [estimateData, packageData]);
 
     return (
         <>
@@ -413,7 +493,7 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                         <button
                             type="button"
                             className={`px-4 py-3 font-medium rounded-md border focus:outline-none ${vatSelected === 'inclusive'
-                                ? 'bg-blue text-white border-blue-500'
+                                ? 'bg-blue-500 text-white border-blue-500'
                                 : 'bg-white text-black border-gray'
                                 }`}
                             onClick={() => handleVatSelect('inclusive')}
@@ -423,7 +503,7 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                         <button
                             type="button"
                             className={`px-4 py-3 font-medium rounded-md border focus:outline-none ${vatSelected === 'exclusive'
-                                ? 'bg-blue text-white border-blue-500'
+                                ? 'bg-blue-500 text-white border-blue-500'
                                 : 'bg-white text-black border-gray'
                                 }`}
                             onClick={() => handleVatSelect('exclusive')}
@@ -483,8 +563,8 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                                 className={`col-span-1 p-3 shadow font-medium`}
                                 {...register(`offer.items.${index}.btw`, { required: 'btw is required' })}
                             >
-                               
-                               <option value="0">0%</option>
+
+                                <option value="0">0%</option>
                                 <option value="9">9%</option>
                                 <option value="21">21%</option>
                             </select>
@@ -510,7 +590,7 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                     <button
                         type="button"
                         onClick={() => append({ salesgroup: '', description: '', quantity: 1, btw: "", price: 0 })}
-                        className="bg-blue font-bold text-white px-4 py-2 shadow text-lg hover:bg-black"
+                        className="bg-blue-500 font-bold text-white px-4 py-2 shadow text-lg hover:bg-black"
                     >
                         + Add Item
                     </button>
