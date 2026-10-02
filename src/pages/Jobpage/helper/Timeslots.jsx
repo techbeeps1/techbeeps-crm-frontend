@@ -159,12 +159,15 @@ const TimeSlots = ({ availableTimes, Data, previousData ,selectedDate}) => {
   };
   const handleDeleteClick = async () => {
     try {
-      const response = await axios.delete(`${apiPath}/api/appointment/${appointmentId._id}`);
-      handleClose()
+      const token = localStorage.getItem('token');
+      const response = await axios.delete(`${apiPath}/api/appointment/${appointmentId._id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      handleClose();
       setScheduledAppointments([]);
       console.log("Deleted Appointment Data:", appointmentId);
     } catch (error) {
-      console.error('Error creating appointment:', error.response ? error.response.data : error.message);
+      console.error('Error deleting appointment:', error.response ? error.response.data : error.message);
     }
   };
 
@@ -499,7 +502,15 @@ const TimeSlots = ({ availableTimes, Data, previousData ,selectedDate}) => {
                           {...field}
                           value={field.value ?? ''} // Ensure the value is not undefined
                         >
-                          <MenuItem value={`Company - ${company?.companyName} ${company?.companyAddress},${company?.companyCountry}`} >Company - {company?.companyName} {company?.companyAddress},{company?.companyCountry}</MenuItem>
+                          <MenuItem value="Depot: Universal Movers B.V. (Starterspand, H.J.E. Wenckebachweg 53-M, Amsterdam)">
+                            Depot: Universal Movers B.V. (Starterspand, H.J.E. Wenckebachweg 53-M, Amsterdam)
+                          </MenuItem>
+                          <MenuItem value="Origin (Pickup Address)">
+                            Origin (Pickup Address)
+                          </MenuItem>
+                          <MenuItem value="Destination (Delivery Address)">
+                            Destination (Delivery Address)
+                          </MenuItem>
                         </Select>
                         {fieldState?.error && (
                           <Typography color="error" variant="caption">

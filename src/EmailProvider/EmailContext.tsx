@@ -53,9 +53,9 @@ export const EmailProvider: React.FC<EmailProviderProps> = ({ children }) => {
     }
 
     useEffect(() => {
+        fetchTemplates();
         if (token) {
             fetchUnreadMessages();
-            fetchTemplates();
         }
     }, [token]);
 

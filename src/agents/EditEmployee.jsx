@@ -81,6 +81,7 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
       selectedLicenses: userData.drivingLicense || [],
       skills: userData.skills || [],
       role: userData.role || '',
+      status: userData.isRestricted ? 'restricted' : userData.isActive === false ? 'deactive' : 'active',
       access:
         userData.role === 'Admin'
           ? ALL_MODULE_IDS
@@ -141,6 +142,9 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
       drivingLicense: data.selectedLicenses || [],
       skills: data.skills || [],
       role: data.role || 'Staff',
+      status: data.status || 'active',
+      isActive: data.status === 'active',
+      isRestricted: data.status === 'restricted',
       access:
         data.role === 'Admin'
           ? ALL_MODULE_IDS
@@ -819,24 +823,43 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-                          User Role <span className="text-rose-500">*</span>
-                        </label>
-                        <select
-                          {...register('role', { required: 'Role is required' })}
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer"
-                        >
-                          <option value="" disabled>
-                            Select Role
-                          </option>
-                          <option value="Staff">Staff</option>
-                          <option value="Agent">Agent</option>
-                          <option value="Admin">Admin</option>
-                        </select>
-                        {errors.role && (
-                          <p className="text-rose-500 text-xs mt-1">{errors.role.message}</p>
-                        )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                            User Role <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            {...register('role', { required: 'Role is required' })}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer"
+                          >
+                            <option value="" disabled>
+                              Select Role
+                            </option>
+                            <option value="Staff">Staff</option>
+                            <option value="Agent">Agent</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                          {errors.role && (
+                            <p className="text-rose-500 text-xs mt-1">{errors.role.message}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                            Account Status <span className="text-rose-500">*</span>
+                          </label>
+                          <select
+                            {...register('status', { required: 'Status is required' })}
+                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer"
+                          >
+                            <option value="active">Active (Normal access)</option>
+                            <option value="deactive">Deactive (Temporarily deactivated)</option>
+                            <option value="restricted">Restricted (Restricted by admin)</option>
+                          </select>
+                          {errors.status && (
+                            <p className="text-rose-500 text-xs mt-1">{errors.status.message}</p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Module Access Rights & Permissions */}

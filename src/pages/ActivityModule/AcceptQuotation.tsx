@@ -52,21 +52,23 @@ const AcceptOffer: React.FC = () => {
         });
 
     useEffect(() => {
-        if (data) {
-            const open = localStorage.getItem('open') || false;
-            if (!open) {
+        if (data && invoiceId) {
+            const viewedKey = `viewed_quote_${invoiceId}`;
+            const alreadyViewed = sessionStorage.getItem(viewedKey);
+            if (!alreadyViewed) {
+                const customerName = `${data.customer?.firstName || ''} ${data.customer?.lastName || ''}`.trim() || 'Client';
                 const activityData = {
                     type: 'offer',
-                    title: `Quotation # ${data && data.index} has been opened by ${data && data.customer?.firstName} ${data && data.customer?.lastName}`,
+                    title: `Quotation # ${data.index || invoiceId} was viewed by ${customerName}`,
                     offer: invoiceId,
                     reference: 'Customer',
                     status: 'success',
                 };
                 handleActivity(activityData);
-                handleQuote('Processing', '');
+                sessionStorage.setItem(viewedKey, 'true');
             }
         }
-    }, [data]);
+    }, [data, invoiceId]);
 
     const fetchInvoice = async () => {
         setLoading(true);
@@ -140,15 +142,16 @@ const AcceptOffer: React.FC = () => {
                 navigate('/thankyou');
                 sendMail();
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating invoice:', error);
+            notifyError(error?.response?.data?.msg || 'Failed to accept quote. Please try again.');
+            setIsSubmitting(false);
         }
     };
 
     const handleActivity = async (activityData: any) => {
         try {
             await axios.post(`${apiPath}/api/activities`, activityData);
-            localStorage.setItem('open', 'true');
         } catch (error) {
             console.error('Error logging activity', error);
         }
@@ -175,8 +178,14 @@ const AcceptOffer: React.FC = () => {
     };
 
     const replacePlaceholders = (htmlContent: any, dataMap: any) => {
-        if (!htmlContent || !dataMap) return htmlContent;
-        return htmlContent.replace(/\{\{(.*?)\}\}/g, (match: any, placeholder: any) => {
+        if (!htmlContent || !dataMap) return htmlContent || '';
+        let processed = htmlContent;
+
+        // Strip any rogue literal ${...} or ${ placeholders
+        processed = processed.replace(/\$\{[^}]*\}/g, '');
+
+        // Evaluate {{...}} placeholders
+        processed = processed.replace(/\{\{(.*?)\}\}/g, (match: any, placeholder: any) => {
             const keys = placeholder.trim().split('.');
             let value = dataMap;
             if (keys[0] === 'items' && dataMap.invoice?.items) {
@@ -197,10 +206,14 @@ const AcceptOffer: React.FC = () => {
             for (const key of keys) {
                 value = value?.[key];
                 if (value == undefined || value == null) return '';
-                if (value == 0) return value;
+                if (value === 0) return '0';
             }
-            return value || match;
+            return value !== undefined && value !== null ? String(value) : '';
         });
+
+        // Clean any leftover unresolved {{...}} placeholders
+        processed = processed.replace(/\{\{[^}]*\}\}/g, '');
+        return processed;
     };
 
     useEffect(() => {
@@ -216,23 +229,36 @@ const AcceptOffer: React.FC = () => {
         fetchCompanyDetails();
     }, []);
 
+    const effectiveCompany = companyDetail || {
+        companyName: 'Universal Movers B.V.',
+        companyAddress: 'Starterspand, H.J.E. Wenckebachweg 53-M',
+        companyState: 'Amsterdam',
+        companyCountry: 'Netherlands',
+        companyEmail: 'info@universalmovers.nl',
+        companyPhone: '+31 20 123 4567',
+        companyWebsite: 'https://universalmovers.nl',
+    };
+
     const modifiedHtmlContent = replacePlaceholders(data?.financialTemplate?.htmlContent, {
         customer: data?.customer,
         invoice: data,
-        company: companyDetail,
+        company: effectiveCompany,
     });
 
     const sendMail = async () => {
         try {
-            const response = await axios.post(`${apiPath}/finance/send`, {
+            const payload: any = {
                 Id: invoiceId,
-                emailTemplateId: settings?.emailTemplates?.thankyou,
                 content: 'notRequired',
-            });
+            };
+            if (settings?.emailTemplates?.thankyou) {
+                payload.emailTemplateId = settings.emailTemplates.thankyou;
+            }
+            const response = await axios.post(`${apiPath}/finance/send`, payload);
             if (response.status === 200) {
                 const activityData = {
                     type: 'offer',
-                    title: `Quotation # ${data?.index} confirmation email sent`,
+                    title: `Quotation # ${data?.index || invoiceId} confirmation email sent`,
                     offer: invoiceId,
                     status: 'success',
                     email: response.data,
@@ -255,11 +281,11 @@ const AcceptOffer: React.FC = () => {
                 <header className="sticky top-0 z-40 bg-white/90 dark:bg-boxdark/90 backdrop-blur-md border-b border-slate-200/80 dark:border-strokedark px-4 md:px-10 py-3.5 flex items-center justify-between shadow-xs">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-primary text-white font-black text-lg flex items-center justify-center shadow-md shadow-primary/20">
-                            {companyDetail?.companyName ? companyDetail.companyName.charAt(0) : 'M'}
+                            {effectiveCompany.companyName ? effectiveCompany.companyName.charAt(0) : 'U'}
                         </div>
                         <div>
                             <span className="font-extrabold text-sm md:text-base text-slate-900 dark:text-white tracking-tight block">
-                                {companyDetail?.companyName || 'Relocation & Logistics'}
+                                {effectiveCompany.companyName}
                             </span>
                             <span className="text-[11px] font-semibold text-slate-400 block -mt-0.5">
                                 Official Quotation Portal

@@ -25,6 +25,7 @@ import { useForm } from 'react-hook-form';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import Loader from '../../common/Loader';
+import { formatLabel } from '../../utils/labelUtil';
 
 const NewJob = ({ handler }) => {
   const [open, setOpen] = useState(false);
@@ -162,13 +163,16 @@ const NewJob = ({ handler }) => {
   const fetchPackages = async (priceAgree) => {
     try {
       const url = priceAgree
-        ? `${apiPath}/api/packages?priceAgree=${priceAgree}`
-        : `${apiPath}/api/packages`;
+        ? `${apiPath}/api/packages?priceAgree=${priceAgree}&withJob=true`
+        : `${apiPath}/api/packages?withJob=true`;
       const res = await axios.get(url);
       if (Array.isArray(res.data)) {
-        setPackageList(res.data);
-        if (res.data.length > 0 && !selectedPackageId) {
-          setValue('package', res.data[0]._id);
+        const jobPackages = res.data.filter(
+          (p) => p.type_job && p.type_job !== 'Manual/No job' && p.type_job !== ''
+        );
+        setPackageList(jobPackages);
+        if (jobPackages.length > 0 && !selectedPackageId) {
+          setValue('package', jobPackages[0]._id);
         }
       }
     } catch (e) {
@@ -534,7 +538,10 @@ const NewJob = ({ handler }) => {
                       className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-strokedark bg-white dark:bg-boxdark text-xs outline-none focus:border-primary"
                     >
                       <option value="Particular">Individual / Residential</option>
-                      <option value="Commerical">Commercial / Business</option>
+                      <option value="Commercial">Commercial / Business</option>
+                      {watch('client.typeOfCustomer') === 'Commerical' && (
+                        <option value="Commerical" style={{ display: 'none' }}>Commercial / Business</option>
+                      )}
                     </select>
                   </div>
 
@@ -954,10 +961,10 @@ const NewJob = ({ handler }) => {
                           </div>
                           <div className="min-w-0">
                             <h5 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                              {service.serviceName || service.serviceTypeName}
+                              {service.serviceName || formatLabel(service.serviceTypeName)}
                             </h5>
                             <span className="inline-block text-[10px] uppercase font-semibold text-slate-400">
-                              {service.serviceTypeName}
+                              {formatLabel(service.serviceTypeName)}
                             </span>
                           </div>
                         </div>

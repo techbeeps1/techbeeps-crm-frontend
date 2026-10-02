@@ -32,9 +32,17 @@ const CustomerData = ({ customerData, handleCustomer }) => {
     setIsRemoveModalOpen(false);
   };
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const deleteCustomer = async () => {
     try {
-      const response = await axios.delete(`${apiPath}/customer/deleteCustomer/${customerData._id}`);
+      const response = await axios.delete(
+        `${apiPath}/customer/deleteCustomer/${customerData._id}`,
+        { headers: getAuthHeaders() }
+      );
       if (response.data.status) {
         closeRemoveModal();
         handleCustomer();
@@ -52,7 +60,9 @@ const CustomerData = ({ customerData, handleCustomer }) => {
 
   async function fetchCustomers() {
     try {
-      const response = await axios.get(`${apiPath}/customer/customerList`);
+      const response = await axios.get(`${apiPath}/customer/customerList`, {
+        headers: getAuthHeaders(),
+      });
       setCustomersList(response.data.customers || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -65,6 +75,7 @@ const CustomerData = ({ customerData, handleCustomer }) => {
 
   const handleEditSubmit = async (editedData) => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(
         `${apiPath}/customer/editCustomer/${editedData._id}`,
         {
@@ -72,17 +83,28 @@ const CustomerData = ({ customerData, handleCustomer }) => {
           body: JSON.stringify(editedData),
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         },
       );
       if (response.ok) {
-        handleCustomer();
+        const resData = await response.json();
+        if (handleCustomer) {
+          await handleCustomer();
+        }
         toast.success('Customer updated successfully!');
+        return { success: true, data: resData.data };
       } else {
-        console.error('Error updating customer:', response.statusText);
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData?.error || errData?.message || errData?.msg || 'Failed to update customer. Please try again.';
+        toast.error(errMsg);
+        console.error('Error updating customer:', errMsg);
+        return { success: false, error: errMsg };
       }
     } catch (error) {
+      toast.error('Network error: could not update customer.');
       console.error('Error updating customer:', error);
+      return { success: false, error: error.message };
     }
   };
 
@@ -117,6 +139,11 @@ const CustomerData = ({ customerData, handleCustomer }) => {
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-slate-900 dark:text-white capitalize">
                 {customerData?.salutation} {customerData?.firstName} {customerData?.lastName}
+                {customerData?.companyName && (
+                  <span className="text-primary font-semibold text-base ml-2">
+                    ({customerData.companyName})
+                  </span>
+                )}
               </h1>
               <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -198,9 +225,18 @@ const CustomerData = ({ customerData, handleCustomer }) => {
                   <EmailIcon style={{ fontSize: 16 }} />
                   <span>Email Address</span>
                 </div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                  {customerData?.email || 'N/A'}
-                </p>
+                {customerData?.email ? (
+                  <a
+                    href={`mailto:${customerData.email}`}
+                    className="text-sm font-semibold text-primary hover:underline truncate block"
+                  >
+                    {customerData.email}
+                  </a>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                    N/A
+                  </p>
+                )}
               </div>
 
               {/* Contact */}
@@ -209,9 +245,18 @@ const CustomerData = ({ customerData, handleCustomer }) => {
                   <PhoneIcon style={{ fontSize: 16 }} />
                   <span>Contact Phone</span>
                 </div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  {customerData?.contact || 'N/A'}
-                </p>
+                {customerData?.contact ? (
+                  <a
+                    href={`tel:${customerData.contact}`}
+                    className="text-sm font-semibold text-primary hover:underline block"
+                  >
+                    {customerData.contact}
+                  </a>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                    N/A
+                  </p>
+                )}
               </div>
 
               {/* Mobile */}
@@ -220,9 +265,18 @@ const CustomerData = ({ customerData, handleCustomer }) => {
                   <SmartphoneIcon style={{ fontSize: 16 }} />
                   <span>Mobile Number</span>
                 </div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  {customerData?.mobile || 'N/A'}
-                </p>
+                {customerData?.mobile ? (
+                  <a
+                    href={`tel:${customerData.mobile}`}
+                    className="text-sm font-semibold text-primary hover:underline block"
+                  >
+                    {customerData.mobile}
+                  </a>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                    N/A
+                  </p>
+                )}
               </div>
 
               {/* Gender */}
@@ -255,6 +309,7 @@ const CustomerData = ({ customerData, handleCustomer }) => {
                 </div>
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 capitalize">
                   {customerData?.typeOfCustomer || 'N/A'}
+                  {customerData?.companyName ? ` (${customerData.companyName})` : ''}
                 </p>
               </div>
             </div>

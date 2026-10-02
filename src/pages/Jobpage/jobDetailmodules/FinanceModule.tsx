@@ -208,9 +208,19 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
     const fetchTaxTypes = async () => {
       try {
         const res = await axios.get(`${apiPath}/api/sale_group?type=tax`);
-        setTaxTypeList(res.data || []);
-        if (res.data && res.data.length > 0 && !taxTypeSalesGroup) {
-          setTaxTypeSalesGroup(res.data[0]._id);
+        const rawList = res.data || [];
+        // Prioritize European VAT/BTW over legacy GST
+        const sortedList = [...rawList].sort((a: any, b: any) => {
+          const aIsVat = /vat|btw/i.test(a.name || '');
+          const bIsVat = /vat|btw/i.test(b.name || '');
+          if (aIsVat && !bIsVat) return -1;
+          if (!aIsVat && bIsVat) return 1;
+          return 0;
+        });
+        setTaxTypeList(sortedList);
+        if (sortedList.length > 0 && !taxTypeSalesGroup) {
+          const vatMatch = sortedList.find((t: any) => /vat|btw/i.test(t.name || ''));
+          setTaxTypeSalesGroup(vatMatch ? vatMatch._id : sortedList[0]._id);
         }
       } catch (err: any) {
         console.error('Error fetching tax types:', err);
@@ -249,12 +259,16 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
     }
 
     const stepData = data?.[selectedForm];
-    if (stepData) {
-      setSelectedTemplate(stepData.financialTemplate || '');
-      setDiscountDescription(stepData.discountDescription || '');
-      setDiscountPercentage(Number(stepData.percentage) || 0);
+    const acceptedOffer =
+      (job?.offer || []).find((o: any) => o.Status === 'Accepted') ||
+      job?.offer?.[0];
 
-      // Load existing saved rules if available, otherwise by default 0 items
+    if (stepData) {
+      setSelectedTemplate(stepData.financialTemplate || acceptedOffer?.financialTemplate || '');
+      setDiscountDescription(stepData.discountDescription || acceptedOffer?.discount_description || '');
+      setDiscountPercentage(Number(stepData.percentage) || Number(acceptedOffer?.discount) || 0);
+
+      // Load existing saved rules if available, otherwise pre-fill from accepted offer
       if (stepData.rules && Array.isArray(stepData.rules) && stepData.rules.length > 0) {
         setRules(
           stepData.rules.map((r: any) => ({
@@ -262,23 +276,50 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
             description: r.description || '',
             number: r.number ?? '',
             unitPrice: r.unitPrice ?? '',
-            btw: parseBtw(r.btw),
+            btw: parseBtw(r.btw) || '21',
             enabled: r.enabled !== false,
             isCalculated: !!r.isCalculated,
           }))
         );
+      } else if (acceptedOffer && Array.isArray(acceptedOffer.items) && acceptedOffer.items.length > 0) {
+        setRules(
+          acceptedOffer.items.map((it: any) => ({
+            salesGroup: it.salesgroup?._id || it.salesgroup || salesGroupList[0]?._id || '',
+            description: it.description || '',
+            number: it.quantity ?? 1,
+            unitPrice: it.price ?? 0,
+            btw: parseBtw(it.btw) || '21',
+            enabled: it.enabled !== false,
+            isCalculated: false,
+          }))
+        );
       } else {
-        setRules([]); // 0 items by default
+        setRules([]);
       }
     } else {
-      setSelectedTemplate('');
-      setDiscountDescription('');
-      setDiscountPercentage(0);
-      setRules([]); // 0 items by default
+      setSelectedTemplate(acceptedOffer?.financialTemplate || '');
+      setDiscountDescription(acceptedOffer?.discount_description || '');
+      setDiscountPercentage(Number(acceptedOffer?.discount) || 0);
+      if (acceptedOffer && Array.isArray(acceptedOffer.items) && acceptedOffer.items.length > 0) {
+        setRules(
+          acceptedOffer.items.map((it: any) => ({
+            salesGroup: it.salesgroup?._id || it.salesgroup || salesGroupList[0]?._id || '',
+            description: it.description || '',
+            number: it.quantity ?? 1,
+            unitPrice: it.price ?? 0,
+            btw: parseBtw(it.btw) || '21',
+            enabled: it.enabled !== false,
+            isCalculated: false,
+          }))
+        );
+      } else {
+        setRules([]);
+      }
     }
 
-    if (data?.vat) {
-      setVatSelected(data.vat === 'inclusive' ? 'inclusive' : 'exclusive');
+    const offerVat = stepData?.vat || acceptedOffer?.vat || data?.vat;
+    if (offerVat) {
+      setVatSelected(offerVat === 'inclusive' ? 'inclusive' : 'exclusive');
     }
     if (data?.ignoreRules !== undefined) {
       setIgnoreRules(!!data.ignoreRules);
@@ -290,6 +331,8 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
     setSelectedForm((prev) => (prev === stepId ? '' : stepId));
   };
 
+  const isInclusive = vatSelected === 'inclusive';
+
   // Computed line items with resolved values
   const evaluatedItems = useMemo(() => {
     return rules.map((rule) => {
@@ -297,7 +340,9 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
       const evalPrice = rule.isCalculated ? resolveTokenValue(rule.unitPrice) : Number(rule.unitPrice) || 0;
       const btwRate = Number(rule.btw) || 0;
       const lineSubtotal = rule.enabled ? evalQty * evalPrice : 0;
-      const lineTax = rule.enabled ? lineSubtotal * (btwRate / 100) : 0;
+      const lineTax = rule.enabled
+        ? (isInclusive ? lineSubtotal * (btwRate / (100 + btwRate)) : lineSubtotal * (btwRate / 100))
+        : 0;
 
       return {
         ...rule,
@@ -308,24 +353,39 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
         lineTax,
       };
     });
-  }, [rules, job]);
+  }, [rules, job, isInclusive]);
 
   // Financial totals
   const subtotal = useMemo(() => {
     return evaluatedItems.reduce((acc, item) => acc + (item.enabled ? item.lineSubtotal : 0), 0);
   }, [evaluatedItems]);
 
+  const discountMultiplier = useMemo(() => {
+    const pct = Math.min(Math.max(Number(discountPercentage) || 0, 0), 100);
+    return Math.max(0, 1 - (pct / 100));
+  }, [discountPercentage]);
+
   const discountAmount = useMemo(() => {
     return subtotal * (Number(discountPercentage) / 100);
   }, [subtotal, discountPercentage]);
 
+  const discountedSubtotal = useMemo(() => {
+    return subtotal - discountAmount;
+  }, [subtotal, discountAmount]);
+
   const taxTotal = useMemo(() => {
-    return evaluatedItems.reduce((acc, item) => acc + (item.enabled ? item.lineTax : 0), 0);
-  }, [evaluatedItems]);
+    return evaluatedItems.reduce((acc, item) => {
+      if (!item.enabled) return acc;
+      const discountedLine = item.lineSubtotal * discountMultiplier;
+      return acc + (isInclusive
+        ? (discountedLine * (item.btwRate / (100 + item.btwRate)))
+        : (discountedLine * (item.btwRate / 100)));
+    }, 0);
+  }, [evaluatedItems, discountMultiplier, isInclusive]);
 
   const total = useMemo(() => {
-    return subtotal - discountAmount + taxTotal;
-  }, [subtotal, discountAmount, taxTotal]);
+    return isInclusive ? discountedSubtotal : (discountedSubtotal + taxTotal);
+  }, [discountedSubtotal, taxTotal, isInclusive]);
 
   // Add rules
   const addCalculatedRule = () => {
@@ -382,6 +442,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
         financialTemplate: selectedTemplate || '',
         discountDescription: discountDescription || '',
         percentage: discountPercentage || 0,
+        vat: vatSelected,
         rules: rules.map((r) => ({
           salesGroup: r.salesGroup || '',
           description: r.description || '',
@@ -395,6 +456,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
 
       await axios.post(`${apiPath}/api/packages/${packageId}`, {
         [selectedForm]: updatedSection,
+        vat: vatSelected,
       });
 
       // Update in-memory objects immediately so UI remains synchronized
@@ -418,6 +480,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
   };
 
   const handleProcessWorkflowInvoice = async () => {
+    if (isSubmitting) return;
     if (!selectedForm) {
       toast.info('Please click and select a workflow stage card first.');
       return;
@@ -462,15 +525,28 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
         });
 
       if (finalItems.length === 0) {
-        finalItems = [
-          {
-            salesgroup: salesGroupList[0]?._id || '',
-            description: `${activeStepObj.label} Charge`,
-            quantity: 1,
-            price: total > 0 ? total : 0,
-            btw: '21',
-          },
-        ];
+        const acceptedOffer =
+          (job?.offer || []).find((o: any) => o.Status === 'Accepted') ||
+          job?.offer?.[0];
+        if (acceptedOffer && Array.isArray(acceptedOffer.items) && acceptedOffer.items.length > 0) {
+          finalItems = acceptedOffer.items.map((it: any) => ({
+            salesgroup: it.salesgroup?._id || it.salesgroup || salesGroupList[0]?._id || undefined,
+            description: it.description || 'Service',
+            quantity: Number(it.quantity) || 1,
+            price: Number(it.price) || 0,
+            btw: parseBtw(it.btw) || '21',
+          }));
+        } else {
+          finalItems = [
+            {
+              salesgroup: salesGroupList[0]?._id || '',
+              description: `${activeStepObj.label} Charge`,
+              quantity: 1,
+              price: total > 0 ? total : 0,
+              btw: '21',
+            },
+          ];
+        }
       }
 
       const invoicePayload = {
@@ -523,8 +599,19 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
         autoClose: 3000,
       });
 
-      if (onSuccess) {
-        onSuccess();
+      // Close the form panel and reset selected workflow stage back to default
+      setSelectedForm('');
+      setRules([]);
+      setExtraFieldValues({});
+      setRemark('');
+      setReference('');
+
+      if (typeof onSuccess === 'function') {
+        try {
+          onSuccess();
+        } catch (callErr) {
+          console.warn('Error in invoice onSuccess callback:', callErr);
+        }
       }
     } catch (error: any) {
       console.error('Error creating workflow invoice:', error);
@@ -791,8 +878,13 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                   type="number"
                   min="0"
                   max="100"
+                  step="any"
                   value={discountPercentage || ''}
-                  onChange={(e) => setDiscountPercentage(Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setDiscountPercentage(Math.min(100, Math.max(0, val)));
+                  }}
                   placeholder="Enter %"
                   className="w-full p-2.5 rounded-xl border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
                 />
@@ -931,9 +1023,11 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                             <input
                               type="number"
                               min="0"
+                              step="any"
                               value={rule.number}
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) =>
-                                updateRuleField(idx, 'number', Number(e.target.value) || 0)
+                                updateRuleField(idx, 'number', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))
                               }
                               placeholder="Qty"
                               className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
@@ -966,7 +1060,9 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                             <input
                               type="number"
                               min="0"
+                              step="any"
                               value={rule.unitPrice}
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) =>
                                 updateRuleField(idx, 'unitPrice', Number(e.target.value) || 0)
                               }
@@ -1047,7 +1143,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Subtotal
+                    Subtotal {isInclusive ? '(Gross)' : '(Net)'}
                   </span>
                   <span className="text-base font-black text-slate-900 dark:text-white mt-0.5 block">
                     {formatCurrency(subtotal)}
@@ -1065,16 +1161,16 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
 
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Total Tax (BTW)
+                    {isInclusive ? 'Included VAT / BTW' : 'Total Tax (BTW)'}
                   </span>
-                  <span className="text-base font-black text-slate-900 dark:text-white mt-0.5 block">
-                    + {formatCurrency(taxTotal)}
+                  <span className={`text-base font-black mt-0.5 block ${isInclusive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                    {isInclusive ? formatCurrency(taxTotal) : `+ ${formatCurrency(taxTotal)}`}
                   </span>
                 </div>
 
                 <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
                   <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider block">
-                    Grand Total ({vatSelected})
+                    Grand Total {isInclusive ? '(Incl. VAT)' : ''}
                   </span>
                   <span className="text-lg font-black text-primary mt-0.5 block">
                     {formatCurrency(total)}

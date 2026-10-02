@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { formatCurrency } from '../../../utils/currencyUtil';
+import { resolveRatePrecedence, getRateBadgeProps } from '../../../utils/ratePrecedenceUtil';
 
 const RelocationCalculation: React.FC<any> = ({
   totalSum,
@@ -8,8 +9,51 @@ const RelocationCalculation: React.FC<any> = ({
   rooms,
   onRecalculateDistance,
   isCalculatingDistance,
+  packageData,
+  activeSettings,
 }) => {
-  const { setValue, control } = useFormContext() as any;
+  const { setValue, control, watch } = useFormContext() as any;
+  const [userEditedRates, setUserEditedRates] = useState<Record<string, boolean>>({});
+
+  const loadProperty = watch('load.typeOfProperty');
+  const unloadProperty = watch('unload.typeOfProperty');
+  const loadSurcharge = Number(watch('relocation.loadPropertySurcharge')) || 0;
+  const unloadSurcharge = Number(watch('relocation.unloadPropertySurcharge')) || 0;
+  const totalPropertySurcharge = Number(watch('relocation.propertySurcharge')) || 0;
+
+  const handleUserEdit = (fieldName: string) => {
+    setUserEditedRates((prev) => ({ ...prev, [fieldName]: true }));
+  };
+
+  const curCubic = watch('relocation.pricePerMeterCubic');
+  const cubicResolution = resolveRatePrecedence({
+    currentValue: curCubic,
+    packageValue: packageData?.offers?.pricePerMeterCubic ?? packageData?.relocation?.pricePerMeterCubic,
+    globalDefaultValue: activeSettings?.standardPrice?.pricePerMeterCubic ?? 60,
+    unit: priceAgreement === 'onhourly_basis' ? '€/hr' : '€/m³',
+    isUserEdited: !!userEditedRates['pricePerMeterCubic'],
+  });
+  const cubicBadge = getRateBadgeProps(cubicResolution);
+
+  const curHourly = watch('relocation.pricePerHour');
+  const hourlyResolution = resolveRatePrecedence({
+    currentValue: curHourly,
+    packageValue: packageData?.offers?.pricePerHour ?? packageData?.relocation?.pricePerHour,
+    globalDefaultValue: activeSettings?.standardPrice?.pricePerHour ?? 25,
+    unit: '€/hr',
+    isUserEdited: !!userEditedRates['pricePerHour'],
+  });
+  const hourlyBadge = getRateBadgeProps(hourlyResolution);
+
+  const curKm = watch('relocation.pricePerKilometer');
+  const kmResolution = resolveRatePrecedence({
+    currentValue: curKm,
+    packageValue: packageData?.offers?.pricePerKilometer ?? packageData?.relocation?.pricePerKilometer,
+    globalDefaultValue: activeSettings?.standardPrice?.pricePerKilometer ?? 3,
+    unit: '€/km',
+    isUserEdited: !!userEditedRates['pricePerKilometer'],
+  });
+  const kmBadge = getRateBadgeProps(kmResolution);
 
   const groupedInventoryItems = rooms
     ?.flatMap((item: any) => item?.inventoryItems)
@@ -263,19 +307,24 @@ const RelocationCalculation: React.FC<any> = ({
 
               {priceAgreement !== 'onhourly_basis' && (
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Price Per Cubic Meter
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      Price Per Cubic Meter
+                    </label>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${cubicBadge.badgeClass}`}>
+                      {cubicBadge.text}
+                    </span>
+                  </div>
 
                   <Controller
                     name="relocation.pricePerMeterCubic"
                     control={control}
-                    defaultValue="0"
                     render={({ field }) => (
                       <input
                         {...field}
                         type="number"
                         min={0}
+                        onInput={() => handleUserEdit('pricePerMeterCubic')}
                         placeholder="Enter amount"
                         className="w-full rounded-[5px] border border-slate-300 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                       />
@@ -317,19 +366,24 @@ const RelocationCalculation: React.FC<any> = ({
 
                 {priceAgreement === 'onhourly_basis' && (
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">
-                      Hourly Price
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-slate-700">
+                        Hourly Price
+                      </label>
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${cubicBadge.badgeClass}`}>
+                        {cubicBadge.text}
+                      </span>
+                    </div>
 
                     <Controller
                       name="relocation.pricePerMeterCubic"
                       control={control}
-                      defaultValue="0"
                       render={({ field }) => (
                         <input
                           {...field}
                           type="number"
                           min={0}
+                          onInput={() => handleUserEdit('pricePerMeterCubic')}
                           placeholder="Enter hourly rate"
                           className="w-full rounded-[5px] border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                         />
@@ -417,19 +471,24 @@ const RelocationCalculation: React.FC<any> = ({
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Price Per Hour
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Price Per Hour
+                  </label>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${hourlyBadge.badgeClass}`}>
+                    {hourlyBadge.text}
+                  </span>
+                </div>
 
                 <Controller
                   name="relocation.pricePerHour"
                   control={control}
-                  defaultValue="0"
                   render={({ field }) => (
                     <input
                       {...field}
                       type="number"
                       min={0}
+                      onInput={() => handleUserEdit('pricePerHour')}
                       placeholder="Hourly charge"
                       className="w-full rounded-[5px] border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                     />
@@ -476,19 +535,24 @@ const RelocationCalculation: React.FC<any> = ({
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Price Per KM
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Price Per KM
+                  </label>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${kmBadge.badgeClass}`}>
+                    {kmBadge.text}
+                  </span>
+                </div>
 
                 <Controller
                   name="relocation.pricePerKilometer"
                   control={control}
-                  defaultValue="0"
                   render={({ field }) => (
                     <input
                       {...field}
                       type="number"
                       min={0}
+                      onInput={() => handleUserEdit('pricePerKilometer')}
                       placeholder="Rate per KM"
                       className="w-full rounded-[5px] border border-slate-300 bg-slate-50 px-4 py-3 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                     />
@@ -496,6 +560,59 @@ const RelocationCalculation: React.FC<any> = ({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Property Location Surcharges */}
+          <div className="bg-white border border-slate-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-slate-800">Property Location Surcharges</h4>
+                {(loadProperty || unloadProperty) && (
+                  <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
+                    Included in Total
+                  </span>
+                )}
+              </div>
+              <span className="text-base font-bold text-primary">
+                {formatCurrency(totalPropertySurcharge || 0)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-50 p-3.5 rounded border border-slate-200">
+                <span className="text-xs text-slate-500 font-medium block">
+                  Loading Property (Pick-up)
+                </span>
+                <div className="flex justify-between items-center mt-1.5">
+                  <span className="text-sm font-semibold text-slate-800">
+                    {loadProperty || 'Not specified'}
+                  </span>
+                  <span className={`text-sm font-bold ${loadSurcharge > 0 ? 'text-primary' : 'text-slate-400'}`}>
+                    {formatCurrency(loadSurcharge || 0)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded border border-slate-200">
+                <span className="text-xs text-slate-500 font-medium block">
+                  Unloading Property (Drop-off)
+                </span>
+                <div className="flex justify-between items-center mt-1.5">
+                  <span className="text-sm font-semibold text-slate-800">
+                    {unloadProperty || 'Not specified'}
+                  </span>
+                  <span className={`text-sm font-bold ${unloadSurcharge > 0 ? 'text-primary' : 'text-slate-400'}`}>
+                    {formatCurrency(unloadSurcharge || 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {totalPropertySurcharge === 0 && (
+              <p className="text-[11px] text-slate-400 mt-2.5 italic">
+                No surcharge configured for selected property types. You can manage rates in Settings → Features.
+              </p>
+            )}
           </div>
 {mergedInventoryItems.length > 0 && (
 <div className="bg-white border border-slate-200 p-5 shadow-sm">

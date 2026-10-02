@@ -496,7 +496,7 @@ function EditFinance({
 
                       <input
                         type="number"
-                        placeholder="$000"
+                        placeholder="€ 0.00"
                         className="w-50 rounded ml-10 border-[1.5px] border-stroke  py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                         // value={searchData.contact}
                         name="contact"

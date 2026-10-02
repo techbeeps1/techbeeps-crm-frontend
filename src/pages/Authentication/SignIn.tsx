@@ -37,7 +37,7 @@ const SignIn: React.FC<SignInProps> = ({ signup, setsignup, onResetPassword }) =
   const [loading, setLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [logoUrl, setLogoUrl] = useState<string>('');
-  const [companyName, setCompanyName] = useState<string>('Techbeeps CRM');
+  const [companyName, setCompanyName] = useState<string>('Universal Movers');
 
   useEffect(() => {
     const loadBrand = async () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import {
   Button,
   IconButton,
@@ -15,6 +15,8 @@ import {
   Checkbox,
   FormControlLabel,
   Popover,
+  Switch,
+  InputAdornment,
 } from '@mui/material';
 import { LocalizationProvider, StaticDatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -26,6 +28,9 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PeopleIcon from '@mui/icons-material/People';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import WarehouseIcon from '@mui/icons-material/Warehouse';
+import PlaceIcon from '@mui/icons-material/Place';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
 import { toast } from 'react-toastify';
@@ -69,7 +74,6 @@ const workOptions = [
   'Other',
 ];
 
-
 const employeeRoleOptions = [
   'Distributor',
   'Foreman',
@@ -80,13 +84,88 @@ const employeeRoleOptions = [
   'Packer',
 ];
 
+const formatJobAddress = (addr: any) => {
+  if (!addr) return '';
+  const street = addr.street || addr.streetName || '';
+  const house = addr.houseNumber || '';
+  const postcode = addr.postcode || addr.postalCode || '';
+  const city = addr.city || '';
+  const country = addr.country || '';
+  const parts = [
+    street ? `${street} ${house}`.trim() : '',
+    postcode,
+    city,
+    country
+  ].filter(Boolean);
+  return parts.join(', ');
+};
+
+const parseLocationOption = (opt: string) => {
+  if (!opt) {
+    return {
+      role: 'Location',
+      type: 'custom',
+      address: '',
+      badgeText: 'LOCATION',
+      badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+      iconBg: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    };
+  }
+
+  if (opt.startsWith('Origin') || opt.includes('Origin (Pickup)')) {
+    const rawAddr = opt.replace(/^Origin\s*(\([^)]*\))?:\s*/i, '').trim();
+    return {
+      role: 'Origin (Pickup Address)',
+      type: 'origin',
+      address: rawAddr,
+      badgeText: 'ORIGIN / PICKUP',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
+      iconBg: 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400',
+    };
+  }
+
+  if (opt.startsWith('Destination') || opt.includes('Destination (Delivery)')) {
+    const rawAddr = opt.replace(/^Destination\s*(\([^)]*\))?:\s*/i, '').trim();
+    return {
+      role: 'Destination (Delivery Address)',
+      type: 'destination',
+      address: rawAddr,
+      badgeText: 'DESTINATION / DELIVERY',
+      badgeClass: 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800',
+      iconBg: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400',
+    };
+  }
+
+  if (opt.startsWith('Depot') || opt.includes('Depot:')) {
+    const rawAddr = opt.replace(/^Depot:\s*/i, '').trim();
+    return {
+      role: 'Company Depot (HQ / Warehouse)',
+      type: 'depot',
+      address: rawAddr,
+      badgeText: 'COMPANY DEPOT',
+      badgeClass: 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800',
+      iconBg: 'bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400',
+    };
+  }
+
+  return {
+    role: 'Custom Address',
+    type: 'custom',
+    address: opt,
+    badgeText: 'CUSTOM ADDRESS',
+    badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    iconBg: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  };
+};
+
 interface EmployeeAssignment {
   employeeId: string;
   employeeName: string;
   workType: string;
   startTime: string;
   endTime: string;
-  vehicle: string;
+  vehicle: any;
+  needsVehicle?: boolean;
 }
 interface vehicleSummary {
   _id: string;
@@ -107,6 +186,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 }) => {
   const [innerOpen, setInnerOpen] = useState<boolean>(false);
   const [vehicleOptions, setVehicleOptions] = useState<vehicleSummary[]>([]);
+  const [vehicleBookings, setVehicleBookings] = useState<any[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [data, setData] = useState<Employee[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [activeStep, setActiveStep] = useState<number>(1);
@@ -132,6 +213,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   );
   const { settings } = useContext(EmailContext) as any;
   const [companyDetail, setCompanyDetail] = useState<any>(null);
+  const [jobDetails, setJobDetails] = useState<any>(null);
+  const [sendCustomerEmail, setSendCustomerEmail] = useState<boolean>(false);
 
   const isEditMode = Boolean(appointmentToEdit);
   const modalOpen = open !== undefined ? open : innerOpen;
@@ -143,13 +226,19 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       autoClose: 2000,
     });
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   useEffect(() => {
     const fetchCompanyDetails = async () => {
       try {
-        const response = await fetch(`${apiPath}/api/company-details`);
+        const response = await fetch(`${apiPath}/api/company-details`, {
+          headers: getAuthHeaders(),
+        });
         const data = await response.json();
         setCompanyDetail(data);
-
       } catch (error) {
         console.error('Error fetching company details:', error);
       }
@@ -157,20 +246,135 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     fetchCompanyDetails();
   }, []);
 
+  useEffect(() => {
+    if (!jobId) return;
+    axios
+      .get(`${apiPath}/api/jobs/${jobId}`, {
+        headers: getAuthHeaders(),
+      })
+      .then((res) => {
+        setJobDetails(res.data);
+        if (!isEditMode && !departureLocation) {
+          const loadP = formatJobAddress(res.data?.load);
+          if (loadP) {
+            setDepartureLocation(`Origin (Pickup): ${loadP}`);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching job details for appointment:', err);
+      });
+  }, [jobId]);
+
+  const initialSnapshotRef = useRef<string | null>(null);
+
+  const computeSnapshot = (
+    dateVal: Date | null,
+    planType: string,
+    depLoc: string,
+    vehicleId: string,
+    notesVal: string,
+    assignments: EmployeeAssignment[],
+  ) => {
+    return JSON.stringify({
+      d: dateVal
+        ? (dateVal instanceof Date && !isNaN(dateVal.getTime())
+          ? dateVal.toISOString().slice(0, 10)
+          : String(dateVal).slice(0, 10))
+        : '',
+      p: planType || 'Move',
+      loc: (depLoc || '').trim(),
+      v: vehicleId || '',
+      n: (notesVal || '').trim(),
+      a: (assignments || []).map((emp) => ({
+        id: emp.employeeId,
+        w: emp.workType || '',
+        s: emp.startTime || '',
+        e: emp.endTime || '',
+        v:
+          typeof emp.vehicle === 'object' && emp.vehicle !== null
+            ? emp.vehicle._id
+            : (emp.vehicle || ''),
+      })),
+    });
+  };
+
+  const currentSnapshot = computeSnapshot(
+    selectedDate,
+    planningType,
+    departureLocation,
+    selectedVehicleId,
+    notes,
+    employeeAssignments,
+  );
+
+  const isFormDirty =
+    Boolean(modalOpen) &&
+    initialSnapshotRef.current !== null &&
+    currentSnapshot !== initialSnapshotRef.current;
+
+  // Prevent accidental tab closing or browser refresh when changes are unsaved (AT-028-1)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (modalOpen && isFormDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [modalOpen, isFormDirty]);
+
+  // Set initial snapshot when opening clean New Appointment modal
+  useEffect(() => {
+    if (modalOpen && !appointmentToEdit) {
+      const defaultLoc =
+        !departureLocation && jobDetails?.load
+          ? `Origin (Pickup): ${formatJobAddress(jobDetails.load)}`
+          : departureLocation || '';
+
+      if (!departureLocation && defaultLoc) {
+        setDepartureLocation(defaultLoc);
+      }
+
+      initialSnapshotRef.current = computeSnapshot(
+        selectedDate,
+        planningType || 'Move',
+        defaultLoc,
+        selectedVehicleId || '',
+        notes || '',
+        employeeAssignments || [],
+      );
+    }
+  }, [modalOpen, appointmentToEdit]);
+
   const resetForm = () => {
     setSelectedEmployees([]);
     setEmployeeAssignments([]);
 
     setDepartureLocation('');
+    setSelectedVehicleId('');
     setPlanningType('Move');
     setNotes('');
     setSelectedDate(null);
     setSelectedRoles([]);
     setEditingAppointmentId(null);
+    setSendCustomerEmail(false);
+    setVehicleBookings([]);
     setActiveStep(1);
+    initialSnapshotRef.current = null;
   };
 
-  const handleClose = () => {
+  const handleClose = (force = false) => {
+    if (!force && !viewOnly && isFormDirty) {
+      const confirmDiscard = window.confirm(
+        'You have unsaved changes. Are you sure you want to close without saving?'
+      );
+      if (!confirmDiscard) return;
+    }
+    initialSnapshotRef.current = null;
     if (open === undefined) {
       setInnerOpen(false);
     }
@@ -209,7 +413,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     if (!appointmentToEdit?.assignedEmployees) return [];
 
     // Fetch missing vehicles and add them to the options
-    fetch(`${apiPath}/api/vehicles`)
+    fetch(`${apiPath}/api/vehicles`, {
+      headers: getAuthHeaders(),
+    })
       .then((d) => d.json())
       .then((vehicles) => {
         setVehicleOptions((prev) => {
@@ -233,8 +439,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         employee.startTime && employee.endTime
           ? [
             {
-              start: employee.startTime.slice(11, 16),
-              end: employee.endTime.slice(11, 16),
+              start: formatFriendlyTime(employee.startTime),
+              end: formatFriendlyTime(employee.endTime),
             },
           ]
           : [],
@@ -249,30 +455,29 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         return;
       }
 
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
+      const excludeId = editingAppointmentId || appointmentToEdit?._id;
+      const excludeQuery = isEditMode && excludeId ? `?excludeAppointmentId=${excludeId}` : '';
       const response = await axios.get(
-        `${apiPath}/user/employees/${formatSelectedDate()}`,
-        { headers }
+        `${apiPath}/user/employees/${formatSelectedDate()}${excludeQuery}`,
+        { headers: getAuthHeaders() }
       );
       setVehicleOptions(response.data?.vehicles || []);
+      setVehicleBookings(response.data?.vehicleBookings || []);
 
-      const EmployeeList = (response.data?.employees || [])
-        .filter(
-          (team: any) =>
-            team.available &&
-            Array.isArray(team.freeSlots) &&
-            team.freeSlots.length > 0,
-        )
-        .map((team: any) => ({
-          label: `${team.username}${team.skills && team.skills.length ? ' (' + team.skills.join(', ') + ')' : ''}`,
+      const allStaff = response.data?.employees || [];
+      const EmployeeList = allStaff.map((team: any) => {
+        const hasSlots = Array.isArray(team.freeSlots) && team.freeSlots.length > 0;
+        const slots = hasSlots ? team.freeSlots : [{ start: '08:00', end: '17:00' }];
+        const isAvail = team.available !== false && hasSlots;
+        return {
+          label: `${team.username}${!isAvail ? ' (Off-duty / Weekend)' : ''}${team.skills && team.skills.length ? ' (' + team.skills.join(', ') + ')' : ''}`,
           value: team._id,
           role: team.role,
           skills: team.skills || [],
-          freeSlots: team.freeSlots || [],
-          available: !!team.available,
-        }));
+          freeSlots: slots,
+          available: true,
+        };
+      });
 
       const appointmentEmployees = getAppointmentEmployeeOptions();
       const mergedEmployeeList = appointmentEmployees.reduce(
@@ -319,31 +524,73 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   useEffect(() => {
     if (appointmentToEdit) {
       setEditingAppointmentId(appointmentToEdit._id || null);
-      setSelectedDate(
-        appointmentToEdit.date ? new Date(appointmentToEdit.date) : null,
-      );
+
+      const parsedDate = appointmentToEdit.date
+        ? (typeof appointmentToEdit.date === 'string' && appointmentToEdit.date.includes('T')
+          ? new Date(appointmentToEdit.date.split('T')[0] + 'T12:00:00')
+          : new Date(String(appointmentToEdit.date) + 'T12:00:00'))
+        : null;
+
+      setSelectedDate(parsedDate);
       setPlanningType(appointmentToEdit.appointmentType || 'Move');
       setDepartureLocation(appointmentToEdit.departureLocation || '');
       setNotes(appointmentToEdit.notes || '');
 
+      const appVehicle = appointmentToEdit.vehicle;
+      const appVehicleId =
+        (typeof appVehicle === 'object' && appVehicle !== null ? appVehicle._id : appVehicle) || '';
+      setSelectedVehicleId(appVehicleId);
+
+      if (appVehicle && typeof appVehicle === 'object' && appVehicle._id) {
+        setVehicleOptions((prev) => {
+          if (!prev.find((v) => v._id === appVehicle._id)) {
+            return [appVehicle as any, ...prev];
+          }
+          return prev;
+        });
+      }
+
       setOriginalAppointmentDate(
         appointmentToEdit.date
-          ? getFormattedDateFromString(appointmentToEdit.date)
+          ? (typeof appointmentToEdit.date === 'string'
+            ? (appointmentToEdit.date.includes('T') ? appointmentToEdit.date.split('T')[0] : appointmentToEdit.date)
+            : getFormattedDateFromString(appointmentToEdit.date))
           : null,
       );
       setActiveStep(1);
 
       const assignedEmployees = (appointmentToEdit.assignedEmployees || []).map(
-        (employee: any) => ({
-          employeeId: employee.employeeId,
-          employeeName: employee.employeeName,
-          workType: employee.workType || 'Other',
+        (employee: any) => {
+          const empVehicle = employee.vehicle;
+          const empVehicleId =
+            (typeof empVehicle === 'object' && empVehicle !== null ? empVehicle._id : empVehicle) || '';
 
-          // Extracting time in HH:mm
-          startTime: employee.startTime ? employee.startTime.slice(11, 16) : '',
-          endTime: employee.endTime ? employee.endTime.slice(11, 16) : '',
-          vehicle: employee.vehicle || '',
-        }),
+          if (empVehicle && typeof empVehicle === 'object' && empVehicle._id) {
+            setVehicleOptions((prev) => {
+              if (!prev.find((v) => v._id === empVehicle._id)) {
+                return [empVehicle as any, ...prev];
+              }
+              return prev;
+            });
+          }
+
+          const workType = employee.workType || 'Other';
+          // Auto-fill vehicle for Driver from employee's vehicle or appointment's allocated vehicle
+          const effectiveVehicle = empVehicleId || (workType === 'Driver' ? appVehicleId : '');
+          const hasVehicle = Boolean(effectiveVehicle || workType === 'Driver');
+
+          return {
+            employeeId: employee.employeeId,
+            employeeName: employee.employeeName,
+            workType,
+
+            // Extracting exact wall-clock time in HH:mm
+            startTime: formatFriendlyTime(employee.startTime),
+            endTime: formatFriendlyTime(employee.endTime),
+            vehicle: effectiveVehicle,
+            needsVehicle: hasVehicle,
+          };
+        },
       );
       setEmployeeAssignments(assignedEmployees);
       setSelectedEmployees(
@@ -355,6 +602,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               ? [{ start: assignment.startTime, end: assignment.endTime }]
               : [],
         })),
+      );
+      initialSnapshotRef.current = computeSnapshot(
+        parsedDate,
+        appointmentToEdit.appointmentType || 'Move',
+        appointmentToEdit.departureLocation || '',
+        appVehicleId,
+        appointmentToEdit.notes || '',
+        assignedEmployees,
       );
     }
   }, [appointmentToEdit]);
@@ -380,13 +635,15 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         const existing = existingMap.get(employee.value);
         if (existing) return existing;
 
+        const isDriver = employee.role === 'Driver';
         return {
           employeeId: employee.value,
           employeeName: employee.label,
-          workType: 'Other',
+          workType: isDriver ? 'Driver' : 'Other',
           startTime: '',
           endTime: '',
-          vehicle: '',
+          vehicle: isDriver ? selectedVehicleId : '',
+          needsVehicle: isDriver,
         };
       });
       return nextAssignments;
@@ -401,23 +658,38 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const getEmployeeFreeSlots = (employeeId: string) => {
     const employee =
-      selectedEmployees.find((item) => item.value === employeeId) ||
-      data.find((item) => item.value === employeeId);
+      data.find((item) => item.value === employeeId) ||
+      selectedEmployees.find((item) => item.value === employeeId);
     return employee?.freeSlots || [];
   };
 
-  const getAssignedVehicleNames = (currentDriverId: string) =>
-    employeeAssignments
-      .filter(
-        (assignment) =>
-          assignment.workType === 'Driver' &&
-          assignment.employeeId !== currentDriverId &&
-          assignment.vehicle,
-      )
-      .map((assignment) => assignment.vehicle);
-
-  const getSlotForStartTime = (employeeId: string, startTime: string) => {
+  const getEffectiveSlots = (
+    employeeId: string,
+    currentAssignment?: EmployeeAssignment,
+  ) => {
     const slots = getEmployeeFreeSlots(employeeId);
+    if (isEditMode && currentAssignment?.startTime && currentAssignment?.endTime) {
+      const alreadyCovered = slots.some(
+        (s) =>
+          currentAssignment.startTime >= s.start &&
+          currentAssignment.endTime <= s.end,
+      );
+      if (!alreadyCovered) {
+        return [
+          ...slots,
+          { start: currentAssignment.startTime, end: currentAssignment.endTime },
+        ];
+      }
+    }
+    return slots;
+  };
+
+  const getSlotForStartTime = (
+    employeeId: string,
+    startTime: string,
+    currentAssignment?: EmployeeAssignment,
+  ) => {
+    const slots = getEffectiveSlots(employeeId, currentAssignment);
     return slots.find(
       (slot) => startTime >= slot.start && startTime < slot.end,
     );
@@ -427,35 +699,167 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     time: string,
     slots: { start: string; end: string }[],
   ) => {
+    if (!slots || !slots.length) return false;
     return slots.some((slot) => time >= slot.start && time < slot.end);
+  };
+
+  const checkVehicleAvailability = (
+    vehicleId: string,
+    startTime: string,
+    endTime: string,
+    currentEmployeeId?: string,
+  ) => {
+    if (!vehicleId) return { available: true };
+    if (!startTime || !endTime || startTime >= endTime) {
+      return { available: true, needsTimes: true };
+    }
+
+    // 1. Check against backend vehicleBookings for that date
+    for (const booking of vehicleBookings) {
+      if (booking.vehicleId === vehicleId) {
+        const bStart = booking.startTime;
+        const bEnd = booking.endTime;
+        if (bStart && bEnd && startTime < bEnd && endTime > bStart) {
+          return {
+            available: false,
+            conflictType: 'booking',
+            reason: `Booked (${bStart} - ${bEnd})`,
+            bookedTime: `${bStart} - ${bEnd}`,
+          };
+        }
+      }
+    }
+
+    // 2. Check against other employees in this appointment
+    for (const assignment of employeeAssignments) {
+      if (
+        assignment.employeeId !== currentEmployeeId &&
+        assignment.needsVehicle
+      ) {
+        const assignedVId =
+          typeof assignment.vehicle === 'object' && assignment.vehicle !== null
+            ? assignment.vehicle._id
+            : assignment.vehicle;
+
+        if (assignedVId === vehicleId) {
+          const aStart = assignment.startTime;
+          const aEnd = assignment.endTime;
+          if (aStart && aEnd && startTime < aEnd && endTime > aStart) {
+            return {
+              available: false,
+              conflictType: 'in-form',
+              reason: `Assigned to ${assignment.employeeName} (${aStart} - ${aEnd})`,
+              bookedTime: `${aStart} - ${aEnd}`,
+            };
+          }
+        }
+      }
+    }
+
+    return { available: true };
+  };
+
+  const handleAssignmentToggleVehicle = (
+    employeeId: string,
+    enabled: boolean,
+  ) => {
+    setEmployeeAssignments((prev) =>
+      prev.map((assignment) => {
+        if (assignment.employeeId !== employeeId) return assignment;
+        let chosenVehicle = enabled
+          ? (assignment.vehicle || selectedVehicleId || '')
+          : '';
+        if (
+          enabled &&
+          chosenVehicle &&
+          assignment.startTime &&
+          assignment.endTime
+        ) {
+          const vId =
+            typeof chosenVehicle === 'object' && chosenVehicle !== null
+              ? chosenVehicle._id
+              : chosenVehicle;
+          const status = checkVehicleAvailability(
+            vId,
+            assignment.startTime,
+            assignment.endTime,
+            employeeId,
+          );
+          if (!status.available) {
+            chosenVehicle = '';
+          }
+        }
+        return {
+          ...assignment,
+          needsVehicle: enabled,
+          vehicle: chosenVehicle,
+        };
+      }),
+    );
   };
 
   const handleAssignmentChange = (
     employeeId: string,
     field: keyof EmployeeAssignment,
-    value: string,
+    value: any,
   ) => {
     setEmployeeAssignments((prev) =>
       prev.map((assignment) => {
         if (assignment.employeeId !== employeeId) return assignment;
 
+        if (field === 'workType') {
+          const isDriver = value === 'Driver';
+          return {
+            ...assignment,
+            workType: value,
+            needsVehicle: isDriver ? true : assignment.needsVehicle,
+            vehicle:
+              isDriver && !assignment.vehicle
+                ? selectedVehicleId
+                : assignment.vehicle,
+          };
+        }
+
         if (field === 'startTime') {
-          const slots = getEmployeeFreeSlots(employeeId);
-          if (!slots.length || !isStartTimeValid(value, slots)) {
+          const effectiveSlots = getEffectiveSlots(employeeId, assignment);
+          if (!effectiveSlots.length || !isStartTimeValid(value, effectiveSlots)) {
             return assignment;
           }
 
-          const validSlot = getSlotForStartTime(employeeId, value);
+          const validSlot = getSlotForStartTime(employeeId, value, assignment);
+          const newEnd =
+            validSlot &&
+              assignment.endTime &&
+              assignment.endTime > value &&
+              assignment.endTime <= validSlot.end
+              ? assignment.endTime
+              : '';
+
+          let nextVehicle = assignment.vehicle;
+          if (assignment.needsVehicle && nextVehicle && value && newEnd) {
+            const vId =
+              typeof nextVehicle === 'object' && nextVehicle !== null
+                ? nextVehicle._id
+                : nextVehicle;
+            const status = checkVehicleAvailability(
+              vId,
+              value,
+              newEnd,
+              employeeId,
+            );
+            if (!status.available) {
+              notifyError(
+                `Selected vehicle is no longer available for updated time (${status.reason})`,
+              );
+              nextVehicle = '';
+            }
+          }
+
           return {
             ...assignment,
             startTime: value,
-            endTime:
-              validSlot &&
-                assignment.endTime &&
-                assignment.endTime > value &&
-                assignment.endTime <= validSlot.end
-                ? assignment.endTime
-                : '',
+            endTime: newEnd,
+            vehicle: nextVehicle,
           };
         }
 
@@ -463,6 +867,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
           const validSlot = getSlotForStartTime(
             employeeId,
             assignment.startTime,
+            assignment,
           );
           if (
             !assignment.startTime ||
@@ -473,9 +878,49 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             return assignment;
           }
 
+          let nextVehicle = assignment.vehicle;
+          if (assignment.needsVehicle && nextVehicle && assignment.startTime && value) {
+            const vId =
+              typeof nextVehicle === 'object' && nextVehicle !== null
+                ? nextVehicle._id
+                : nextVehicle;
+            const status = checkVehicleAvailability(
+              vId,
+              assignment.startTime,
+              value,
+              employeeId,
+            );
+            if (!status.available) {
+              notifyError(
+                `Selected vehicle is no longer available for updated time (${status.reason})`,
+              );
+              nextVehicle = '';
+            }
+          }
+
           return {
             ...assignment,
             endTime: value,
+            vehicle: nextVehicle,
+          };
+        }
+
+        if (field === 'vehicle') {
+          if (value && assignment.startTime && assignment.endTime) {
+            const status = checkVehicleAvailability(
+              value,
+              assignment.startTime,
+              assignment.endTime,
+              employeeId,
+            );
+            if (!status.available) {
+              notifyError(`Cannot select vehicle: ${status.reason}`);
+              return assignment;
+            }
+          }
+          return {
+            ...assignment,
+            vehicle: value,
           };
         }
 
@@ -485,6 +930,20 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         };
       }),
     );
+  };
+
+  const handleAllocatedVehicleChange = (newVehicleId: string) => {
+    setSelectedVehicleId(newVehicleId);
+    if (newVehicleId) {
+      setEmployeeAssignments((prev) =>
+        prev.map((assignment) => {
+          if (assignment.workType === 'Driver' && !assignment.vehicle) {
+            return { ...assignment, vehicle: newVehicleId };
+          }
+          return assignment;
+        }),
+      );
+    }
   };
 
   const getDerivedTimeRange = () => {
@@ -519,53 +978,65 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       return false;
     }
 
-    if (!employeeAssignments.length) {
-      notifyError('Please select at least one employee');
-      return false;
-    }
-
-    const hasInvalidAssignment = employeeAssignments.some((assignment) => {
-      if (!assignment.workType) {
-        return true;
+    // Unassigned appointments are permitted as Draft (UM-027)
+    if (employeeAssignments.length > 0) {
+      for (const assignment of employeeAssignments) {
+        if (!assignment.workType) {
+          notifyError(`Please select work type for ${assignment.employeeName}`);
+          return false;
+        }
+        if (
+          !assignment.startTime ||
+          !assignment.endTime ||
+          assignment.startTime >= assignment.endTime
+        ) {
+          notifyError(`Please select valid start and end time for ${assignment.employeeName}`);
+          return false;
+        }
+        if (assignment.workType === 'Driver' && (!assignment.vehicle || !assignment.needsVehicle)) {
+          notifyError(`Please assign a vehicle for Driver ${assignment.employeeName}`);
+          return false;
+        }
+        if (assignment.needsVehicle && assignment.vehicle) {
+          const vId =
+            typeof assignment.vehicle === 'object' && assignment.vehicle !== null
+              ? assignment.vehicle._id
+              : assignment.vehicle;
+          const status = checkVehicleAvailability(
+            vId,
+            assignment.startTime,
+            assignment.endTime,
+            assignment.employeeId,
+          );
+          if (!status.available) {
+            notifyError(`Vehicle conflict for ${assignment.employeeName}: ${status.reason}`);
+            return false;
+          }
+        }
       }
-      if (
-        !assignment.startTime ||
-        !assignment.endTime ||
-        assignment.startTime >= assignment.endTime
-      ) {
-        return true;
-      }
-      if (assignment.workType === 'Driver' && !assignment.vehicle) {
-        return true;
-      }
-      return false;
-    });
 
-    if (hasInvalidAssignment) {
-      notifyError(
-        'Please complete all employee assignment details, including time slots and vehicle for drivers',
-      );
-      return false;
-    }
-
-    const { startTime, endTime } = getDerivedTimeRange();
-    if (!startTime || !endTime || startTime >= endTime) {
-      notifyError(
-        'Please provide a valid time range using the earliest start and latest end across all selected employees',
-      );
-      return false;
+      const { startTime, endTime } = getDerivedTimeRange();
+      if (!startTime || !endTime || startTime >= endTime) {
+        notifyError(
+          'Please provide a valid time range across all selected employees',
+        );
+        return false;
+      }
     }
 
     return true;
   };
 
-  // convert this enter time and date
+  // Convert entered date and wall-clock time directly to ISO string without OS timezone shifting
   function datetimeStringWithTime(date: string, time: string): string {
-    const [hours, minutes] = time.split(':').map(Number);
-    const dateObj = new Date(date);
-    dateObj.setHours(hours, minutes, 0, 0);
-    return dateObj.toISOString();
+    if (!time) return '';
+    const cleanDate = date
+      ? (date.includes('T') ? date.split('T')[0] : date)
+      : new Date().toISOString().split('T')[0];
+    const cleanTime = time.length === 5 ? `${time}:00` : (time.length === 4 ? `0${time}:00` : time);
+    return `${cleanDate}T${cleanTime}.000Z`;
   }
+
   const createAppointment = async () => {
     if (!validateForm()) {
       return;
@@ -575,17 +1046,25 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     try {
       const { startTime, endTime } = getDerivedTimeRange();
       const employeeAssignmentsWithTimes = employeeAssignments.map(
-        (assignment) => ({
-          ...assignment,
-          startTime: datetimeStringWithTime(
-            formatSelectedDate(),
-            assignment.startTime,
-          ),
-          endTime: datetimeStringWithTime(
-            formatSelectedDate(),
-            assignment.endTime,
-          ),
-        }),
+        (assignment) => {
+          const chosenVehicle =
+            typeof assignment.vehicle === 'object' && assignment.vehicle !== null
+              ? assignment.vehicle._id
+              : assignment.vehicle;
+          const finalVehicle = assignment.needsVehicle ? (chosenVehicle || null) : null;
+          return {
+            ...assignment,
+            vehicle: finalVehicle,
+            startTime: datetimeStringWithTime(
+              formatSelectedDate(),
+              assignment.startTime,
+            ),
+            endTime: datetimeStringWithTime(
+              formatSelectedDate(),
+              assignment.endTime,
+            ),
+          };
+        },
       );
 
       const payload = {
@@ -598,33 +1077,40 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         notes,
         participants: employeeAssignments.length,
         assignedEmployees: employeeAssignmentsWithTimes,
-
+        vehicle: (employeeAssignmentsWithTimes.find((a: any) => a.vehicle)?.vehicle) || null,
+        status: employeeAssignments.length > 0 ? 'Scheduled' : 'Draft',
       };
 
+      const authHeaders = getAuthHeaders();
       let response;
       if (isEditMode && editingAppointmentId) {
         response = await axios.put(
           `${apiPath}/api/appointment/${editingAppointmentId}`,
           payload,
+          { headers: authHeaders }
         );
       } else {
-        response = await axios.post(`${apiPath}/api/appointment`, payload);
+        response = await axios.post(`${apiPath}/api/appointment`, payload, {
+          headers: authHeaders,
+        });
       }
 
-      handleClose();
+      handleClose(true);
 
-      await SendEmail(
-        response.data,
-        settings?.emailTemplates?.appointment ||
-        settings?.emailTemplates?.rescheduleAppointment,
-      );
+      if (sendCustomerEmail) {
+        await SendEmail(
+          response.data,
+          settings?.emailTemplates?.appointment ||
+          settings?.emailTemplates?.rescheduleAppointment,
+        );
+      }
       notify(
         isEditMode
           ? 'Planning appointment updated successfully'
           : 'Planning appointment created successfully',
       );
     } catch (error: any) {
-      notifyError(`Error saving appointment: ${error.message}`);
+      notifyError(`Error saving appointment: ${error?.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -633,12 +1119,19 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const formatFriendlyDate = (dateVal: any) => {
     if (!dateVal) return '';
     try {
-      const d =
-        typeof dateVal === 'string' && !dateVal.includes('T')
-          ? new Date(`${dateVal}T00:00:00`)
-          : new Date(dateVal);
+      if (typeof dateVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateVal)) {
+        const [y, m, d] = dateVal.slice(0, 10).split('-').map(Number);
+        return new Intl.DateTimeFormat('en-GB', {
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }).format(new Date(y, m - 1, d, 12, 0, 0));
+      }
+      const d = new Date(dateVal);
       if (isNaN(d.getTime())) return String(dateVal);
       return d.toLocaleDateString('en-GB', {
+        weekday: 'short',
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -650,16 +1143,18 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const formatFriendlyTime = (timeVal: any) => {
     if (!timeVal) return '';
-    if (typeof timeVal === 'string' && /^\d{1,2}:\d{2}$/.test(timeVal)) {
-      return timeVal;
+    if (typeof timeVal === 'string') {
+      if (timeVal.includes('T')) {
+        return timeVal.slice(11, 16);
+      }
+      if (/^\d{1,2}:\d{2}/.test(timeVal)) {
+        return timeVal.length === 4 ? `0${timeVal}` : timeVal.slice(0, 5);
+      }
     }
     try {
       const d = new Date(timeVal);
       if (!isNaN(d.getTime())) {
-        return d.toLocaleTimeString('en-GB', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        return d.toISOString().slice(11, 16);
       }
     } catch { }
     return String(timeVal);
@@ -687,7 +1182,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         ? `${formattedDate} ${timeSentence}`
         : formattedDate;
 
-      const subject = `Planning appointment booked for ${appointmentType} on ${dateWithTime} from techbeeps solution`;
+      const subject = `Planning appointment booked for ${appointmentType} on ${dateWithTime} from Universal Movers`;
 
       const extraData = {
         ...data,
@@ -702,12 +1197,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         formattedTime: timeDisplay,
       };
 
-      const response = await axios.post(`${apiPath}/email/send_email`, {
-        job: jobId,
-        emailTemplateId: templateId,
-        extraData,
-        subject,
-      });
+      const response = await axios.post(
+        `${apiPath}/email/send_email`,
+        {
+          job: jobId,
+          emailTemplateId: templateId,
+          extraData,
+          subject,
+        },
+        { headers: getAuthHeaders() }
+      );
       if (response.status === 200) {
         notify('Appointment confirmation email sent successfully');
       }
@@ -723,6 +1222,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     try {
       await axios.get(
         `${apiPath}/api/appointment?jobId=${jobId}&date=${formatSelectedDate()}`,
+        {
+          headers: getAuthHeaders(),
+        }
       );
     } catch (error: any) {
       notifyError(`Error: ${error.message}`);
@@ -773,10 +1275,6 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     },
     { packers: 0, movers: 0, helpers: 0, drivers: 0 },
   );
-  //
-
-  // Filter employees based on selected roles
-  // employee.role is a array of strings, so we check if any of the employee's roles match the selected roles
 
   const filteredEmployeeOptions = selectedRoles.length
     ? data.filter(
@@ -808,26 +1306,22 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
     if (activeStep === 2) {
       if (!employeeAssignments.length) {
-        notifyError('Please select at least one employee before continuing');
+        notifyError('Please select at least one employee before proceeding to Step 3.');
         return;
       }
-
       const hasInvalidAssignment = employeeAssignments.some((assignment) => {
-        if (!assignment.workType) {
-          return true;
-        }
-        if (
-          !assignment.startTime ||
-          !assignment.endTime ||
-          assignment.startTime >= assignment.endTime
-        ) {
-          return true;
-        }
-        if (assignment.workType === 'Driver' && !assignment.vehicle) {
-          return true;
-        }
-        return false;
-      });
+          if (!assignment.workType) {
+            return true;
+          }
+          if (
+            !assignment.startTime ||
+            !assignment.endTime ||
+            assignment.startTime >= assignment.endTime
+          ) {
+            return true;
+          }
+          return false;
+        });
 
       if (hasInvalidAssignment) {
         notifyError(
@@ -839,10 +1333,24 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
     setActiveStep((prev) => Math.min(prev + 1, 3));
   };
+
   const handlePrevStep = () => setActiveStep((prev) => Math.max(prev - 1, 1));
+
+  const formatJobAddr = formatJobAddress;
+
+  const depotAddress = companyDetail?.companyName
+    ? `${companyDetail.companyName} (${[companyDetail.companyAddress, companyDetail.companyState, companyDetail.companyCountry].filter(Boolean).join(', ')})`
+    : 'Universal Movers Depot (Gyroscoopweg 56, 1042 AC Amsterdam)';
+
+  const loadAddr = formatJobAddress(jobDetails?.load);
+  const unloadAddr = formatJobAddress(jobDetails?.unload);
+
   const locations = [
-    `${companyDetail?.companyName} (${companyDetail?.companyAddress}, ${companyDetail?.companyState}, ${companyDetail?.companyCountry})`,
+    `Depot: ${depotAddress}`,
+    ...(loadAddr ? [`Origin (Pickup): ${loadAddr}`] : []),
+    ...(unloadAddr ? [`Destination (Delivery): ${unloadAddr}`] : []),
   ];
+
   return (
     <div>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -855,7 +1363,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
             + New Appointment
           </button>
         )}
-        <Modal open={modalOpen} onClose={handleClose}>
+        <Modal
+          open={modalOpen}
+          onClose={(_, reason) => {
+            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+              handleClose(false);
+            } else {
+              handleClose(false);
+            }
+          }}
+        >
           <Box className={`bg-white dark:bg-boxdark rounded-2xl border border-slate-200 dark:border-strokedark p-6 shadow-2xl absolute top-6 left-1/2 transform -translate-x-1/2 ${viewOnly ? 'max-w-3xl' : 'max-w-6xl'} w-[95vw] max-h-[90vh] overflow-auto text-slate-800 dark:text-white font-sans`}>
             {/* If viewOnly and appointmentToEdit, render a dedicated read-only view */}
             {viewOnly && appointmentToEdit && (
@@ -877,7 +1394,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                   </div>
 
                   <IconButton
-                    onClick={handleClose}
+                    onClick={() => handleClose(true)}
                     className="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                   >
                     <CloseIcon />
@@ -893,12 +1410,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </div>
                     <p className="font-extrabold text-slate-900 dark:text-white text-sm">
                       {appointmentToEdit.date
-                        ? new Date(appointmentToEdit.date).toLocaleDateString('en-GB', {
-                          weekday: 'short',
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })
+                        ? formatFriendlyDate(appointmentToEdit.date)
                         : 'N/A'}
                     </p>
                   </div>
@@ -910,17 +1422,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </div>
                     <p className="font-extrabold text-slate-900 dark:text-white text-sm">
                       {appointmentToEdit.startTime
-                        ? new Date(appointmentToEdit.startTime).toLocaleTimeString('en-GB', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
+                        ? formatFriendlyTime(appointmentToEdit.startTime)
                         : 'N/A'}{' '}
                       -{' '}
                       {appointmentToEdit.endTime
-                        ? new Date(appointmentToEdit.endTime).toLocaleTimeString('en-GB', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
+                        ? formatFriendlyTime(appointmentToEdit.endTime)
                         : 'N/A'}
                     </p>
                   </div>
@@ -970,10 +1476,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {appointmentToEdit.assignedEmployees.map((emp: any, idx: number) => {
                         const empStartTime = emp.startTime
-                          ? new Date(emp.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          ? formatFriendlyTime(emp.startTime)
                           : 'N/A';
                         const empEndTime = emp.endTime
-                          ? new Date(emp.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          ? formatFriendlyTime(emp.endTime)
                           : 'N/A';
 
                         return (
@@ -1004,8 +1510,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                   <DirectionsCarIcon style={{ fontSize: 14 }} />
                                   <span>
                                     {(() => {
+                                      if (emp.vehicle && typeof emp.vehicle === 'object') {
+                                        return emp.vehicle.name || emp.vehicle.licensePlate || 'Vehicle';
+                                      }
                                       const v = vehicleOptions.find((vv) => vv._id === emp.vehicle);
-                                      return v ? v.name : 'Vehicle';
+                                      return v ? (v.name || v.licensePlate || 'Vehicle') : 'Vehicle';
                                     })()}
                                   </span>
                                 </span>
@@ -1024,7 +1533,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-strokedark">
                   <button
                     type="button"
-                    onClick={handleClose}
+                    onClick={() => handleClose(true)}
                     className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-strokedark text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                   >
                     Close
@@ -1045,7 +1554,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     </Typography>
                   </Box>
                   <IconButton
-                    onClick={handleClose}
+                    onClick={() => handleClose(false)}
                     className="absolute top-2 right-2 text-gray-600 hover:text-black"
                   >
                     <CloseIcon />
@@ -1099,9 +1608,20 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                               <Select
                                 value={planningType}
                                 label="Planning type"
-                                onChange={(event) =>
-                                  setPlanningType(event.target.value)
-                                }
+                                onChange={(event) => {
+                                  const newType = event.target.value;
+                                  setPlanningType(newType);
+                                  // Auto-adjust location role if user hasn't typed a custom override
+                                  if (!departureLocation || departureLocation.startsWith('Origin') || departureLocation.startsWith('Destination') || departureLocation.startsWith('Depot')) {
+                                    if (newType === 'Unloading' && unloadAddr) {
+                                      setDepartureLocation(`Destination (Delivery): ${unloadAddr}`);
+                                    } else if ((newType === 'Loading' || newType === 'Move' || newType === 'Packing') && loadAddr) {
+                                      setDepartureLocation(`Origin (Pickup): ${loadAddr}`);
+                                    } else if (newType === 'Survey' && loadAddr) {
+                                      setDepartureLocation(`Origin (Pickup): ${loadAddr}`);
+                                    }
+                                  }
+                                }}
                               >
                                 {planningTypes.map((type) => (
                                   <MenuItem key={type} value={type}>
@@ -1118,15 +1638,75 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                               onInputChange={(_, newValue) =>
                                 setDepartureLocation(newValue)
                               }
-                              renderInput={(params) => (
-                                <TextField
-                                  {...params}
-                                  label="Departure location"
-                                  fullWidth
-                                />
-                              )}
-                            />
+                              renderOption={(props, option) => {
+                                const info = parseLocationOption(option);
+                                return (
+                                  <li
+                                    {...props}
+                                    key={option}
+                                    className={`${props.className || ''} !p-3 !border-b !border-slate-100 dark:!border-slate-800/80 last:!border-b-0 hover:!bg-slate-50 dark:hover:!bg-slate-800/70 !cursor-pointer transition-all !items-start`}
+                                  >
+                                    <div className="flex items-start gap-3 w-full py-0.5">
+                                      {/* Colored Role Avatar */}
+                                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border border-slate-200/80 dark:border-slate-700 shadow-xs ${info.iconBg}`}>
+                                        {info.type === 'origin' && <LocationOnIcon style={{ fontSize: 20 }} />}
+                                        {info.type === 'destination' && <LocalShippingIcon style={{ fontSize: 20 }} />}
+                                        {info.type === 'depot' && <WarehouseIcon style={{ fontSize: 20 }} />}
+                                        {info.type === 'custom' && <PlaceIcon style={{ fontSize: 20 }} />}
+                                      </div>
 
+                                      {/* Details */}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                          <span className="text-xs font-black text-slate-800 dark:text-white tracking-tight">
+                                            {info.role}
+                                          </span>
+                                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border tracking-wider shrink-0 ${info.badgeClass}`}>
+                                            {info.badgeText}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex items-start gap-1.5 text-slate-600 dark:text-slate-300 text-xs">
+                                          <span className="font-bold text-slate-400 dark:text-slate-500 shrink-0 text-[11px]">Address:</span>
+                                          <span className="font-semibold break-words leading-relaxed text-slate-700 dark:text-slate-200">
+                                            {info.address || 'No address details'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </li>
+                                );
+                              }}
+                              renderInput={(params) => {
+                                const selectedInfo = parseLocationOption(departureLocation);
+                                return (
+                                  <TextField
+                                    {...params}
+                                    label="Departure location"
+                                    placeholder="Select depot, pickup, delivery or type custom..."
+                                    fullWidth
+                                    InputProps={{
+                                      ...params.InputProps,
+                                      startAdornment: (
+                                        <>
+                                          {departureLocation ? (
+                                            <InputAdornment position="start">
+                                              <span className="flex items-center justify-center w-6 h-6 rounded-lg">
+                                                {selectedInfo.type === 'origin' && <LocationOnIcon className="text-emerald-600 text-lg" />}
+                                                {selectedInfo.type === 'destination' && <LocalShippingIcon className="text-blue-600 text-lg" />}
+                                                {selectedInfo.type === 'depot' && <WarehouseIcon className="text-purple-600 text-lg" />}
+                                                {selectedInfo.type === 'custom' && <PlaceIcon className="text-slate-400 text-lg" />}
+                                              </span>
+                                            </InputAdornment>
+                                          ) : null}
+                                          {params.InputProps.startAdornment}
+                                        </>
+                                      ),
+                                    }}
+                                  />
+                                );
+                              }}
+                            />
 
                             <TextField
                               fullWidth
@@ -1190,6 +1770,25 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                               </Box>
                             </Box>
                           </Box>
+
+                          {/* Crew Adequacy Check Banner (UM-027) */}
+                          {(() => {
+                            const reqMovers = Number(jobDetails?.relocation?.relocation_movers) || 0;
+                            const currMovers = employeeAssignments.length;
+                            if (reqMovers > 0 && currMovers < reqMovers) {
+                              return (
+                                <Box className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-900 flex items-start gap-2 text-xs">
+                                  <span className="text-base leading-none">⚠️</span>
+                                  <div>
+                                    <span className="font-bold">Crew Adequacy Warning: </span>
+                                    This move requires <strong>{reqMovers} movers</strong> according to the move estimate/quote, but currently only <strong>{currMovers} {currMovers === 1 ? 'employee is' : 'employees are'}</strong> assigned.
+                                  </div>
+                                </Box>
+                              );
+                            }
+                            return null;
+                          })()}
+
                           <Popover
                             open={roleFilterOpen}
                             anchorEl={roleFilterAnchor}
@@ -1247,18 +1846,46 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                               key={assignment.employeeId}
                               className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3"
                             >
-                              <Box className="flex flex-wrap items-center justify-between gap-2">
-                                <Typography
-                                  variant="subtitle2"
-                                  className="text-slate-700"
-                                >
-                                  {assignment.employeeName}
-                                </Typography>
-                                <Box className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                  {assignment.workType === 'Driver'
-                                    ? 'Driver'
-                                    : 'Support'}
+                              <Box className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                                <Box className="flex items-center gap-2">
+                                  <Typography
+                                    variant="subtitle2"
+                                    className="text-slate-800 font-semibold"
+                                  >
+                                    {assignment.employeeName}
+                                  </Typography>
+                                  <Box className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 border border-blue-200">
+                                    {assignment.workType === 'Driver'
+                                      ? 'Driver'
+                                      : 'Support'}
+                                  </Box>
                                 </Box>
+
+                                {/* Toggle button to assign vehicle for any employee */}
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      size="small"
+                                      color="primary"
+                                      checked={Boolean(assignment.needsVehicle)}
+                                      onChange={(e) =>
+                                        handleAssignmentToggleVehicle(
+                                          assignment.employeeId,
+                                          e.target.checked,
+                                        )
+                                      }
+                                    />
+                                  }
+                                  label={
+                                    <Typography
+                                      variant="caption"
+                                      className="font-medium text-slate-700 flex items-center gap-1 select-none"
+                                    >
+                                      🚚 Assign Vehicle
+                                    </Typography>
+                                  }
+                                  className="m-0"
+                                />
                               </Box>
 
                               <Box className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1298,19 +1925,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                   fullWidth
                                 >
                                   {(() => {
-                                    const slots = getEmployeeFreeSlots(
+                                    const effectiveSlots = getEffectiveSlots(
                                       assignment.employeeId,
+                                      assignment,
                                     );
-                                    const slotsEdit = [
-                                      {
-                                        start: assignment.startTime,
-                                        end: assignment.endTime,
-                                      },
-                                    ];
-                                    const effectiveSlots =
-                                      isEditMode && assignment.startTime && assignment.endTime
-                                        ? slotsEdit
-                                        : slots;
                                     const options = timeOptions.filter((time) =>
                                       isStartTimeValid(time, effectiveSlots),
                                     );
@@ -1353,20 +1971,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                     const validSlot = getSlotForStartTime(
                                       assignment.employeeId,
                                       assignment.startTime,
+                                      assignment,
                                     );
-                                    const effectiveSlot =
-                                      isEditMode && assignment.startTime && assignment.endTime
-                                        ? {
-                                          start: assignment.startTime,
-                                          end: assignment.endTime,
-                                        }
-                                        : validSlot;
 
                                     const options = timeOptions.filter((time) => {
                                       return (
-                                        !!effectiveSlot &&
+                                        !!validSlot &&
                                         time > assignment.startTime &&
-                                        time <= effectiveSlot.end
+                                        time <= validSlot.end
                                       );
                                     });
                                     return options.length ? (
@@ -1384,48 +1996,76 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 </TextField>
                               </Box>
 
-                              {assignment.workType === 'Driver' && (
-                                <FormControl fullWidth size="small">
-                                  <InputLabel>Vehicle</InputLabel>
-                                  <Select
-                                    value={assignment.vehicle}
-                                    label="Vehicle"
-                                    onChange={(event) =>
-                                      handleAssignmentChange(
-                                        assignment.employeeId,
-                                        'vehicle',
-                                        event.target.value,
-                                      )
-                                    }
-                                  >
-                                    {(() => {
-                                      const availableVehicles =
-                                        vehicleOptions.filter(
-                                          (option) =>
-                                            !getAssignedVehicleNames(
-                                              assignment.employeeId,
-                                            ).includes(option.name),
+                              {/* Vehicle selection dropdown if toggle is ON */}
+                              {Boolean(assignment.needsVehicle) && (
+                                <Box className="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 space-y-1">
+                                  <FormControl fullWidth size="small" disabled={!assignment.startTime || !assignment.endTime}>
+                                    <InputLabel>Select Vehicle / Truck</InputLabel>
+                                    <Select
+                                      disabled={!assignment.startTime || !assignment.endTime}
+                                      value={
+                                        typeof assignment.vehicle === 'object' && assignment.vehicle !== null
+                                          ? assignment.vehicle._id
+                                          : (assignment.vehicle || '')
+                                      }
+                                      label="Select Vehicle / Truck"
+                                      onChange={(event) =>
+                                        handleAssignmentChange(
+                                          assignment.employeeId,
+                                          'vehicle',
+                                          event.target.value,
+                                        )
+                                      }
+                                    >
+                                      <MenuItem value="">
+                                        <em>None / Unassigned</em>
+                                      </MenuItem>
+                                      {vehicleOptions.map((option) => {
+                                        const status = checkVehicleAvailability(
+                                          option._id,
+                                          assignment.startTime,
+                                          assignment.endTime,
+                                          assignment.employeeId,
                                         );
-                                      return availableVehicles.length ? (
-                                        availableVehicles.map((option) => (
+                                        const currentVal =
+                                          typeof assignment.vehicle === 'object' && assignment.vehicle !== null
+                                            ? assignment.vehicle._id
+                                            : assignment.vehicle;
+                                        const isCurrentSelected = currentVal === option._id;
+                                        const isDisabled = !status.available && !isCurrentSelected;
+
+                                        return (
                                           <MenuItem
                                             key={option._id}
                                             value={option._id}
+                                            disabled={isDisabled}
+                                            className={isDisabled ? 'opacity-60 bg-slate-100/70 cursor-not-allowed' : ''}
                                           >
-                                            {option.name}{' '}
-                                            {option.licensePlate
-                                              ? `(${option.licensePlate})`
-                                              : ''}
+                                            <Box className="flex items-center justify-between w-full gap-3">
+                                              <span className="font-medium text-slate-800">
+                                                {option.name} {option.licensePlate ? `(${option.licensePlate})` : ''}
+                                              </span>
+                                              {status.available ? (
+                                                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300">
+                                                  Available
+                                                </span>
+                                              ) : (
+                                                <span className="text-[11px] font-semibold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-full border border-rose-300">
+                                                  {status.reason}
+                                                </span>
+                                              )}
+                                            </Box>
                                           </MenuItem>
-                                        ))
-                                      ) : (
-                                        <MenuItem value="" disabled>
-                                          No vehicles available
-                                        </MenuItem>
-                                      );
-                                    })()}
-                                  </Select>
-                                </FormControl>
+                                        );
+                                      })}
+                                    </Select>
+                                  </FormControl>
+                                  {(!assignment.startTime || !assignment.endTime) && (
+                                    <Typography variant="caption" className="text-amber-600 block pl-1 text-[11px] font-medium">
+                                      ⚠️ Please select Start time and End time first to enable vehicle selection.
+                                    </Typography>
+                                  )}
+                                </Box>
                               )}
                             </Box>
                           ))}
@@ -1462,6 +2102,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                           <Typography variant="body2" className="text-slate-600">
                             Departure location: {departureLocation || 'Not entered'}
                           </Typography>
+                          {selectedVehicleId && (
+                            <Typography variant="body2" className="text-slate-600 font-semibold text-primary">
+                              Allocated Vehicle: {(() => {
+                                const v = vehicleOptions.find((opt) => opt._id === selectedVehicleId);
+                                return v ? `🚛 ${v.name} (${v.licensePlate || 'No plate'})` : selectedVehicleId;
+                              })()}
+                            </Typography>
+                          )}
                           {roleSummary.packers > 0 && (
                             <Typography variant="body2" className="text-slate-600">
                               Packers: {roleSummary.packers}
@@ -1493,29 +2141,62 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 .join(', ')
                               : 'None selected'}
                           </Typography>
+
+                          {/* Email notification confirmation guard (UM-004) */}
+                          <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+                            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-800 dark:text-slate-200">
+                              <input
+                                type="checkbox"
+                                checked={sendCustomerEmail}
+                                onChange={(e) => setSendCustomerEmail(e.target.checked)}
+                                className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300 cursor-pointer"
+                              />
+                              <span>Send appointment confirmation email to customer</span>
+                            </label>
+                            <p className="text-[11px] text-slate-400 mt-1 pl-6">
+                              {sendCustomerEmail
+                                ? 'Confirmation will be dispatched and recorded in the job Email tab.'
+                                : 'No email will be sent automatically.'}
+                            </p>
+                          </div>
                         </Box>
                       </Paper>
                     )}
                   </Box>
                 </Box>
 
-                <Box className="flex justify-end mt-6 gap-2">
-                  {activeStep > 1 && (
-                    <Button variant="outlined" onClick={handlePrevStep}>
-                      Back
-                    </Button>
-                  )}
-                  {activeStep < 3 ? (
-                    <Button variant="contained" onClick={handleNextStep}>
-                      Next
-                    </Button>
-                  ) : (
-                    <Button variant="contained" onClick={createAppointment}>
-                      {isEditMode ? 'Save changes' : 'Submit appointment'}
-                    </Button>
-                  )}
+                <Box className="flex justify-between items-center mt-6">
+                  <div className="flex items-center gap-2">
+                    {activeStep > 1 && (
+                      <Button variant="outlined" onClick={handlePrevStep}>
+                        Back
+                      </Button>
+                    )}
+                    {activeStep === 2 && employeeAssignments.length === 0 && (
+                      <Button
+                        variant="outlined"
+                        onClick={createAppointment}
+                        style={{ borderColor: '#d97706', color: '#d97706' }}
+                      >
+                        Save as Draft
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {activeStep < 3 ? (
+                      <Button variant="contained" onClick={handleNextStep}>
+                        Next
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        onClick={createAppointment}
+                      >
+                        {isEditMode ? 'Save changes' : 'Submit appointment'}
+                      </Button>
+                    )}
+                  </div>
                 </Box>
-
               </>)}
           </Box>
         </Modal>

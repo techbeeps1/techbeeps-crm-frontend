@@ -5,6 +5,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { isValidPhoneNumber } from '../../utils/phoneUtil';
 
 const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
   const {
@@ -170,7 +171,10 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer"
                   >
                     <option value="" disabled>Select your customer type</option>
-                    <option value="Commerical">Commercial</option>
+                    <option value="Commercial">Commercial</option>
+                    {field.value === 'Commerical' && (
+                      <option value="Commerical" style={{ display: 'none' }}>Commercial</option>
+                    )}
                     <option value="Individual">Individual</option>
                   </select>
                 )}
@@ -244,15 +248,14 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. 8696671521"
+                  placeholder="e.g. 06 12345678 or +31 6 12345678"
                   {...register('contact', {
-                    maxLength: {
-                      value: 10,
-                      message: 'Contact number must be at most 10 digits',
-                    },
-                    pattern: {
-                      value: /^[0-9]*$/,
-                      message: 'Contact number must be numeric',
+                    validate: (value) => {
+                      if (!value || (typeof value === 'string' && value.trim().length === 0)) return true;
+                      return (
+                        isValidPhoneNumber(value) ||
+                        'Please enter a valid phone number (e.g. 06 12345678 or +31 6 12345678).'
+                      );
                     },
                   })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"

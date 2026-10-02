@@ -280,7 +280,7 @@ const Profile: React.FC = () => {
           <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
           <div className="absolute top-4 right-5 flex items-center gap-2 bg-white/15 backdrop-blur-md px-3.5 py-1.5 rounded-full text-white text-xs font-semibold border border-white/20 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-meta-3 animate-pulse"></span>
-            <span>Techbeeps CRM Staff Portal</span>
+            <span>Universal Movers Staff Portal</span>
           </div>
         </div>
 
@@ -321,7 +321,7 @@ const Profile: React.FC = () => {
           <div className="mt-3.5 space-y-2 text-center sm:text-left">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-black dark:text-white tracking-tight">
-                {userData?.username || 'Techbeeps Admin'}
+                {userData?.username || 'Universal Movers Admin'}
               </h1>
               <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-extrabold bg-primary/10 text-primary border border-primary/20">
                 <MdVerified className="text-sm" />

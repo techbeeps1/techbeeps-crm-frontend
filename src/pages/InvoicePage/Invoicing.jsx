@@ -40,7 +40,9 @@ const InvoicePopup = ({ type, index, date, open, onClose, SendInvoice, expireDat
   const handleInvoice = async (data) => {
     try {
       const response = await axios.post(`${apiPath}/invoice/update/${Id}`, { ...data, Status: 'Sent' });
-      status === 'Sent' ? SendInvoice(settings?.emailTemplates?.invoiceReminder) : SendInvoice(settings?.emailTemplates?.invoice)
+      if (typeof SendInvoice === 'function') {
+        status === 'Sent' ? SendInvoice(settings?.emailTemplates?.invoiceReminder) : SendInvoice(settings?.emailTemplates?.invoice);
+      }
     } catch (error) {
       console.error('Error updating invoice:', error);
     }
@@ -48,9 +50,11 @@ const InvoicePopup = ({ type, index, date, open, onClose, SendInvoice, expireDat
   const handleQuote = async (data) => {
     try {
       const response = await axios.post(`${apiPath}/finance/update/${Id}`, { ...data, Status: 'Sent' });
-      status === 'Sent' ? SendInvoice(settings?.emailTemplates?.quoteReminders) : SendInvoice(settings?.emailTemplates?.quote)
+      if (typeof SendInvoice === 'function') {
+        status === 'Sent' ? SendInvoice(settings?.emailTemplates?.quoteReminders) : SendInvoice(settings?.emailTemplates?.quote);
+      }
     } catch (error) {
-      console.error('Error updating invoice:', error);
+      console.error('Error updating quote:', error);
     }
   };
 

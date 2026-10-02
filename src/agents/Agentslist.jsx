@@ -33,12 +33,47 @@ const Agentslist = () => {
   // Filters & Table Controls
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
 
   const notify = (message) => toast.success(message);
   const notifyError = (message) => toast.error(message, { autoClose: 2000 });
+
+  const getUserStatus = (user) => {
+    if (user?.isRestricted) return 'restricted';
+    if (user?.isActive === false) return 'deactive';
+    return 'active';
+  };
+
+  const handleStatusChange = async (userId, newStatus, e) => {
+    if (e) e.stopPropagation();
+    let payload = { id: userId, status: newStatus };
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${apiPath}/user/update`, payload, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const isAct = newStatus === 'active';
+      const isRestr = newStatus === 'restricted';
+      setData((prev) =>
+        prev.map((u) =>
+          u._id === userId ? { ...u, isActive: isAct, isRestricted: isRestr } : u
+        )
+      );
+      if (selectedStaff && selectedStaff._id === userId) {
+        setSelectedStaff((prev) => ({
+          ...prev,
+          isActive: isAct,
+          isRestricted: isRestr,
+        }));
+      }
+      notify(`Status updated to ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`);
+    } catch (err) {
+      notifyError(err?.response?.data?.msg || 'Failed to update status');
+    }
+  };
 
   const handleAllAgents = async () => {
     try {
@@ -119,9 +154,13 @@ const Agentslist = () => {
           item.drivingLicense.some((lic) => lic.toLowerCase().includes(searchTerm.toLowerCase())));
 
       const matchesRole = roleFilter === 'all' ? true : role === roleFilter.toLowerCase();
-      return matchesSearch && matchesRole;
+
+      const userStatus = getUserStatus(item);
+      const matchesStatus = statusFilter === 'all' ? true : userStatus === statusFilter.toLowerCase();
+
+      return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [data, searchTerm, roleFilter]);
+  }, [data, searchTerm, roleFilter, statusFilter]);
 
   const sortedData = useMemo(() => {
     const sorted = [...filteredData];
@@ -236,25 +275,53 @@ const Agentslist = () => {
             </div>
 
             {/* Controls Bar: Filters & Search */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
-              {/* Role Filter Chips */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto no-scrollbar">
-                {['all', 'Staff', 'Agent', 'Admin'].map((role) => (
-                  <button
-                    key={role}
-                    onClick={() => {
-                      setRoleFilter(role);
-                      setCurrentPage(1);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                      roleFilter.toLowerCase() === role.toLowerCase()
-                        ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {role === 'all' ? 'All Roles' : role}
-                  </button>
-                ))}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Role Filter Chips */}
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto no-scrollbar">
+                  {['all', 'Staff', 'Agent', 'Admin'].map((role) => (
+                    <button
+                      key={role}
+                      onClick={() => {
+                        setRoleFilter(role);
+                        setCurrentPage(1);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                        roleFilter.toLowerCase() === role.toLowerCase()
+                          ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {role === 'all' ? 'All Roles' : role}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Status Filter Chips */}
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto no-scrollbar">
+                  {[
+                    { id: 'all', label: 'All Status' },
+                    { id: 'active', label: 'Active', dot: 'bg-emerald-500' },
+                    { id: 'deactive', label: 'Deactive', dot: 'bg-amber-500' },
+                    { id: 'restricted', label: 'Restricted', dot: 'bg-rose-500' },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => {
+                        setStatusFilter(st.id);
+                        setCurrentPage(1);
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                        statusFilter === st.id
+                          ? 'bg-white dark:bg-boxdark text-primary shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {st.dot && <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`}></span>}
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Search & Page Size */}
@@ -290,7 +357,7 @@ const Agentslist = () => {
                   className="px-2.5 py-1.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary"
                 >
                   <option value={10}>10 / page</option>
-                  <option value={20}>20 / page</option>
+                  <option value={25}>25 / page</option>
                   <option value={50}>50 / page</option>
                 </select>
               </div>
@@ -314,6 +381,7 @@ const Agentslist = () => {
                   >
                     Role
                   </th>
+                  <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Driving License</th>
                   <th
                     onClick={() => handleSort('createdAt')}
@@ -327,7 +395,7 @@ const Agentslist = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                 {paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-400">
+                    <td colSpan={6} className="py-12 text-center text-slate-400">
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-400 text-xl">
                         <FiUsers />
                       </div>
@@ -343,6 +411,7 @@ const Agentslist = () => {
                   paginatedData.map((item, index) => {
                     const isSelected = selectedStaff?._id === item._id;
                     const initial = (item.username || 'U').charAt(0).toUpperCase();
+                    const status = getUserStatus(item);
 
                     return (
                       <tr
@@ -380,6 +449,31 @@ const Agentslist = () => {
                           >
                             {item.role || 'Staff'}
                           </span>
+                        </td>
+
+                        {/* Status Switcher Column */}
+                        <td className="py-3.5 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={status}
+                            onChange={(e) => handleStatusChange(item._id, e.target.value, e)}
+                            className={`text-[11px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full border cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors ${
+                              status === 'active'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                : status === 'restricted'
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                            }`}
+                          >
+                            <option value="active" className="bg-white dark:bg-boxdark text-emerald-700 dark:text-emerald-300">
+                              ● Active
+                            </option>
+                            <option value="deactive" className="bg-white dark:bg-boxdark text-amber-700 dark:text-amber-300">
+                              ● Deactive
+                            </option>
+                            <option value="restricted" className="bg-white dark:bg-boxdark text-rose-700 dark:text-rose-300">
+                              ● Restricted
+                            </option>
+                          </select>
                         </td>
 
                         {/* Driving License Tags */}

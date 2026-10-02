@@ -149,6 +149,34 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
         : ['Dashboard']
   );
   const [savingPermissions, setSavingPermissions] = useState(false);
+  const [savingStaffStatus, setSavingStaffStatus] = useState(false);
+
+  const getStaffStatus = (staff) => {
+    if (staff?.isRestricted) return 'restricted';
+    if (staff?.isActive === false) return 'deactive';
+    return 'active';
+  };
+
+  const handleUpdateStatus = async (newStatus) => {
+    if (!selectedStaff?._id || savingStaffStatus) return;
+    setSavingStaffStatus(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${apiPath}/user/update`,
+        { id: selectedStaff._id, status: newStatus },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      selectedStaff.isActive = newStatus === 'active';
+      selectedStaff.isRestricted = newStatus === 'restricted';
+      toast.success(`Staff status updated to ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`);
+      if (handler) handler();
+    } catch (err) {
+      toast.error(err?.response?.data?.msg || 'Failed to update employee status');
+    } finally {
+      setSavingStaffStatus(false);
+    }
+  };
 
   // Leave Quota Management State
   const currentYear = new Date().getFullYear();
@@ -585,6 +613,33 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
                 >
                   {selectedStaff?.role || 'Staff'}
                 </span>
+
+                {/* Status Switcher Controls */}
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-xs ml-1">
+                  {[
+                    { id: 'active', label: 'Active', activeBg: 'bg-emerald-600 text-white' },
+                    { id: 'deactive', label: 'Deactive', activeBg: 'bg-amber-600 text-white' },
+                    { id: 'restricted', label: 'Restricted', activeBg: 'bg-rose-600 text-white' },
+                  ].map((st) => {
+                    const isCur = getStaffStatus(selectedStaff) === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        disabled={savingStaffStatus}
+                        onClick={() => handleUpdateStatus(st.id)}
+                        className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase transition-all cursor-pointer ${
+                          isCur
+                            ? `${st.activeBg} shadow-xs`
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                        title={`Set status to ${st.label}`}
+                      >
+                        {st.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
                 {selectedStaff?.email || 'No email provided'}
@@ -681,24 +736,38 @@ const StaffSlider = ({ handler, selectedStaff, onClose, Ondelete, skills, licens
 
                 <div>
                   <span className="text-slate-400 block mb-0.5">Telephone</span>
-                  <a
-                    href={`tel:${selectedStaff?.telephone}`}
-                    className="font-semibold text-primary hover:underline flex items-center gap-1.5"
-                  >
-                    <FiPhone />
-                    {selectedStaff?.telephone ? `+${selectedStaff?.telephone}` : 'N/A'}
-                  </a>
+                  {selectedStaff?.telephone ? (
+                    <a
+                      href={`tel:${selectedStaff.telephone}`}
+                      className="font-semibold text-primary hover:underline flex items-center gap-1.5"
+                    >
+                      <FiPhone />
+                      +{selectedStaff.telephone}
+                    </a>
+                  ) : (
+                    <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                      <FiPhone className="text-slate-400" />
+                      N/A
+                    </span>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2 md:col-span-2">
                   <span className="text-slate-400 block mb-0.5">Email Address</span>
-                  <a
-                    href={`mailto:${selectedStaff?.email}`}
-                    className="font-semibold text-primary hover:underline flex items-center gap-1.5 truncate"
-                  >
-                    <FiMail />
-                    {selectedStaff?.email || 'N/A'}
-                  </a>
+                  {selectedStaff?.email ? (
+                    <a
+                      href={`mailto:${selectedStaff.email}`}
+                      className="font-semibold text-primary hover:underline flex items-center gap-1.5 truncate"
+                    >
+                      <FiMail />
+                      {selectedStaff.email}
+                    </a>
+                  ) : (
+                    <span className="text-slate-500 font-semibold flex items-center gap-1.5 truncate">
+                      <FiMail className="text-slate-400" />
+                      N/A
+                    </span>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2 md:col-span-2">

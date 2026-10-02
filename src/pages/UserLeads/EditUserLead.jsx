@@ -5,6 +5,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { isValidPhoneNumber } from '../../utils/phoneUtil';
 
 const EditUserLead = ({ handler, setOpen, open, type = 'Lead', customerData }) => {
   const {
@@ -181,6 +182,7 @@ const EditUserLead = ({ handler, setOpen, open, type = 'Lead', customerData }) =
                         <option value="" disabled>Select Status</option>
                         <option value="New">New</option>
                         <option value="Contacted">Contacted</option>
+                        <option value="Quote Sent">Quote Sent</option>
                         <option value="In Progress">In Progress</option>
                         <option value="Not Interested">Not Interested</option>
                       </select>
@@ -209,7 +211,10 @@ const EditUserLead = ({ handler, setOpen, open, type = 'Lead', customerData }) =
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer"
                     >
                       <option value="" disabled>Select customer type</option>
-                      <option value="Commerical">Commercial</option>
+                      <option value="Commercial">Commercial</option>
+                      {field.value === 'Commerical' && (
+                        <option value="Commerical" style={{ display: 'none' }}>Commercial</option>
+                      )}
                       <option value="Individual">Individual</option>
                     </select>
                   )}
@@ -284,16 +289,17 @@ const EditUserLead = ({ handler, setOpen, open, type = 'Lead', customerData }) =
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. 8696671521"
+                  placeholder="e.g. 06 12345678 or +31 6 12345678"
                   {...register('contact', {
                     required: 'Contact number is required',
-                    maxLength: {
-                      value: 10,
-                      message: 'Contact number must be at most 10 digits',
-                    },
-                    pattern: {
-                      value: /^[0-9]*$/,
-                      message: 'Contact number must be numeric',
+                    validate: (value) => {
+                      if (!value || (typeof value === 'string' && value.trim().length === 0)) {
+                        return 'Contact number is required';
+                      }
+                      return (
+                        isValidPhoneNumber(value) ||
+                        'Please enter a valid phone number (e.g. 06 12345678 or +31 6 12345678).'
+                      );
                     },
                   })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"

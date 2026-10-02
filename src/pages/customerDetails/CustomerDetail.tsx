@@ -65,7 +65,9 @@ const CustomerDetail = () => {
     const { id } = useParams();
 
     const handleCustomer = async () => {
-        let response = await axios.post(apiPath + "/customer/customerdetial", { id });
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        let response = await axios.post(apiPath + "/customer/customerdetial", { id }, { headers });
         setcustomerData(response.data.customer);
     };
 

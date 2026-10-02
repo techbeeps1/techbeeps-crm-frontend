@@ -8,11 +8,14 @@ import AssemblingCalculation from "../InnerForm/AssemblingCalculation";
 import StorageCalculation from "../InnerForm/StorageCalculation";
 import MaterialsCalculation from "../InnerForm/MaterialsCalculation";
 import { formatCurrency } from "../../../utils/currencyUtil";
+import { apiPath } from "../../../../apiPath";
+import { resolveRatePrecedence } from "../../../utils/ratePrecedenceUtil";
 
 
-const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
+const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packageData }) => {
     const { setValue, watch } = useFormContext() as any;
     const { settings } = useContext(EmailContext) as any;
+    const [localSettings, setLocalSettings] = useState<any>(settings);
     const [totalSum, setTotalSum] = useState<any>(0)
     const [packingCharges, setPackingCharges] = useState<any>(0)
     const [unpackingCharges, setUnpackingCharges] = useState<any>(0)
@@ -27,22 +30,50 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
     const [totalPrice, setTotalPrice] = useState<any>(0);
     const priceAgreement = watch("priceAgree");
 
+    useEffect(() => {
+        let isMounted = true;
+        axios
+            .get(`${apiPath}/api/available-settings`)
+            .then((res) => {
+                if (isMounted && res.data?.standardPrice) {
+                    setLocalSettings(res.data);
+                }
+            })
+            .catch((err) => console.error("Error loading settings in PriceCalculation:", err));
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
+    const activeSettings = localSettings?.standardPrice ? localSettings : settings;
 
     function filterFurnitureData(data: any) {
+        if (!Array.isArray(data)) return [];
         return data.map((room: any) => {
-            const filteredFurniture = room.furnitureType.filter((furniture: any) => furniture.quantity > 0);
-            const totalVolume = filteredFurniture.reduce((sum: any, furniture: any) => {
-                return sum + (furniture.cubicMeter * furniture.quantity);
+            const filteredFurniture = Array.isArray(room.furnitureType)
+                ? room.furnitureType.filter((furniture: any) => Number(furniture.quantity) > 0)
+                : [];
+            const furnitureVolume = filteredFurniture.reduce((sum: any, furniture: any) => {
+                return sum + ((Number(furniture.cubicMeter) || 0) * (Number(furniture.quantity) || 0));
             }, 0);
+
+            const boxes = Array.isArray(room.inventoryItems)
+                ? room.inventoryItems.filter((box: any) => Number(box.quantity) > 0)
+                : [];
+            const boxesVolume = boxes.reduce((sum: any, box: any) => {
+                return sum + ((Number(box.cubicMeter) || 0) * (Number(box.quantity) || 0));
+            }, 0);
+
+            const totalVolume = furnitureVolume + boxesVolume;
             return {
                 ...room,
                 furnitureType: filteredFurniture,
                 totalVolume
             };
-        }).filter((room: any) => room.furnitureType.length > 0);
+        }).filter((room: any) => (room.furnitureType && room.furnitureType.length > 0) || (Array.isArray(room.inventoryItems) && room.inventoryItems.some((b: any) => Number(b.quantity) > 0)));
     }
     function convertToTimeFormat(value: number): string {
+        if (!Number.isFinite(value) || value <= 0) return '00:00';
         const hours = Math.floor(value);
         const minutes = Math.round((value - hours) * 60);
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
@@ -56,16 +87,47 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
             return sum + room.totalVolume;
         }, 0);
         setValue('relocation.totalVolume', calculatedVolume.toFixed(2));
-        if (watch('relocation.pricePerMeterCubic') === undefined || watch('relocation.pricePerMeterCubic') === '') {
-            setValue('relocation.pricePerMeterCubic', settings.standardPrice?.pricePerMeterCubic || 0);
+
+        // UM-013: Rate source precedence: package rates -> features/standardPrice settings -> fallback
+        const pkgCubic = packageData?.offers?.pricePerMeterCubic ?? packageData?.relocation?.pricePerMeterCubic;
+        const globalCubic = activeSettings?.standardPrice?.pricePerMeterCubic ?? 60;
+        const curCubic = watch('relocation.pricePerMeterCubic');
+        const resCubic = resolveRatePrecedence({
+            currentValue: curCubic,
+            packageValue: pkgCubic,
+            globalDefaultValue: globalCubic,
+            unit: priceAgreement === 'onhourly_basis' ? '€/hr' : '€/m³',
+        });
+        if (curCubic === undefined || curCubic === '' || Number(curCubic) === 0) {
+            setValue('relocation.pricePerMeterCubic', resCubic.rate || 60);
         }
-        if (watch('relocation.pricePerHour') === undefined || watch('relocation.pricePerHour') === '') {
-            setValue('relocation.pricePerHour', settings.standardPrice?.pricePerHour || 0);
+
+        const pkgHourly = packageData?.offers?.pricePerHour ?? packageData?.relocation?.pricePerHour;
+        const globalHourly = activeSettings?.standardPrice?.pricePerHour ?? 25;
+        const curHourly = watch('relocation.pricePerHour');
+        const resHourly = resolveRatePrecedence({
+            currentValue: curHourly,
+            packageValue: pkgHourly,
+            globalDefaultValue: globalHourly,
+            unit: '€/hr',
+        });
+        if (curHourly === undefined || curHourly === '' || Number(curHourly) === 0) {
+            setValue('relocation.pricePerHour', resHourly.rate || 25);
         }
-        if (watch('relocation.pricePerKilometer') === undefined || watch('relocation.pricePerKilometer') === '') {
-            setValue('relocation.pricePerKilometer', settings.standardPrice?.pricePerKilometer || 0);
+
+        const pkgKm = packageData?.offers?.pricePerKilometer ?? packageData?.relocation?.pricePerKilometer;
+        const globalKm = activeSettings?.standardPrice?.pricePerKilometer ?? 3;
+        const curKm = watch('relocation.pricePerKilometer');
+        const resKm = resolveRatePrecedence({
+            currentValue: curKm,
+            packageValue: pkgKm,
+            globalDefaultValue: globalKm,
+            unit: '€/km',
+        });
+        if (curKm === undefined || curKm === '' || Number(curKm) === 0) {
+            setValue('relocation.pricePerKilometer', resKm.rate || 3);
         }
-    }, [rooms, settings, setValue]);
+    }, [rooms, activeSettings, packageData, setValue]);
 
     const buildAddressCandidates = (addr: any): string[] => {
         if (!addr) return [];
@@ -296,63 +358,147 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data }) => {
         }
         const totalBoxesPrice = filterBoxesData(rooms);
 
-        const cubicMeterPerHour = Number(settings.standardPrice?.cubicMeterPerHourPerEmployee) || 1;
+        const loadProperty = watch('load.typeOfProperty');
+        const unloadProperty = watch('unload.typeOfProperty');
+        const propertySurcharges = activeSettings?.standardPrice?.propertySurcharges || localSettings?.standardPrice?.propertySurcharges || settings?.standardPrice?.propertySurcharges || {};
+
+        const getSurchargeForProperty = (propName: string): number => {
+            if (!propName || typeof propName !== 'string') return 0;
+            const clean = propName.trim().toLowerCase();
+            for (const [key, val] of Object.entries(propertySurcharges)) {
+                if (key.toLowerCase() === clean) return Number(val) || 0;
+            }
+            const aliases: Record<string, string> = {
+                apartment: 'Appartement',
+                flat: 'Appartement',
+                appratment: 'Appartement',
+                appartmant: 'Appartement',
+                house: 'Huis',
+                home: 'Huis',
+                woonhuis: 'Huis',
+                farm: 'Boerderij',
+                farmhouse: 'Boerderij',
+                'semi-detached': '2-onder-1-kap',
+                'semi detached': '2-onder-1-kap',
+                mansion: 'Herenhuis',
+                detached: 'Vrijstaande woning',
+                'detached house': 'Vrijstaande woning',
+                terraced: 'Rijtjeswoning',
+                'terraced house': 'Rijtjeswoning',
+                corner: 'Hoekwoning',
+                'corner house': 'Hoekwoning',
+                office: 'Kantoor',
+                storage: 'Opslag',
+                'storage unit': 'Opslag',
+                warehouse: 'Opslag',
+                'commercial space': 'Bedrijfspand',
+                'commercial property': 'Bedrijfspand',
+                commercial: 'Bedrijfspand',
+                penthouse: 'Appartement',
+                penthouses: 'Appartement',
+                'single family home': 'Huis',
+                townhouse: 'Rijtjeswoning',
+                villa: 'Villa',
+                studio: 'Studio',
+            };
+            const mappedKey = aliases[clean];
+            if (mappedKey && propertySurcharges[mappedKey] !== undefined) {
+                return Number(propertySurcharges[mappedKey]) || 0;
+            }
+            return 0;
+        };
+
+        const loadSurcharge = getSurchargeForProperty(loadProperty);
+        const unloadSurcharge = getSurchargeForProperty(unloadProperty);
+        const totalPropertySurcharge = loadSurcharge + unloadSurcharge;
+        setValue('relocation.loadPropertySurcharge', loadSurcharge);
+        setValue('relocation.unloadPropertySurcharge', unloadSurcharge);
+        setValue('relocation.propertySurcharge', totalPropertySurcharge);
+
+        const cubicMeterPerHour = Number(activeSettings?.standardPrice?.cubicMeterPerHourPerEmployee || settings?.standardPrice?.cubicMeterPerHourPerEmployee) || 1;
         let priceCalculation = priceAgreement === 'onhourly_basis'
             ? (totalVolume / cubicMeterPerHour) * pricePerMeterCubic
             : totalVolume * pricePerMeterCubic;
 
-        const relocationTotal = priceCalculation + (travelTime * pricePerHour) + (distance * pricePerKilometer) + totalBoxesPrice;
+        const relocationTotal = priceCalculation + (travelTime * pricePerHour) + (distance * pricePerKilometer) + totalBoxesPrice + totalPropertySurcharge;
         setTotalSum(relocationTotal.toFixed(2) || '0.00');
+        setValue('relocation.totalSum', Number(relocationTotal.toFixed(2)) || 0);
+        setValue('relocation.priceCalculation', Number(priceCalculation.toFixed(2)) || 0);
 
         if (cubicMeterPerHour > 0 && totalVolume > 0) {
             setValue('relocation.requiredHours', convertToTimeFormat(totalVolume / cubicMeterPerHour));
         }
-    }, [totalVolume, pricePerMeterCubic, travelTime, pricePerHour, distance, pricePerKilometer, priceAgreement, rooms, settings, setValue]);
+    }, [totalVolume, pricePerMeterCubic, travelTime, pricePerHour, distance, pricePerKilometer, priceAgreement, rooms, settings, localSettings, activeSettings, setValue, watch('load.typeOfProperty'), watch('unload.typeOfProperty')]);
 
-    let packingRate = watch('packing.appliedPrice')
-    let unpackingRate = watch('unpacking.appliedPrice')
+    let packingRate = Number(watch('packing.appliedPrice')) || 0;
+    let unpackingRate = Number(watch('unpacking.appliedPrice')) || 0;
 
     useEffect(() => {
-        function boxesCount(data: any) {
-            return data.map((room: any) => {
-                const filteredFurniture = room.inventoryItems.filter((box: any) => box.quantity > 0);
-                const boxesQuantity = filteredFurniture.reduce((sum: any, boxes: any) => {
-                    return sum + boxes.quantity;
-                }, 0);
-                return boxesQuantity
-            })
+        function boxesCount(data: any): number {
+            if (!Array.isArray(data)) return 0;
+            return data.reduce((sum: number, room: any) => {
+                const boxes = Array.isArray(room?.inventoryItems)
+                    ? room.inventoryItems.filter((box: any) => Number(box.quantity) > 0)
+                    : [];
+                return sum + boxes.reduce((bSum: number, box: any) => bSum + (Number(box.quantity) || 0), 0);
+            }, 0);
         }
-        let totalBoxes = boxesCount(rooms).reduce((a: number, b: number) => a + b, 0)
-        setValue('packing.requiredHours', convertToTimeFormat(totalBoxes / settings.standardPrice?.packingBoxPerHour) || 0);
-        setValue('unpacking.requiredHours', convertToTimeFormat(totalBoxes / settings.standardPrice?.unPackagingBoxPerHour) || 0);
+        const totalBoxes = boxesCount(rooms);
 
-        let totalPackingCharge = totalBoxes / settings.standardPrice?.packingBoxPerHour * packingRate
-        let totalUnpackingCharge = totalBoxes / settings.standardPrice?.unPackagingBoxPerHour * unpackingRate
+        // Productivity rates (boxes/hr). Fallback to standard 10 boxes/hr if missing or 0.
+        const packingBoxesPerHour = Math.max(1, Number(settings?.standardPrice?.packingBoxPerHour) || 10);
+        const unpackingBoxesPerHour = Math.max(1, Number(settings?.standardPrice?.unPackagingBoxPerHour) || 10);
 
-        setPackingCharges(totalPackingCharge.toFixed(2))
-        setUnpackingCharges(totalUnpackingCharge.toFixed(2))
-    }, [packingRate, unpackingRate, setValue])
+        // Labor hours = totalBoxes / productivity (e.g. 2 boxes / 10 boxes/hr = 0.2 hrs)
+        const packingLaborHours = totalBoxes > 0 ? (totalBoxes / packingBoxesPerHour) : 0;
+        const unpackingLaborHours = totalBoxes > 0 ? (totalBoxes / unpackingBoxesPerHour) : 0;
+
+        setValue('packing.requiredHours', convertToTimeFormat(packingLaborHours));
+        setValue('unpacking.requiredHours', convertToTimeFormat(unpackingLaborHours));
+
+        const totalPackingCharge = packingLaborHours * packingRate;
+        const totalUnpackingCharge = unpackingLaborHours * unpackingRate;
+
+        setPackingCharges(totalPackingCharge.toFixed(2));
+        setUnpackingCharges(totalUnpackingCharge.toFixed(2));
+    }, [rooms, packingRate, unpackingRate, settings, setValue]);
 
     let assemblingRate = watch('assembling.appliedPrice')
     let dismantleRate = watch('disassembling.appliedPrice')
 
     useEffect(() => {
-        function totalAssembledItemsLength(data: any[], type: string): number {
-            return data.reduce((totalLength: number, room: any) => {
-                return totalLength + (room[type]?.length || 0);
+        function totalAssembledItemsCount(data: any[], type: string): number {
+            if (!Array.isArray(data)) return 0;
+            return data.reduce((totalCount: number, room: any) => {
+                const items = Array.isArray(room?.[type]) ? room[type] : [];
+                const roomCount = items.reduce((sum: number, item: any) => {
+                    const isChecked = item?.checked !== false;
+                    if (!isChecked) return sum;
+                    const qty = Number(item?.quantity);
+                    return sum + (!isNaN(qty) && qty > 0 ? qty : 1);
+                }, 0);
+                return totalCount + roomCount;
             }, 0);
         }
-        let totalItems = totalAssembledItemsLength(rooms, 'assembledItems')
-        setValue('assembling.requiredHours', convertToTimeFormat(totalItems / (60 / settings?.standardPrice?.assemblingTimePerfurniture)) || 0);
-        setValue('disassembling.requiredHours', convertToTimeFormat(totalAssembledItemsLength(rooms, 'dismantledItems') / (60 / settings?.standardPrice?.disassemblingTimePerfurniture)) || 0);
 
-        let AssemblingCharge = totalItems / (60 / settings.standardPrice?.assemblingTimePerfurniture) * assemblingRate
-        let DismantleCharge = totalAssembledItemsLength(rooms, 'dismantledItems') / (60 / settings.standardPrice?.disassemblingTimePerfurniture) * dismantleRate
+        const totalAssembleCount = totalAssembledItemsCount(rooms, 'assembledItems');
+        const totalDismantleCount = totalAssembledItemsCount(rooms, 'dismantledItems');
 
-        setTotalAssemblingCharge(AssemblingCharge.toFixed(2))
-        setTotalDismantleCharge(DismantleCharge.toFixed(2))
+        const assembleMinutesPerItem = Number(settings?.standardPrice?.assemblingTimePerfurniture) || 15;
+        const dismantleMinutesPerItem = Number(settings?.standardPrice?.disassemblingTimePerfurniture) || 15;
 
-    }, [assemblingRate, dismantleRate, setValue])
+        const assembleHours = (totalAssembleCount * assembleMinutesPerItem) / 60;
+        const dismantleHours = (totalDismantleCount * dismantleMinutesPerItem) / 60;
+
+        setValue('assembling.requiredHours', convertToTimeFormat(assembleHours) || '00:00');
+        setValue('disassembling.requiredHours', convertToTimeFormat(dismantleHours) || '00:00');
+
+        const AssemblingCharge = assembleHours * (Number(assemblingRate) || 0);
+        const DismantleCharge = dismantleHours * (Number(dismantleRate) || 0);
+
+        setTotalAssemblingCharge(AssemblingCharge.toFixed(2));
+        setTotalDismantleCharge(DismantleCharge.toFixed(2));
+    }, [assemblingRate, dismantleRate, rooms, settings, setValue]);
 
     useEffect(() => {
         function totalAssembledItemsLength(data: any[]): number {
@@ -457,6 +603,8 @@ useEffect(() => {
                 rooms={rooms}
                 onRecalculateDistance={() => getDistanceAndTime(true)}
                 isCalculatingDistance={isCalculatingDistance}
+                packageData={packageData}
+                activeSettings={activeSettings}
             />
             { materialsCharge > 0 && (
                 <MaterialsCalculation totalSum={materialsCharge} materials={data.materials} />

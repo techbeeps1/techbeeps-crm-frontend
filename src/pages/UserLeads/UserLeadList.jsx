@@ -13,22 +13,76 @@ import SearchIcon from '@mui/icons-material/Search';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import CheckIcon from '@mui/icons-material/Check';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
 import { useNavigate } from 'react-router-dom';
 import NewUserLead from './NewUserLead';
 import toast from 'react-hot-toast';
 
+const STATUS_OPTIONS = [
+  {
+    value: 'New',
+    label: 'New Lead',
+    dotBg: 'bg-blue-500 animate-pulse',
+    desc: 'Fresh lead awaiting contact',
+  },
+  {
+    value: 'Contacted',
+    label: 'Contacted',
+    dotBg: 'bg-amber-500',
+    desc: 'Initial conversation started',
+  },
+  {
+    value: 'Quote Sent',
+    label: 'Quote Sent',
+    dotBg: 'bg-purple-500 animate-pulse',
+    desc: 'Pricing quotation delivered',
+  },
+  {
+    value: 'In Progress',
+    label: 'In Progress',
+    dotBg: 'bg-indigo-500',
+    desc: 'Active negotiations / survey',
+  },
+  {
+    value: 'Not Interested',
+    label: 'Not Interested',
+    dotBg: 'bg-rose-500',
+    desc: 'Client declined / lost lead',
+  },
+];
+
 const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [open, setOpen] = useState(false);
+  const [openStatusRowId, setOpenStatusRowId] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenStatusRowId(null);
+    };
+    if (openStatusRowId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openStatusRowId]);
 
   // Pure Tailwind Search, Sorting, and Pagination state
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'leadIndex', direction: 'desc' });
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const f = params.get('filter') || params.get('status');
+    if (f) return f.toUpperCase();
+    return 'ALL';
+  });
 
   const navigate = useNavigate();
 
@@ -74,6 +128,27 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
     }
   };
 
+  const updateLeadStatus = async (leadId, newStatus) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.post(
+        `${apiPath}/leads/leads`,
+        { _id: leadId, status: newStatus },
+        { headers }
+      );
+      if (response.data?.success) {
+        toast.success(`Status updated to ${newStatus}`);
+        fetchCustomer && fetchCustomer();
+      } else {
+        toast.error(response.data?.message || 'Failed to update status');
+      }
+    } catch (err) {
+      toast.error('Failed to update status');
+      console.error(err);
+    }
+  };
+
   // Dynamic statistics calculation
   const totalLeads = data ? data.length : 0;
   const newLeads = data ? data.filter(item => item?.status?.toString().toLowerCase() === 'new').length : 0;
@@ -83,6 +158,21 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
   // Filtered and Sorted Data computation using React useMemo
   const processedData = useMemo(() => {
     let result = Array.isArray(data) ? [...data] : [];
+
+    // Status / Pipeline Filter
+    if (statusFilter && statusFilter !== 'ALL') {
+      const sf = String(statusFilter).toUpperCase().trim();
+      if (sf === 'PIPELINE' || sf === 'ACTIVE') {
+        result = result.filter(item => {
+          const s = String(item?.status || '').toLowerCase().trim();
+          return s !== 'converted' && s !== 'lost' && s !== 'rejected';
+        });
+      } else if (sf === 'NEW') {
+        result = result.filter(item => String(item?.status || '').toLowerCase().trim() === 'new');
+      } else if (sf === 'CONVERTED') {
+        result = result.filter(item => String(item?.status || '').toLowerCase().trim() === 'converted');
+      }
+    }
 
     // Search Filtering
     if (searchTerm && searchTerm.trim() !== '') {
@@ -130,7 +220,7 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
     }
 
     return result;
-  }, [data, searchTerm, sortConfig]);
+  }, [data, statusFilter, searchTerm, sortConfig]);
 
   // Pagination calculation
   const totalPages = Math.ceil(processedData.length / entriesPerPage) || 1;
@@ -185,6 +275,13 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
           New
         </span>
       );
+    } else if (s === 'quote sent') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800/60">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+          Quote Sent
+        </span>
+      );
     } else if (s === 'contacted' || s === 'in progress') {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60">
@@ -222,7 +319,12 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
       {/* Dynamic Executive Stats Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Leads Card */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm hover:shadow-md transition-all">
+        <div
+          onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
+          className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md cursor-pointer ${
+            statusFilter === 'ALL' ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200/80 dark:border-strokedark'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -245,7 +347,12 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
         </div>
 
         {/* New Leads Card */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm hover:shadow-md transition-all">
+        <div
+          onClick={() => { setStatusFilter('NEW'); setCurrentPage(1); }}
+          className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md cursor-pointer ${
+            statusFilter === 'NEW' ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200/80 dark:border-strokedark'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -265,7 +372,12 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
         </div>
 
         {/* Converted Card */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm hover:shadow-md transition-all">
+        <div
+          onClick={() => { setStatusFilter('CONVERTED'); setCurrentPage(1); }}
+          className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md cursor-pointer ${
+            statusFilter === 'CONVERTED' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200/80 dark:border-strokedark'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -285,11 +397,16 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
         </div>
 
         {/* Pending Card */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm hover:shadow-md transition-all">
+        <div
+          onClick={() => { setStatusFilter('PIPELINE'); setCurrentPage(1); }}
+          className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all shadow-sm hover:shadow-md cursor-pointer ${
+            statusFilter === 'PIPELINE' || statusFilter === 'ACTIVE' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200/80 dark:border-strokedark'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                In Pipeline
+                In Pipeline (Active)
               </p>
               <h4 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                 {pendingLeads}
@@ -328,7 +445,7 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
         </div>
 
         {/* Pure Tailwind Search & Entries Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Entries per page dropdown */}
           <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <span>Show</span>
@@ -348,8 +465,33 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
             <span>entries</span>
           </div>
 
+          {/* Status Tabs for quick filtering */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+            {[
+              { id: 'ALL', label: 'All' },
+              { id: 'PIPELINE', label: `In Pipeline (${pendingLeads})` },
+              { id: 'NEW', label: `New (${newLeads})` },
+              { id: 'CONVERTED', label: `Converted (${convertedLeads})` }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setStatusFilter(tab.id);
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  (statusFilter === tab.id || (tab.id === 'PIPELINE' && statusFilter === 'ACTIVE'))
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-white dark:bg-boxdark text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-strokedark hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Search Box */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full md:w-64">
             <SearchIcon style={{ fontSize: 18 }} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -475,9 +617,65 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
                       )}
                     </td>
 
-                    {/* Status */}
-                    <td className="py-3.5 px-4">
-                      {getStatusBadge(item?.status)}
+                    {/* Status with custom quick switcher */}
+                    <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
+                      {type === 'leads' && item?.status?.toString().toLowerCase() !== 'converted' ? (
+                        <div className="relative inline-block text-left">
+                          <button
+                            type="button"
+                            onClick={() => setOpenStatusRowId(openStatusRowId === item._id ? null : item._id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-boxdark border border-slate-200 dark:border-slate-700 shadow-2xs hover:border-primary/50 hover:shadow-xs transition-all cursor-pointer group"
+                          >
+                            <span className={`w-2 h-2 rounded-full ${
+                              STATUS_OPTIONS.find(o => o.value.toLowerCase() === (item?.status || 'new').toLowerCase())?.dotBg || 'bg-blue-500'
+                            }`} />
+                            <span className="text-slate-700 dark:text-slate-200 font-medium">
+                              {item?.status || 'New'}
+                            </span>
+                            <KeyboardArrowDownIcon
+                              className={`text-slate-400 transition-transform duration-150 ${openStatusRowId === item._id ? 'rotate-180 text-primary' : 'group-hover:text-slate-600'}`}
+                              style={{ fontSize: 16 }}
+                            />
+                          </button>
+
+                          {/* Floating Status Popup for Table Row */}
+                          {openStatusRowId === item._id && (
+                            <div className="absolute left-0 top-full mt-1.5 w-52 bg-white dark:bg-boxdark rounded-2xl shadow-xl border border-slate-100 dark:border-strokedark p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                              <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800/60 mb-1">
+                                Update Status
+                              </div>
+                              <div className="space-y-0.5">
+                                {STATUS_OPTIONS.map((opt) => {
+                                  const isSelected = (item?.status || 'New').toLowerCase() === opt.value.toLowerCase();
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        updateLeadStatus(item._id, opt.value);
+                                        setOpenStatusRowId(null);
+                                      }}
+                                      className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-primary/10 text-primary font-bold'
+                                          : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${opt.dotBg}`} />
+                                        <span>{opt.label}</span>
+                                      </div>
+                                      {isSelected && <CheckIcon className="text-primary" style={{ fontSize: 14 }} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        getStatusBadge(item?.status)
+                      )}
                     </td>
 
                     {/* Actions */}

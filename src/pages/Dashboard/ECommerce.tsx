@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useMemo } from 'react';
 import Shortcuts from './Shortcuts.tsx';
 import StaffDashboard from './StaffDashboard.tsx';
 import { UserContext } from '../../UserContext.tsx';
@@ -10,6 +10,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
@@ -55,64 +56,112 @@ const ECommerce = () => {
     return <StaffDashboard />;
   }
 
-  const [customerCount, setCustomerCount] = useState<number>(0);
-  const [leadCount, setLeadCount] = useState<number>(0);
-  const [jobsList, setJobsList] = useState<JobItem[]>([]);
-  const [tasksList, setTasksList] = useState<TaskItem[]>([]);
+  const [customerCount, setCustomerCount] = useState<number | null>(null);
+  const [totalLeadCount, setTotalLeadCount] = useState<number | null>(null);
+  const [activeLeadCount, setActiveLeadCount] = useState<number | null>(null);
+  const [jobsList, setJobsList] = useState<JobItem[] | null>(null);
+  const [tasksList, setTasksList] = useState<TaskItem[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [jobsLoading, setJobsLoading] = useState<boolean>(true);
   const [tasksLoading, setTasksLoading] = useState<boolean>(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [jobsError, setJobsError] = useState<boolean>(false);
+  const [tasksError, setTasksError] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
+  const fetchDashboardMetrics = async () => {
+    try {
+      setLoading(true);
+      setFetchError(null);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const custPromise = axios.get(`${apiPath}/customer/customerList?type=Customer`, { headers });
+      const leadPromise = axios.get(`${apiPath}/leads/leadList`, { headers })
+        .catch(() => axios.get(`${apiPath}/customer/customerList?type=leads`, { headers }));
+
+      const [custRes, leadRes] = await Promise.all([custPromise, leadPromise]);
+      const custs = custRes.data?.customers || custRes.data?.data || custRes.data || [];
+      const rawLeads = leadRes.data?.leads || leadRes.data?.customers || leadRes.data?.data || [];
+
+      setCustomerCount(Array.isArray(custs) ? custs.length : 0);
+
+      const total = Array.isArray(rawLeads) ? rawLeads.length : (leadRes.data?.totalLeads || 0);
+      const active = Array.isArray(rawLeads)
+        ? rawLeads.filter((l: any) => {
+            const s = (l.status || '').toLowerCase().trim();
+            return s !== 'converted' && s !== 'lost' && s !== 'rejected';
+          }).length
+        : total;
+
+      setTotalLeadCount(total);
+      setActiveLeadCount(active);
+    } catch (err: any) {
+      console.error('Error fetching metrics:', err);
+      setFetchError(err.message || 'Failed to load metrics');
+      // Do not deceptively reset to 0 (business zero) if fetch failed
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchJobsData = async () => {
+    try {
+      setJobsLoading(true);
+      setJobsError(false);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/api/jobList`, { headers });
+      setJobsList(response.data?.jobList || []);
+    } catch (err) {
+      console.error('Error fetching jobs list:', err);
+      setJobsError(true);
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  const fetchTasksData = async () => {
+    try {
+      setTasksLoading(true);
+      setTasksError(false);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/api/task?page=1&limit=50`, { headers });
+      const taskData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.tasks || response.data?.data || [];
+      setTasksList(taskData);
+    } catch (err) {
+      console.error('Error fetching tasks list:', err);
+      setTasksError(true);
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
   useEffect(() => {
-    async function fetchDashboardMetrics() {
-      try {
-        setLoading(true);
-        const [custRes, leadRes] = await Promise.all([
-          axios.get(`${apiPath}/customer/customerList?type=Customer`),
-          axios.get(`${apiPath}/customer/customerList?type=leads`),
-        ]);
-        setCustomerCount(custRes.data.customers?.length || 0);
-        setLeadCount(leadRes.data.customers?.length || 0);
-      } catch (err) {
-        console.error('Error fetching metrics:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    async function fetchJobsData() {
-      try {
-        setJobsLoading(true);
-        const response = await axios.get(`${apiPath}/api/jobList`);
-        setJobsList(response.data?.jobList || []);
-      } catch (err) {
-        console.error('Error fetching jobs list:', err);
-      } finally {
-        setJobsLoading(false);
-      }
-    }
-
-    async function fetchTasksData() {
-      try {
-        setTasksLoading(true);
-        const response = await axios.get(`${apiPath}/api/task?page=1&limit=10`);
-        const taskData = Array.isArray(response.data)
-          ? response.data
-          : response.data?.tasks || response.data?.data || [];
-        setTasksList(taskData);
-      } catch (err) {
-        console.error('Error fetching tasks list:', err);
-      } finally {
-        setTasksLoading(false);
-      }
-    }
-
     fetchDashboardMetrics();
     fetchJobsData();
     fetchTasksData();
   }, []);
+
+  const activeJobs = useMemo(() => {
+    if (!jobsList) return [];
+    return jobsList.filter((job) => {
+      const s = (job.status || '').toLowerCase().trim();
+      return s !== 'completed' && s !== 'cancelled' && s !== 'draft';
+    });
+  }, [jobsList]);
+
+  const pendingTasks = useMemo(() => {
+    if (!tasksList) return [];
+    return tasksList.filter((task) => {
+      const s = (task.status || '').toLowerCase().trim();
+      return s !== 'completed' && s !== 'done';
+    });
+  }, [tasksList]);
 
   // Today's Date formatted
   const todayDate = new Date().toLocaleDateString('en-US', {
@@ -144,112 +193,154 @@ const ECommerce = () => {
               <span>{todayDate}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Universel CRM Dashboard
+              Universal Movers CRM Dashboard
             </h1>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10 text-center">
-              <span className="block text-2xl font-bold">{customerCount}</span>
-              <span className="text-[11px] text-slate-300 uppercase tracking-wider font-medium">Active Clients</span>
+            <div
+              onClick={() => navigate('/customers')}
+              className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10 text-center cursor-pointer hover:bg-white/20 transition-all"
+            >
+              <span className="block text-2xl font-bold">
+                {loading ? '...' : customerCount !== null ? customerCount : '—'}
+              </span>
+              <span className="text-[11px] text-slate-300 uppercase tracking-wider font-medium">Total Clients</span>
             </div>
-            <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10 text-center">
-              <span className="block text-2xl font-bold text-amber-400">{leadCount}</span>
+            <div
+              onClick={() => navigate('/leads?filter=pipeline')}
+              className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-xl border border-white/10 text-center cursor-pointer hover:bg-white/20 transition-all"
+            >
+              <span className="block text-2xl font-bold text-amber-400">
+                {loading ? '...' : activeLeadCount !== null ? activeLeadCount : '—'}
+              </span>
               <span className="text-[11px] text-slate-300 uppercase tracking-wider font-medium">Active Leads</span>
             </div>
           </div>
         </div>
       </div>
 
-   
+      {fetchError && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-semibold">
+          <span>Notice: Some dashboard metrics could not be refreshed ({fetchError})</span>
+          <button
+            onClick={() => { fetchDashboardMetrics(); fetchJobsData(); fetchTasksData(); }}
+            className="flex items-center gap-1 bg-white dark:bg-boxdark border border-rose-300 px-3 py-1 rounded-xl text-rose-800 dark:text-rose-300 hover:bg-rose-50 transition-all cursor-pointer"
+          >
+            <RefreshIcon style={{ fontSize: 14 }} />
+            <span>Retry</span>
+          </button>
+        </div>
+      )}
 
       {/* Quick Actions Shortcuts Container */}
       <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 md:p-6 shadow-xs">
         <Shortcuts />
       </div>
-   {/* Dynamic KPI Overview Stat Cards */}
+
+      {/* Dynamic KPI Overview Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Customers */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all">
+        <div
+          onClick={() => navigate('/customers')}
+          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Total Customers
               </p>
               <h4 className="text-2xl font-bold text-slate-800 dark:text-white mt-1">
-                {loading ? '...' : customerCount}
+                {loading ? '...' : customerCount !== null ? customerCount : '—'}
               </h4>
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
               <PeopleIcon />
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-            <TrendingUpIcon style={{ fontSize: 16 }} />
-            <span>Active database entries</span>
+          <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+              <TrendingUpIcon style={{ fontSize: 16 }} /> Active database entries
+            </span>
+            <span className="text-primary font-semibold text-[11px] hover:underline">View All →</span>
           </div>
         </div>
 
-        {/* Total Leads */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all">
+        {/* Active Leads */}
+        <div
+          onClick={() => navigate('/leads?filter=pipeline')}
+          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Total Leads
+                Active Leads
               </p>
               <h4 className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-                {loading ? '...' : leadCount}
+                {loading ? '...' : activeLeadCount !== null ? activeLeadCount : '—'}
               </h4>
             </div>
             <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-inner">
               <AssignmentIcon />
             </div>
           </div>
-          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-            <span>Pipeline opportunities</span>
+          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
+            <span>
+              {activeLeadCount !== null ? `${activeLeadCount} active of ${totalLeadCount || 0} total leads` : 'Pipeline opportunities'}
+            </span>
+            <span className="text-primary font-semibold text-[11px] hover:underline">View Leads →</span>
           </div>
         </div>
 
         {/* Active Jobs Card */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all">
+        <div
+          onClick={() => navigate('/jobs?filter=ACTIVE')}
+          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Active Jobs
               </p>
               <h4 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                {jobsLoading ? '...' : jobsList.length}
+                {jobsLoading ? '...' : jobsError ? '—' : activeJobs.length}
               </h4>
             </div>
             <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
               <WorkOutlineIcon />
             </div>
           </div>
-          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-            <span>Scheduled & running jobs</span>
+          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
+            <span>{jobsList !== null ? `${activeJobs.length} active of ${jobsList.length} total operations` : 'Active operations'}</span>
+            <span className="text-primary font-semibold text-[11px] hover:underline">View Jobs →</span>
           </div>
         </div>
 
         {/* Scheduled Tasks Card */}
-        <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all">
+        <div
+          onClick={() => navigate('/tasks')}
+          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Pending Tasks
               </p>
               <h4 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                {tasksLoading ? '...' : tasksList.length}
+                {tasksLoading ? '...' : tasksError ? '—' : pendingTasks.length}
               </h4>
             </div>
             <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner">
               <TaskAltIcon />
             </div>
           </div>
-          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-            <span>Staff assigned tasks</span>
+          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
+            <span>{tasksList !== null ? `${pendingTasks.length} open of ${tasksList.length} total tasks` : 'Pending tasks'}</span>
+            <span className="text-primary font-semibold text-[11px] hover:underline">View Tasks →</span>
           </div>
         </div>
       </div>
+
       {/* Main Content: Jobs & Tasks Section Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Jobs Widget */}
@@ -264,13 +355,13 @@ const ECommerce = () => {
                   Active Jobs & Operations
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Recent logistics and relocation schedules
+                  Recent logistics and relocation schedules (excluding drafts & completed)
                 </p>
               </div>
             </div>
 
             <button
-              onClick={() => navigate('/jobs')}
+              onClick={() => navigate('/jobs?filter=ACTIVE')}
               className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline cursor-pointer"
             >
               <span>View All</span>
@@ -294,8 +385,8 @@ const ECommerce = () => {
                       Loading active jobs...
                     </td>
                   </tr>
-                ) : jobsList.length > 0 ? (
-                  jobsList.slice(0, 6).map((job, idx) => (
+                ) : activeJobs.length > 0 ? (
+                  activeJobs.slice(0, 6).map((job, idx) => (
                     <tr
                       key={job._id || idx}
                       onClick={() => navigate(`/jobs?${job._id}`)}
@@ -328,10 +419,22 @@ const ECommerce = () => {
                       </td>
                     </tr>
                   ))
+                ) : jobsError ? (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-rose-500 dark:text-rose-400">
+                      Failed to load active jobs.{' '}
+                      <button
+                        onClick={fetchJobsData}
+                        className="underline font-bold text-primary hover:text-primary/80 cursor-pointer ml-1"
+                      >
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
                 ) : (
                   <tr>
                     <td colSpan={3} className="py-6 text-center text-slate-400 italic">
-                      No jobs recorded yet.
+                      No active jobs in execution or pending.
                     </td>
                   </tr>
                 )}
@@ -352,7 +455,7 @@ const ECommerce = () => {
                   Pending Tasks & Assignments
                 </h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Staff todo lists and activity schedules
+                  Staff todo lists and activity schedules (open tasks only)
                 </p>
               </div>
             </div>
@@ -382,8 +485,8 @@ const ECommerce = () => {
                       Loading pending tasks...
                     </td>
                   </tr>
-                ) : tasksList.length > 0 ? (
-                  tasksList.slice(0, 6).map((task, idx) => (
+                ) : pendingTasks.length > 0 ? (
+                  pendingTasks.slice(0, 6).map((task, idx) => (
                     <tr
                       key={task._id || idx}
                       onClick={() => navigate('/tasks')}
@@ -398,16 +501,28 @@ const ECommerce = () => {
                       </td>
 
                       <td className="py-3 px-3">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800">
                           {task.status || 'Pending'}
                         </span>
                       </td>
                     </tr>
                   ))
+                ) : tasksError ? (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-rose-500 dark:text-rose-400">
+                      Failed to load pending tasks.{' '}
+                      <button
+                        onClick={fetchTasksData}
+                        className="underline font-bold text-primary hover:text-primary/80 cursor-pointer ml-1"
+                      >
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
                 ) : (
                   <tr>
                     <td colSpan={3} className="py-6 text-center text-slate-400 italic">
-                      No tasks assigned yet.
+                      No pending tasks open.
                     </td>
                   </tr>
                 )}

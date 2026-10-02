@@ -167,6 +167,18 @@ const Offer = ({ data, notes, fetchInvoice }) => {
 
   const clientFullName = `${data.customer?.salutation || ''} ${data.customer?.firstName || ''} ${data.customer?.lastName || ''}`.trim();
 
+  // Financial & VAT Transparency calculations
+  const vatStr = String(data?.vat || '').toLowerCase();
+  const isInclusive = vatStr === 'inclusive' || vatStr.includes('incl');
+
+  const subTotalNum = parseFloat(data?.subTotal) || 0;
+  const discountPct = parseFloat(data?.discount) || 0;
+  const discountAmount = (subTotalNum * discountPct) / 100;
+  const discountedSubtotal = Math.max(0, subTotalNum - discountAmount);
+  const taxAmount = parseFloat(data?.btw) || 0;
+  const totalAmount = parseFloat(data?.total) || (isInclusive ? discountedSubtotal : discountedSubtotal + taxAmount);
+  const netAmount = isInclusive ? Math.max(0, discountedSubtotal - taxAmount) : discountedSubtotal;
+
   return (
     <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm p-4 md:p-8 font-sans text-slate-800 dark:text-white space-y-6">
       {loading && <Loader />}
@@ -265,23 +277,48 @@ const Offer = ({ data, notes, fetchInvoice }) => {
         </div>
 
         <div className="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Subtotal</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+            Subtotal {isInclusive ? '(Gross)' : '(Net)'}
+          </span>
           <span className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 block font-mono">
-            {formatCurrency(data.subTotal || 0)}
+            {formatCurrency(subTotalNum)}
+          </span>
+          <span className="text-[11px] text-slate-400 mt-0.5 block">
+            {isInclusive ? 'Prices include VAT' : 'Before VAT calculation'}
           </span>
         </div>
 
         <div className="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">VAT / Tax</span>
-          <span className="text-xl font-extrabold text-blue-600 dark:text-blue-400 mt-1 block font-mono">
-            + {formatCurrency(data.btw || 0)}
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+            {isInclusive ? 'Included VAT / BTW' : 'Added VAT / BTW'}
+          </span>
+          <span
+            className={`text-xl font-extrabold mt-1 block font-mono ${isInclusive
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-blue-600 dark:text-blue-400'
+              }`}
+          >
+            {isInclusive ? formatCurrency(taxAmount) : `+ ${formatCurrency(taxAmount)}`}
+          </span>
+          <span
+            className={`text-[11px] font-semibold mt-0.5 inline-flex items-center gap-1 ${isInclusive
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-blue-600 dark:text-blue-400'
+              }`}
+          >
+            {isInclusive ? '✓ Already in Subtotal' : '+ Added to total'}
           </span>
         </div>
 
         <div className="bg-primary/10 dark:bg-primary/20 p-4 rounded-xl border border-primary/20">
-          <span className="text-xs font-bold uppercase tracking-wider text-primary block">Grand Total</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-primary block">
+            Grand Total (Incl. VAT)
+          </span>
           <span className="text-2xl font-black text-primary mt-1 block font-mono">
-            {formatCurrency(data.total || 0)}
+            {formatCurrency(totalAmount)}
+          </span>
+          <span className="text-[11px] font-bold text-primary/80 mt-0.5 block">
+            Final payable amount
           </span>
         </div>
       </div>
@@ -305,9 +342,19 @@ const Offer = ({ data, notes, fetchInvoice }) => {
 
             <div className="bg-white dark:bg-boxdark p-3 rounded-xl border border-slate-200/60 dark:border-strokedark">
               <span className="text-slate-400 font-semibold block">VAT Scenario</span>
-              <span className="font-bold text-slate-900 dark:text-white mt-0.5 block truncate">
-                {data.vat || 'Including VAT'}
-              </span>
+              <div className="mt-1 flex items-center">
+                {isInclusive ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600/40">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Including VAT (Inclusive)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-300 dark:border-blue-600/40">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    Excluding VAT (Exclusive)
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="bg-white dark:bg-boxdark p-3 rounded-xl border border-slate-200/60 dark:border-strokedark">
@@ -360,15 +407,15 @@ const Offer = ({ data, notes, fetchInvoice }) => {
             {[
               { label: 'Name', value: clientFullName },
               { label: 'Gender', value: data.customer?.gender },
-              { label: 'Email', value: data.customer?.email },
-              { label: 'Contact Phone', value: data.customer?.contact },
-              { label: 'Mobile No', value: data.customer?.mobile },
-              { label: 'Language', value: data.customer?.taal },
-              { label: 'Customer Type', value: data.customer?.typeOfCustomer },
-            ].map(({ label, value }) => (
+              { label: 'Email', value: data.customer?.email, noCapitalize: true },
+              { label: 'Contact Phone', value: data.customer?.contact, noCapitalize: true },
+              { label: 'Mobile No', value: data.customer?.mobile, noCapitalize: true },
+              { label: 'Language', value: data.customer?.taal, noCapitalize: false },
+              { label: 'Customer Type', value: data.customer?.typeOfCustomer, noCapitalize: false },
+            ].map(({ label, value, noCapitalize }) => (
               <div key={label} className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                 <span className="text-slate-400 font-medium block">{label}</span>
-                <span className="font-bold text-slate-800 dark:text-slate-100 capitalize mt-0.5 block truncate">
+                <span className={`font-bold text-slate-800 dark:text-slate-100 ${noCapitalize ? '' : 'capitalize'} mt-0.5 block truncate`}>
                   {value || 'N/A'}
                 </span>
               </div>
@@ -447,9 +494,19 @@ const Offer = ({ data, notes, fetchInvoice }) => {
               <tr className="border-b border-slate-200 dark:border-strokedark bg-slate-100/70 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider">
                 <th className="py-3 px-4 w-1/2">Description</th>
                 <th className="py-3 px-4 text-center">Quantity</th>
-                <th className="py-3 px-4 text-right">Unit Price</th>
+                <th className="py-3 px-4 text-right">
+                  <span>Unit Price</span>
+                  <span className="normal-case text-[10px] text-slate-400 block font-normal">
+                    {isInclusive ? '(Incl. VAT)' : '(Excl. VAT)'}
+                  </span>
+                </th>
                 <th className="py-3 px-4 text-center">BTW %</th>
-                <th className="py-3 px-4 text-right">Total ({currencySymbol})</th>
+                <th className="py-3 px-4 text-right">
+                  <span>Total ({currencySymbol})</span>
+                  <span className="normal-case text-[10px] text-slate-400 block font-normal">
+                    {isInclusive ? '(Incl. VAT)' : '(Excl. VAT)'}
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-strokedark font-medium">
@@ -475,23 +532,62 @@ const Offer = ({ data, notes, fetchInvoice }) => {
         </div>
 
         {/* Financial Summary Footer */}
-        <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-strokedark">
-          <div className="w-full max-w-xs space-y-2 text-xs font-semibold">
-            <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>Subtotal</span>
-              <span className="font-mono text-slate-900 dark:text-white">{formatCurrency(data?.subTotal || 0)}</span>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pt-6 border-t border-slate-200/80 dark:border-strokedark">
+          {/* Explanatory Tax Policy Note */}
+          <div className="max-w-md p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 text-xs">
+
+          </div>
+
+          {/* Detailed Breakdown Card */}
+          <div className="w-full max-w-sm bg-slate-50/80 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5 text-xs font-semibold">
+            {/* Subtotal */}
+            <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+              <span>Subtotal {isInclusive ? '(Gross / Incl. VAT)' : '(Net / Excl. VAT)'}</span>
+              <span className="font-mono text-slate-900 dark:text-white font-bold">{formatCurrency(subTotalNum)}</span>
             </div>
-            <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>VAT / Tax Total</span>
-              <span className="font-mono text-blue-600 dark:text-blue-400">+ {formatCurrency(data?.btw || 0)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>Discount</span>
-              <span className="font-mono text-rose-500">- {formatCurrency((((parseFloat(data?.subTotal) || 0) * (parseFloat(data?.discount) || 0)) / 100))}</span>
-            </div>
-            <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-strokedark text-sm font-extrabold text-slate-900 dark:text-white">
-              <span>Grand Total</span>
-              <span className="font-mono text-primary text-base">{formatCurrency(data?.total || 0)}</span>
+
+            {/* Discount */}
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center text-rose-600 dark:text-rose-400">
+                <span>Discount ({discountPct}%)</span>
+                <span className="font-mono font-bold">- {formatCurrency(discountAmount)}</span>
+              </div>
+            )}
+
+            {/* Net Amount & Tax Line */}
+            {isInclusive ? (
+              <>
+                <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 pt-1.5 border-t border-dashed border-slate-200 dark:border-slate-700">
+                  <span>Net Amount (Excl. VAT)</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">{formatCurrency(netAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/30 p-2.5 rounded-lg text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <span>✓</span> Included VAT / BTW
+                  </span>
+                  <span className="font-mono font-black">{formatCurrency(taxAmount)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-950/30 p-2.5 rounded-lg text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <span>+</span> Added VAT / BTW
+                  </span>
+                  <span className="font-mono font-black">+ {formatCurrency(taxAmount)}</span>
+                </div>
+              </>
+            )}
+
+            {/* Grand Total */}
+            <div className="flex justify-between items-center pt-2.5 border-t-2 border-slate-300 dark:border-slate-700 text-sm font-black text-slate-900 dark:text-white">
+              <div className="flex flex-col">
+                <span>Grand Total</span>
+                <span className="text-[10px] font-semibold text-slate-400">
+                  {isInclusive ? '(Inclusive of VAT)' : '(Incl. calculated VAT)'}
+                </span>
+              </div>
+              <span className="font-mono text-primary text-xl font-black">{formatCurrency(totalAmount)}</span>
             </div>
           </div>
         </div>

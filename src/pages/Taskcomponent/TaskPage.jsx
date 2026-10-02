@@ -30,6 +30,7 @@ import TaskSlider from './TaskSlider';
 import DatePickerComponent from '../../common/Datepicker';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
+import { OfflineNoticeCard } from '../../components/OfflineNoticeCard';
 
 const avatarColors = [
   'bg-purple-600 text-white',
@@ -50,6 +51,25 @@ const getInitials = (first, last, fallback) => {
   return 'TK';
 };
 
+export const getLocalDateString = (dateInput) => {
+  if (!dateInput) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateInput)) {
+    return dateInput.slice(0, 10);
+  }
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const TaskPage = ({ jobId }) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -67,6 +87,7 @@ const TaskPage = ({ jobId }) => {
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+  const [fetchError, setFetchError] = useState(null);
 
   const [currentJobData, setCurrentJobData] = useState(null);
 
@@ -174,7 +195,7 @@ const TaskPage = ({ jobId }) => {
       }
     } catch (err) {
       setData([]);
-      setError('Failed to fetch tasks. Please try again later.');
+      setFetchError('Failed to fetch tasks. Please try again later.');
       notifyError(`Failed to fetch tasks: ${err.message}`);
     } finally {
       setLoading(false);
@@ -218,7 +239,7 @@ const TaskPage = ({ jobId }) => {
     reset({
       summary: '',
       description: '',
-      scheduledFor: new Date().toISOString().split('T')[0],
+      scheduledFor: getLocalDateString(),
       customer: jobId ? (custId || '') : '',
       job: jobId || '',
       teamMembers: [],
@@ -257,11 +278,12 @@ const TaskPage = ({ jobId }) => {
       return;
     }
 
-    if (formData.scheduledFor) {
-      const selectedDate = new Date(formData.scheduledFor);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (selectedDate < today) {
+    let finalScheduledFor = getLocalDateString(formData.scheduledFor);
+    if (!finalScheduledFor) {
+      finalScheduledFor = getLocalDateString();
+    } else {
+      const todayStr = getLocalDateString();
+      if (finalScheduledFor < todayStr) {
         notifyError('Schedule date cannot be in the past');
         setLoading(false);
         return;
@@ -281,6 +303,7 @@ const TaskPage = ({ jobId }) => {
 
     const payload = {
       ...formData,
+      scheduledFor: finalScheduledFor,
       teams: selectedTeams,
       directMembers: selectedDirectMembers,
       teamMembers: allMemberIds.length > 0 ? allMemberIds : (formData.teamMembers || []),
@@ -309,7 +332,10 @@ const TaskPage = ({ jobId }) => {
             ws.send(JSON.stringify(messageData));
           });
         }
-        handleAlltask();
+        await handleAlltask();
+        if (response.data?.task) {
+          setSelectedStaff(response.data.task);
+        }
         closeEditModal();
       }
     } catch (err) {
@@ -443,6 +469,10 @@ const TaskPage = ({ jobId }) => {
       } else if (sortConfig.key === 'assignedTo') {
         valA = a?.assignedTo || '';
         valB = b?.assignedTo || '';
+      } else if (sortConfig.key === 'scheduledFor') {
+        valA = a?.scheduledFor ? new Date(a.scheduledFor).getTime() : 0;
+        valB = b?.scheduledFor ? new Date(b.scheduledFor).getTime() : 0;
+        return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
       } else if (sortConfig.key === 'createdAt') {
         valA = new Date(a?.createdAt || 0).getTime();
         valB = new Date(b?.createdAt || 0).getTime();
@@ -501,8 +531,16 @@ const TaskPage = ({ jobId }) => {
     );
   };
 
-  if (error) {
-    return <div className="text-red-500 text-center p-4">{error}</div>;
+  if (fetchError && (!data || data.length === 0)) {
+    return (
+      <div className="w-full min-h-[calc(100vh-140px)] flex items-center justify-center p-4">
+        <OfflineNoticeCard
+          title="Unable to Load Tasks"
+          message={fetchError}
+          onRetry={handleAlltask}
+        />
+      </div>
+    );
   }
 
   return (
@@ -623,11 +661,20 @@ const TaskPage = ({ jobId }) => {
                     </div>
                   </th>
                   <th
+                    onClick={() => handleSort('scheduledFor')}
+                    className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>SCHEDULED FOR (DUE)</span>
+                      <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
+                    </div>
+                  </th>
+                  <th
                     onClick={() => handleSort('createdAt')}
                     className="py-3.5 px-4 text-left cursor-pointer hover:bg-slate-100 transition-colors"
                   >
                     <div className="flex items-center gap-1">
-                      <span>CREATED / SCHEDULED</span>
+                      <span>CREATED ON</span>
                       <UnfoldMoreIcon style={{ fontSize: 14 }} className="text-slate-400" />
                     </div>
                   </th>
@@ -727,11 +774,57 @@ const TaskPage = ({ jobId }) => {
                           )}
                         </td>
 
-                        <td className="py-3.5 px-4 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <CalendarTodayIcon style={{ fontSize: 14 }} className="text-slate-400" />
-                            <span>{new Date(item?.createdAt || Date.now()).toLocaleDateString('en-GB')}</span>
-                          </div>
+                        <td className="py-3.5 px-4 text-xs whitespace-nowrap">
+                          {item?.scheduledFor ? (() => {
+                            const dateStr = getLocalDateString(item.scheduledFor);
+                            const todayStr = getLocalDateString();
+
+                            const [y1, m1, d1] = dateStr.split('-').map(Number);
+                            const [y2, m2, d2] = todayStr.split('-').map(Number);
+                            const t1 = new Date(y1, m1 - 1, d1, 12, 0, 0).getTime();
+                            const t2 = new Date(y2, m2 - 1, d2, 12, 0, 0).getTime();
+                            const diffDays = Math.round((t1 - t2) / (1000 * 60 * 60 * 24));
+
+                            const formattedDate = new Intl.DateTimeFormat('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            }).format(new Date(y1, m1 - 1, d1, 12, 0, 0));
+
+                            const shortDate = new Intl.DateTimeFormat('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                            }).format(new Date(y1, m1 - 1, d1, 12, 0, 0));
+
+                            let badgeText = formattedDate;
+                            let badgeClass = 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800';
+
+                            if (diffDays === 0) {
+                              badgeText = `Today (${shortDate})`;
+                              badgeClass = 'text-amber-800 bg-amber-50 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 font-bold';
+                            } else if (diffDays === 1) {
+                              badgeText = `Tomorrow (${shortDate})`;
+                              badgeClass = 'text-blue-800 bg-blue-50 border border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 font-bold';
+                            } else if (diffDays < 0 && item?.status !== 'completed') {
+                              badgeText = `Overdue (${shortDate})`;
+                              badgeClass = 'text-rose-800 bg-rose-50 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 font-bold';
+                            }
+
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                <CalendarTodayIcon style={{ fontSize: 13 }} className="text-slate-400" />
+                                <span className={`px-2 py-0.5 rounded-md text-[11px] ${badgeClass}`}>
+                                  {badgeText}
+                                </span>
+                              </div>
+                            );
+                          })() : (
+                            <span className="text-slate-400 italic text-[11px]">No due date</span>
+                          )}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          <span>{new Date(item?.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                         </td>
 
                         <td className="py-3.5 px-4">

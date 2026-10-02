@@ -19,8 +19,10 @@ import {
   MdSave,
   MdWarningAmber
 } from 'react-icons/md';
+import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 
 const ServicePage: React.FC = () => {
+  const { symbol: currencySymbol } = useCurrency();
   const {
     register,
     handleSubmit,
@@ -220,7 +222,7 @@ const ServicePage: React.FC = () => {
 
                     <td className="py-3.5 px-5">
                       <span className="font-extrabold text-black dark:text-white text-sm">
-                        ${group.price || 0}
+                        {formatCurrency(group.price || 0)}
                       </span>
                     </td>
 
@@ -320,7 +322,7 @@ const ServicePage: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1">
                   <MdAttachMoney className="text-slate-400 text-sm" />
-                  Service Charge Amount ($) <span className="text-meta-1">*</span>
+                  Service Charge Amount ({currencySymbol}) <span className="text-meta-1">*</span>
                 </label>
                 <input
                   {...register('price', {
@@ -329,6 +331,8 @@ const ServicePage: React.FC = () => {
                   })}
                   type="number"
                   step="0.01"
+                  min={0}
+                  onFocus={(e) => e.target.select()}
                   placeholder="e.g. 150.00"
                   className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
                 />

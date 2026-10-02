@@ -211,7 +211,9 @@ const StaffDashboard: React.FC = () => {
 
     // Add appointments
     if (workFilterTab === 'all' || workFilterTab === 'jobs') {
-      appointmentsList.forEach((appt) => {
+      appointmentsList
+        .filter((appt) => (appt.status || '').toLowerCase() !== 'draft' && appt.assignedEmployees && appt.assignedEmployees.length > 0)
+        .forEach((appt) => {
         list.push({
           type: 'job',
           id: appt._id,
@@ -410,7 +412,7 @@ const StaffDashboard: React.FC = () => {
               <span>{todayDate}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Universel CRM Dashboard
+              Universal Movers CRM Dashboard
             </h1>
           </div>
 

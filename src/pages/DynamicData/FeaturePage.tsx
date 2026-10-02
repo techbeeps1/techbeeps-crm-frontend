@@ -14,12 +14,27 @@ import {
 
 const FeaturePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const defaultTab = Number(searchParams.get('active')) || 0;
-  const [activeTab, setActiveTab] = useState<number>(defaultTab);
+  const getTabFromUrl = () => {
+    const active = searchParams.get('active');
+    return active !== null && !isNaN(Number(active)) ? Number(active) : 0;
+  };
+  const [activeTab, setActiveTab] = useState<number>(getTabFromUrl);
+
+  const handleTabChange = (tabId: number) => {
+    setActiveTab(tabId);
+    setSearchParams((prev) => {
+      const updated = new URLSearchParams(prev);
+      updated.set('active', String(tabId));
+      return updated;
+    });
+  };
 
   useEffect(() => {
-    setSearchParams({ active: String(activeTab) });
-  }, [activeTab, setSearchParams]);
+    const urlTab = getTabFromUrl();
+    if (urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [searchParams]);
 
   const navItems = [
     {
@@ -69,7 +84,7 @@ const FeaturePage: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 0:
-        return <Features />;
+        return <Features onNavigateToPropertyTypes={() => handleTabChange(5)} />;
       case 1:
         return <InputHander type="country" />;
       case 2:
@@ -103,7 +118,7 @@ const FeaturePage: React.FC = () => {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleTabChange(item.id)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-all cursor-pointer group ${isActive
                     ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.01]'
                     : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-strokedark/60'

@@ -221,11 +221,11 @@ export const DragDrawer: React.FC<any> = ({
     setSteps(() => {
       const newSteps = [
         {
-          label: `Do You want to give the ${selectItem?.roomTypeName} a different Name ?`,
+          label: `Do you want to give the ${selectItem?.roomTypeName} a custom name?`,
           id: 'name',
         },
-        { label: `What furniture is in the ${roomName} ?`, id: 'furniture' },
-        { label: 'What Material is Needed ?', id: 'material' },
+        { label: `What furniture is in the ${roomName}?`, id: 'furniture' },
+        { label: 'What materials are needed?', id: 'material' },
       ];
       if (
         services.find(
@@ -235,7 +235,7 @@ export const DragDrawer: React.FC<any> = ({
         dismantledItems.length > 0
       ) {
         newSteps.push({
-          label: 'Does anything need to be Disassambled ?',
+          label: 'Does anything need to be disassembled?',
           id: 'disassembling',
         });
       }
@@ -247,7 +247,7 @@ export const DragDrawer: React.FC<any> = ({
         assembledItems.length > 0
       ) {
         newSteps.push({
-          label: 'Does anything need to be Assembling ?',
+          label: 'Does anything need to be assembled?',
           id: 'assembling',
         });
       }
@@ -309,53 +309,43 @@ export const DragDrawer: React.FC<any> = ({
       setValue('packingBoxes', null);
     }, 1);
   };
-const boxes = watch("packingBoxes");
-
-useEffect(() => {
-  if (!boxes?.length || !selectItem) return;
-
-  boxes.forEach((box: any, index: number) => {
-    const selected = selectItem.inventoryItems?.find(
-      (item: any) => item._id === box._id
-    );
-
-    setValue(
-      `packingBoxes.${index}.quantity`,
-      selected?.quantity ?? 0
-    );
-  });
-}, [boxes, selectItem, setValue]);
-
   const handleAllData = async () => {
-  if (!selectItem) return;
+    if (!selectItem) return;
 
-  try {
-    const response = await axios.get(`${apiPath}/api/box?type=Box`);
+    try {
+      const response = await axios.get(`${apiPath}/api/box?type=Box`);
+      const rawBoxes = Array.isArray(response.data) ? response.data : [];
 
-    const packingBoxes = watch("packingBoxes");
-
-    if (!packingBoxes?.length) {
-      append(
-        response.data.map((box: any) => ({
+      const initialBoxes = rawBoxes.map((box: any) => {
+        const existing = selectItem.inventoryItems?.find(
+          (item: any) => item._id === box._id
+        );
+        let cm = Number(box.cubicMeter) || 0;
+        // AutoLock moving boxes catalogue volume fix (UM-017): standard moving box is ~0.055 m³, not 1 m³
+        if (box.name?.toLowerCase().includes('autolock') && (cm >= 1 || cm === 0)) {
+          cm = 0.055;
+        }
+        return {
           _id: box._id,
           name: box.name,
-          quantity: 0,
-          storageQuantity: 0,
+          quantity: existing ? (Number(existing.quantity) || 0) : 0,
+          storageQuantity: existing ? (Number(existing.storageQuantity) || 0) : 0,
           price: box.sellingPrice,
-          cubicMeter: box.cubicMeter,
-        }))
-      );
+          cubicMeter: cm,
+        };
+      });
+
+      setValue('packingBoxes', initialBoxes);
+    } catch (err) {
+      console.error('Error fetching boxes:', err);
     }
-  } catch (err) {
-    console.error(err);
-  }
-};
+  };
 
   useEffect(() => {
     if (selectItem) {
       handleAllData();
     }
-  }, [selectItem]);
+  }, [selectItem?._id]);
 
   return (
     <div className="grid place-content-center">

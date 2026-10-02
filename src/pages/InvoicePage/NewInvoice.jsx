@@ -98,24 +98,37 @@ const NewInvoice = () => {
         }, 0);
     }, [watchedItems]);
 
+    const discountMultiplier = useMemo(() => {
+        const pct = Math.min(Math.max(Number(discountPercentage) || 0, 0), 100);
+        return Math.max(0, 1 - (pct / 100));
+    }, [discountPercentage]);
+
     const discountAmount = useMemo(() => {
         const pct = Math.min(Math.max(Number(discountPercentage) || 0, 0), 100);
         return subtotal * (pct / 100);
     }, [subtotal, discountPercentage]);
+
+    const discountedSubtotal = useMemo(() => {
+        return subtotal - discountAmount;
+    }, [subtotal, discountAmount]);
+
+    const isInclusive = vatSelected === 'inclusive';
 
     const taxTotal = useMemo(() => {
         return (watchedItems || []).reduce((acc, item) => {
             const quantity = Number(item?.quantity) || 0;
             const price = Number(item?.price) || 0;
             const btw = Number(item?.btw) || 0;
-            const lineSubtotal = quantity * price;
-            return acc + lineSubtotal * (btw / 100);
+            const discountedLine = (quantity * price) * discountMultiplier;
+            return acc + (isInclusive
+                ? discountedLine * (btw / (100 + btw))
+                : discountedLine * (btw / 100));
         }, 0);
-    }, [watchedItems]);
+    }, [watchedItems, discountMultiplier, isInclusive]);
 
     const grandTotal = useMemo(() => {
-        return subtotal - discountAmount + taxTotal;
-    }, [subtotal, discountAmount, taxTotal]);
+        return isInclusive ? discountedSubtotal : (discountedSubtotal + taxTotal);
+    }, [discountedSubtotal, taxTotal, isInclusive]);
 
     // Fetch initial data
     const handleClient = async () => {
@@ -148,9 +161,18 @@ const NewInvoice = () => {
     const handleTaxTypeSalesGroup = async () => {
         try {
             const res = await axios.get(`${apiPath}/api/sale_group?type=tax`);
-            setTaxTypeList(res.data || []);
-            if (res.data && res.data.length > 0) {
-                setValue('taxTypeSalesGroup', res.data[0]._id);
+            const rawList = res.data || [];
+            const sortedList = [...rawList].sort((a, b) => {
+                const aIsVat = /vat|btw/i.test(a.name || '');
+                const bIsVat = /vat|btw/i.test(b.name || '');
+                if (aIsVat && !bIsVat) return -1;
+                if (!aIsVat && bIsVat) return 1;
+                return 0;
+            });
+            setTaxTypeList(sortedList);
+            if (sortedList.length > 0) {
+                const vatMatch = sortedList.find((t) => /vat|btw/i.test(t.name || ''));
+                setValue('taxTypeSalesGroup', vatMatch ? vatMatch._id : sortedList[0]._id);
             }
         } catch (err) {
             console.error('Error fetching tax types:', err);
@@ -380,6 +402,7 @@ const NewInvoice = () => {
 
     // Submit invoice
     const onSubmit = async (formData) => {
+        if (isSubmitting) return;
         if (!watchedItems || watchedItems.length === 0) {
             toast.error('Please add at least one line item.');
             return;
@@ -922,8 +945,9 @@ const NewInvoice = () => {
                                                  <td className="p-2.5">
                                                      <input
                                                          type="number"
-                                                         min="1"
+                                                         min="0" step="any"
                                                          placeholder="1"
+                                                         onFocus={(e) => e.target.select()}
                                                          className="w-full p-2 rounded-lg border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white text-center focus:outline-none focus:ring-1 focus:ring-primary"
                                                          {...register(`items.${index}.quantity`, {
                                                              valueAsNumber: true,
@@ -952,7 +976,8 @@ const NewInvoice = () => {
                                                          step="any"
                                                          placeholder="0.00"
                                                          className="w-full p-2 rounded-lg border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                                                         {...register(`items.${index}.price`, {
+                                                         onFocus={(e) => e.target.select()}
+                                                        {...register(`items.${index}.price`, {
                                                              valueAsNumber: true,
                                                          })}
                                                      />
@@ -1030,8 +1055,9 @@ const NewInvoice = () => {
                                             <input
                                                 type="number"
                                                 min="0"
-                                                max="100"
+                                                step="any" max="100"
                                                 placeholder="0"
+                                                onFocus={(e) => e.target.select()}
                                                 className="w-full p-2.5 pr-8 rounded-xl border border-slate-200/80 dark:border-strokedark bg-slate-50/50 dark:bg-slate-800/40 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
                                                 {...register('discount', {
                                                     valueAsNumber: true,
@@ -1144,14 +1170,14 @@ const NewInvoice = () => {
                                     <div className="flex items-center justify-between py-1 border-b border-slate-100/80 dark:border-slate-800/60">
                                         <div className="flex items-center gap-1.5">
                                             <span className="font-semibold text-slate-600 dark:text-slate-400">
-                                                Total BTW / Tax
+                                                {isInclusive ? 'Included BTW / Tax' : 'Total BTW / Tax'}
                                             </span>
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                                                {vatSelected === 'inclusive' ? 'VAT Included' : 'VAT Excluded'}
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isInclusive ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                                                {isInclusive ? '✓ VAT Included' : 'VAT Excluded'}
                                             </span>
                                         </div>
-                                        <span className="font-bold text-slate-900 dark:text-white font-mono text-sm">
-                                            + {formatCurrency(taxTotal)}
+                                        <span className={`font-bold font-mono text-sm ${isInclusive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                                            {isInclusive ? formatCurrency(taxTotal) : `+ ${formatCurrency(taxTotal)}`}
                                         </span>
                                     </div>
                                 </div>

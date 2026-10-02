@@ -22,6 +22,8 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
@@ -51,13 +53,18 @@ const QuoteList = ({ customerId }) => {
   const handleAllInvoice = async () => {
     try {
       setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.get(
-        `${apiPath}/finance/financeList?customer=${customerId || ''}`
+        `${apiPath}/finance/financeList?customer=${customerId || ''}`,
+        { headers }
       );
       setData(response.data?.financeData || []);
     } catch (err) {
-      setError('Failed to fetch offers. Please try again later.');
-      console.error(err);
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch offers. Please check connection and retry.';
+      setError(msg);
+      console.error('Error fetching quotes:', err);
     } finally {
       setLoading(false);
     }
@@ -218,16 +225,49 @@ const QuoteList = ({ customerId }) => {
 
   if (loading) return <Loader />;
 
-  if (error) {
+  if (error && (!data || data.length === 0)) {
     return (
-      <div className="p-6 text-center text-rose-500 bg-rose-50 dark:bg-rose-950/20 rounded-xl border border-rose-200 dark:border-rose-900/40">
-        {error}
+      <div className="max-w-xl mx-auto my-16 p-8 text-center bg-white dark:bg-boxdark rounded-2xl border border-rose-200 dark:border-rose-900/40 shadow-sm space-y-4">
+        <div className="w-16 h-16 mx-auto rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+          <ErrorOutlineIcon style={{ fontSize: 36 }} />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Unable to Load Quotations</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1.5 max-w-md mx-auto">
+            {error}
+          </p>
+        </div>
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleAllInvoice}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm cursor-pointer"
+          >
+            <RefreshIcon style={{ fontSize: 18 }} />
+            <span>Retry Connection</span>
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      {/* Stale Data / Intermittent Error Alert */}
+      {error && data && data.length > 0 && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-4 py-3 rounded-2xl flex items-center justify-between text-xs font-semibold">
+          <span>Notice: Showing cached quotations. Latest refresh failed ({error})</span>
+          <button
+            type="button"
+            onClick={handleAllInvoice}
+            className="flex items-center gap-1 bg-white dark:bg-boxdark border border-rose-300 px-3 py-1 rounded-xl text-rose-800 dark:text-rose-300 hover:bg-rose-50 transition-all cursor-pointer"
+          >
+            <RefreshIcon style={{ fontSize: 14 }} />
+            <span>Retry</span>
+          </button>
+        </div>
+      )}
+
       {/* Header & New Offer Action */}
       {!customerId && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-boxdark p-6 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm">
@@ -470,11 +510,42 @@ const QuoteList = ({ customerId }) => {
                     </tr>
                   );
                 })
+              ) : data.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center">
+                    <div className="max-w-xs mx-auto space-y-3">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
+                        <RequestQuoteIcon style={{ fontSize: 24 }} />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-slate-700 dark:text-slate-200">No quotes created yet</p>
+                        <p className="text-xs text-slate-400 mt-1">Start by generating your first customer quotation.</p>
+                      </div>
+                      {isUserAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => navigate('/new_offer')}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-all shadow-xs cursor-pointer"
+                        >
+                          <AddIcon style={{ fontSize: 16 }} />
+                          <span>Create New Quote</span>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-500">
                     <p className="text-base font-medium">No offers found matching your criteria</p>
                     <p className="text-xs mt-1">Try clearing your search terms or filters</p>
+                    <button
+                      type="button"
+                      onClick={() => { setSearchTerm(''); setStatusFilter('ALL'); }}
+                      className="mt-3 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      Clear Filters
+                    </button>
                   </td>
                 </tr>
               )}

@@ -34,7 +34,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
   const [userData, setUserdata] = useState<any>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [logoUrl, setLogoUrl] = useState<string>('');
-  const [companyName, setCompanyName] = useState<string>('Techbeeps CRM');
+  const [companyName, setCompanyName] = useState<string>('Universal Movers');
 
   const {
     register,

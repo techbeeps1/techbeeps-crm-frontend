@@ -12,6 +12,7 @@ import {
 } from 'react-hook-form';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
+import { isValidPhoneNumber } from '../../utils/phoneUtil';
 import Loader from '../../common/Loader';
 import AddressFrom from './formSteps/AddressFrom';
 import AddressVerification from './formSteps/AddressVerification';
@@ -29,27 +30,28 @@ import { EmailContext } from '../../EmailProvider/EmailContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
 import { m } from 'framer-motion';
+import { OfflineBanner } from '../../components/OfflineNoticeCard';
 
 const steps = [
-  { label: 'Customer Details ?', heading: 'CUSTOMER' },
-  { label: 'Where do you need to move from ?', heading: 'THE ADDRESS' },
-  { label: 'Where should unloading take place ?', heading: 'THE ADDRESS' },
-  { label: 'Is this information correct ?', heading: 'THE ADDRESS' },
-  { label: 'What services need to take place ?', heading: 'SERVICES' },
-  { label: 'Which rooms need to be moved ?', heading: 'ROOMS' },
-  { label: 'What needs to be moved ?', heading: 'ROOMS' },
-  { label: 'What Material is Needed ?', heading: 'ROOMS' },
+  { label: 'Customer Details', heading: 'CUSTOMER' },
+  { label: 'Where do you need to move from?', heading: 'THE ADDRESS' },
+  { label: 'Where should unloading take place?', heading: 'THE ADDRESS' },
+  { label: 'Is this address information correct?', heading: 'THE ADDRESS' },
+  { label: 'Which services are required?', heading: 'SERVICES' },
+  { label: 'Which rooms need to be moved?', heading: 'ROOMS' },
+  { label: 'What items need to be moved?', heading: 'ROOMS' },
+  { label: 'What materials are needed?', heading: 'ROOMS' },
 
-  { label: 'Is this information correct?', heading: 'CUSTOMER' },
-  { label: 'What do you really need to remember?', heading: 'Notes' },
+  { label: 'Is this customer information correct?', heading: 'CUSTOMER' },
+  { label: 'Important notes & reminders', heading: 'Notes' },
   // {
   //   label: 'Are there any other addresses for the move?',
   //   heading: 'THE ADDRESS',
   // },
-  { label: 'The payment agreement ?', heading: 'OFFERS' },
-  { label: 'The estimate', heading: 'OFFERS' },
-  { label: 'From offer', heading: 'OFFERS' },
-  { label: 'Do you want to send the quote?', heading: 'OFFERS' },
+  { label: 'Pricing Agreement', heading: 'OFFERS' },
+  { label: 'Cost Calculation & Estimate', heading: 'OFFERS' },
+  { label: 'Quotation Review', heading: 'OFFERS' },
+  { label: 'Send Quotation to Customer', heading: 'OFFERS' },
 ];
 const ValuationPage: React.FC = () => {
   const methods = useForm<any>();
@@ -107,30 +109,104 @@ const ValuationPage: React.FC = () => {
   }, [fetchservices, services]);
   const handleNext = () => {
     if (activeStep === 0) {
+      const customer = methods.watch('customer');
       if (
-        !methods.watch('customer')?.typeOfCustomer &&
-        !methods.watch('customer')?.gender &&
-        !methods.watch('customer')?.firstName &&
-        !methods.watch('customer')?.lastName &&
-        !methods.watch('customer')?.email
+        !customer?.typeOfCustomer &&
+        !customer?.firstName &&
+        !customer?.lastName &&
+        !customer?.email
       ) {
-        notifyError('please add customer details ');
+        notifyError('Please add or select customer details');
         return;
       }
-      if (!methods.watch('customer')?.typeOfCustomer) {
+      const customerType = customer?.typeOfCustomer;
+      if (!customerType) {
         notifyError('Select type of customer');
         return;
-      } else if (!methods.watch('customer')?.gender) {
-        notifyError('Select gender');
+      } else if (
+        (customerType === 'Commerical' || customerType === 'Commercial') &&
+        (!customer?.companyName || !customer?.companyName.trim())
+      ) {
+        notifyError('Company Name is required for commercial customers');
         return;
-      } else if (!methods.watch('customer')?.firstName) {
+      } else if (!customer?.firstName || !customer?.firstName.trim()) {
         notifyError('First Name is required');
         return;
-      } else if (!methods.watch('customer')?.lastName) {
+      } else if (!customer?.lastName || !customer?.lastName.trim()) {
         notifyError('Last Name is required');
         return;
-      } else if (!methods.watch('customer')?.email) {
+      } else if (!customer?.email || !customer?.email.trim()) {
         notifyError('Email is required');
+        return;
+      } else if (
+        customer?.mobile &&
+        typeof customer.mobile === 'string' &&
+        customer.mobile.trim().length > 0 &&
+        !isValidPhoneNumber(customer.mobile)
+      ) {
+        notifyError('Please enter a valid mobile number (e.g. 06 12345678 or +31 6 12345678).');
+        return;
+      } else if (
+        customer?.contact &&
+        typeof customer.contact === 'string' &&
+        customer.contact.trim().length > 0 &&
+        !isValidPhoneNumber(customer.contact)
+      ) {
+        notifyError('Please enter a valid telephone number (e.g. 010 1234567 or +31 10 1234567).');
+        return;
+      }
+
+      // If existing customer profile was completed/updated in Step 0, sync to database (AT-006-3)
+      if (customer?._id) {
+        const token = localStorage.getItem('token');
+        axios
+          .put(
+            `${apiPath}/customer/editCustomer/${customer._id}`,
+            customer,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+          )
+          .catch((err) =>
+            console.error('Failed to sync completed profile to customer:', err),
+          );
+      }
+    }
+
+    if (activeStep === 10) {
+      const priceAgree = methods.getValues('priceAgree');
+      const selectedPkg = methods.getValues('package');
+      if (!priceAgree) {
+        notifyError('Please select a Price Agreement (Fixed Price or On an Hourly Basis).');
+        return;
+      }
+      if (!selectedPkg) {
+        notifyError('Please select a valid Package before proceeding to Cost Calculation.');
+        return;
+      }
+    }
+
+    if (activeStep === 11) {
+      const relocation = methods.getValues('relocation') || {};
+      const vol = Number(relocation.totalVolume) || 0;
+      const hours = Number(relocation.travelTime) || 0;
+      const dist = Number(relocation.distance) || 0;
+
+      const cubicRate = relocation.pricePerMeterCubic;
+      const hourlyRate = relocation.pricePerHour;
+      const kmRate = relocation.pricePerKilometer;
+
+      // AT-013-2: Block quote when a required price is unknown/missing
+      if (vol > 0 && (cubicRate === undefined || cubicRate === null || String(cubicRate).trim() === '' || isNaN(Number(cubicRate)))) {
+        notifyError('Required price for Moving Volume (m³) is missing. Please enter a rate or configure standard price in Features.');
+        return;
+      }
+
+      if (hours > 0 && (hourlyRate === undefined || hourlyRate === null || String(hourlyRate).trim() === '' || isNaN(Number(hourlyRate)))) {
+        notifyError('Required price for Travel Time is missing. Please enter a rate or configure standard price in Features.');
+        return;
+      }
+
+      if (dist > 0 && (kmRate === undefined || kmRate === null || String(kmRate).trim() === '' || isNaN(Number(kmRate)))) {
+        notifyError('Required price for Travel Distance (km) is missing. Please enter a rate or configure standard price in Features.');
         return;
       }
     }
@@ -154,6 +230,7 @@ const ValuationPage: React.FC = () => {
         const firstKey = Object.keys(loadErrors || {})[0];
 
         notifyError(
+          (errors?.package?.message as string) ||
           loadErrors?.[firstKey]?.message ||
           'Please fill all required fields in the current step before proceeding.',
         );
@@ -368,7 +445,13 @@ const ValuationPage: React.FC = () => {
         }
       }
     } catch (error: any) {
-      notifyError(error?.response?.data?.message);
+      const errMsg =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to submit valuation. Please try again.';
+      notifyError(errMsg);
+      console.error('Error submitting valuation:', errMsg);
     } finally {
       setLoading(false);
     }
@@ -489,6 +572,7 @@ const ValuationPage: React.FC = () => {
 
   return (
     <>
+      <OfflineBanner />
       {loading && <Loader />}
       <FormProvider {...methods}>
         <div className="relative">
@@ -604,6 +688,7 @@ const ValuationPage: React.FC = () => {
                       rooms={selectedRoom}
                       selectedServices={selectedServices}
                       data={methods.watch()}
+                      packageData={packageData}
                     />
                   )}
                   {activeStep === 12 && (
@@ -611,6 +696,7 @@ const ValuationPage: React.FC = () => {
                       packageData={packageData}
                       setAppendedItems={setAppendedItems}
                       appendedItemsRef={appendedItemsRef}
+                      rooms={selectedRoom}
                     />
                   )}
                   {activeStep === 13 && <FinalStep />}

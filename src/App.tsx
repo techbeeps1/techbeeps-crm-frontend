@@ -12,6 +12,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import 'simple-datatables/src/css/style.css';
 import ValuationPage from './pages/Valuation/ValuationPage';
 import { UserContext } from './UserContext';
+import { NetworkStatusProvider } from './context/NetworkStatusContext';
 
 const DefaultLayout = lazy(() => import('./layout/DefaultLayout'));
 
@@ -67,59 +68,63 @@ function App() {
     setTimeout(() => setLoading(false), 1000);
   }, []);
 
-  return loading ? (
-    <div className="h-screen">
-      <Loader />
-    </div>
-  ) : (
-    <>
-      <Toaster
-        position="top-right"
-        reverseOrder={false}
-        containerClassName="overflow-auto"
-      />
-      <ToastContainer />
-      <Routes>
-        {token ? (
-          <>
-            <Route element={<DefaultLayout />}>
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute access="Dashboard">
-                    <ECommerce />
-                  </ProtectedRoute>
-                }
-              />
-              {routes.map(({ path, component: Component, access }: any) => (
-                <Route
-                  path={path}
-                  key={path}
-                  element={
-                    <Suspense fallback={<Loader />}>
-                      <ProtectedRoute access={access}>
-                        <Component />
+  return (
+    <NetworkStatusProvider>
+      {loading ? (
+        <div className="h-screen">
+          <Loader />
+        </div>
+      ) : (
+        <>
+          <Toaster
+            position="top-right"
+            reverseOrder={false}
+            containerClassName="overflow-auto"
+          />
+          <ToastContainer />
+          <Routes>
+            {token ? (
+              <>
+                <Route element={<DefaultLayout />}>
+                  <Route
+                    path="/"
+                    element={
+                      <ProtectedRoute access="Dashboard">
+                        <ECommerce />
                       </ProtectedRoute>
-                    </Suspense>
-                  }
-                />
-              ))}
-              <Route path="*" element={<Navigate to="/" />} key="root-dashboard" />
-            </Route>
-            <Route path="/intake/:type/:Id/" element={<ValuationPage />} />
-            <Route path="/intake" element={<ValuationPage />} />
-          </>
-        ) : (
-          <>
-            <Route path="/login" element={<UserRoot />} key="root-login" />
-            <Route path="/*" element={<Navigate to="/login" />} key="root-login" />
-          </>
-        )}
+                    }
+                  />
+                  {routes.map(({ path, component: Component, access }: any) => (
+                    <Route
+                      path={path}
+                      key={path}
+                      element={
+                        <Suspense fallback={<Loader />}>
+                          <ProtectedRoute access={access}>
+                            <Component />
+                          </ProtectedRoute>
+                        </Suspense>
+                      }
+                    />
+                  ))}
+                  <Route path="*" element={<Navigate to="/" />} key="root-dashboard" />
+                </Route>
+                <Route path="/intake/:type/:Id/" element={<ValuationPage />} />
+                <Route path="/intake" element={<ValuationPage />} />
+              </>
+            ) : (
+              <>
+                <Route path="/login" element={<UserRoot />} key="root-login" />
+                <Route path="/*" element={<Navigate to="/login" />} key="root-login" />
+              </>
+            )}
 
-        <Route path="/quotes/accept/:invoiceId" element={<AcceptQuotation />} />
-        <Route path="/thankyou" element={<ThankYouPage />} />
-      </Routes>
-    </>
+            <Route path="/quotes/accept/:invoiceId" element={<AcceptQuotation />} />
+            <Route path="/thankyou" element={<ThankYouPage />} />
+          </Routes>
+        </>
+      )}
+    </NetworkStatusProvider>
   );
 }
 

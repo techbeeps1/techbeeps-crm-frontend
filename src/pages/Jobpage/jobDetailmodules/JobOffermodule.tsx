@@ -14,6 +14,8 @@ import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EmailIcon from '@mui/icons-material/Email';
 import PublicIcon from '@mui/icons-material/Public';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
@@ -22,6 +24,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import CloseIcon from '@mui/icons-material/Close';
 import { apiPath } from '../../../../apiPath';
 import { formatCurrency } from '../../../utils/currencyUtil';
+import { formatLabel } from '../../../utils/labelUtil';
 
 interface JobOffermoduleProps {
   job: any;
@@ -322,7 +325,7 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh, r
                 onClick={() => handleSort('createdAt')}
               >
                 <div className="flex items-center gap-1">
-                  <span>EMAIL / DATE</span>
+                  <span>DATE</span>
                   <UnfoldMoreIcon style={{ fontSize: 14 }} />
                 </div>
               </th>
@@ -332,7 +335,7 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh, r
                 onClick={() => handleSort('total')}
               >
                 <div className="flex items-center gap-1">
-                  <span>CONTACT / AMOUNT</span>
+                  <span>AMOUNT</span>
                   <UnfoldMoreIcon style={{ fontSize: 14 }} />
                 </div>
               </th>
@@ -342,7 +345,7 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh, r
                 onClick={() => handleSort('Status')}
               >
                 <div className="flex items-center gap-1">
-                  <span>COUNTRY / STATUS</span>
+                  <span>STATUS</span>
                   <UnfoldMoreIcon style={{ fontSize: 14 }} />
                 </div>
               </th>
@@ -389,26 +392,26 @@ const JobOffermodule: React.FC<JobOffermoduleProps> = ({ type, job, onRefresh, r
                       </div>
                     </td>
 
-                    {/* EMAIL / DATE */}
+                    {/* DATE */}
                     <td className="py-4 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <EmailIcon style={{ fontSize: 16 }} className="text-slate-400" />
+                        <CalendarTodayIcon style={{ fontSize: 14 }} className="text-slate-400" />
                         <span className="font-medium text-xs text-slate-600 dark:text-slate-300">
                           {formattedDate}
                         </span>
                       </div>
                     </td>
 
-                    {/* CONTACT / AMOUNT */}
+                    {/* AMOUNT */}
                     <td className="py-4 px-4 whitespace-nowrap font-black text-emerald-600 dark:text-emerald-400">
                       <span className="text-xs">{formatCurrency(amount)}</span>
                     </td>
 
-                    {/* COUNTRY / STATUS */}
+                    {/* STATUS */}
                     <td className="py-4 px-4 whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-bold shadow-2xs">
-                        <PublicIcon style={{ fontSize: 13 }} className="text-slate-400" />
-                        <span>{statusText}</span>
+                        <CheckCircleOutlineIcon style={{ fontSize: 13 }} className="text-emerald-500" />
+                        <span>{formatLabel(statusText)}</span>
                       </div>
                     </td>
 

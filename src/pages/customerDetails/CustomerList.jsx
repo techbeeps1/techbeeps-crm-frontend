@@ -54,8 +54,10 @@ const CustomerList = ({ data = [], fetchCustomer, type = "Customer" }) => {
 
   const deleteCustomer = async (customerId) => {
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.delete(
         `${apiPath}/customer/deleteCustomer/${customerId}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
       );
       if (response.data.status) {
         closeRemoveModal();

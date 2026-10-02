@@ -188,8 +188,10 @@ const WorkPage: React.FC = () => {
       };
     });
 
-    const apptItems = appointments.map((a) => {
-      const apptDate = a.startTime ? new Date(a.startTime) : (a.date ? new Date(a.date) : new Date());
+    const apptItems = appointments
+      .filter((a) => (a.status || '').toLowerCase() !== 'draft' && a.assignedEmployees && a.assignedEmployees.length > 0)
+      .map((a) => {
+        const apptDate = a.startTime ? new Date(a.startTime) : (a.date ? new Date(a.date) : new Date());
       const job = a.jobId;
       const customer = job?.customer || a.customer;
       const custName = customer

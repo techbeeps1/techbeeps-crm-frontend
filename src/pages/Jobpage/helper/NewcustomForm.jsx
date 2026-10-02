@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { apiPath } from '../../../../apiPath';
 import axios from 'axios';
+import { isValidPhoneNumber } from '../../../utils/phoneUtil';
 
 
 const CustomerForm = ({ register, errors, control, countries }) => {
@@ -33,7 +34,10 @@ const CustomerForm = ({ register, errors, control, countries }) => {
                                 {...field} // Spread field props here
                             >
                                 <MenuItem value="" disabled>Select your customer type</MenuItem> {/* Optional placeholder */}
-                                <MenuItem value="Commerical">Commercial</MenuItem>
+                                <MenuItem value="Commercial">Commercial</MenuItem>
+                                {field.value === 'Commerical' && (
+                                    <MenuItem value="Commerical" style={{ display: 'none' }}>Commercial</MenuItem>
+                                )}
                                 <MenuItem value="Particular">Individual</MenuItem>
                             </TextField>
                         )}
@@ -137,23 +141,28 @@ const CustomerForm = ({ register, errors, control, countries }) => {
             <div style={{ display: "flex", gap: "15px", marginBottom: "15px" }}>
 
                 <TextField
-                    label="Contact"
+                    label="Contact Phone"
                     variant="standard"
                     fullWidth
-                    {...register('client.contact', { required: 'Contact field is required' })}
+                    {...register('client.contact', {
+                        validate: (val) => {
+                            if (!val || (typeof val === 'string' && val.trim().length === 0)) return true;
+                            return isValidPhoneNumber(val) || 'Please enter a valid telephone number (e.g. 010 1234567 or +31 10 1234567)';
+                        }
+                    })}
                     error={!!errors.client?.contact}
                     helperText={errors.client?.contact ? errors.client?.contact?.message : ''}
                 />
 
                 <TextField
-                    label="Mobile"
+                    label="Mobile Number *"
                     variant="standard"
                     fullWidth
                     {...register('client.mobile', {
-                        required: 'Mobile field is required',
-                        pattern: {
-                            value: /^[0-9]{10}$/, // Assuming a 10-digit mobile number; adjust as necessary
-                            message: 'Mobile number must be 10 digits'
+                        required: 'Mobile number is required',
+                        validate: (val) => {
+                            if (!val || (typeof val === 'string' && val.trim().length === 0)) return 'Mobile number is required';
+                            return isValidPhoneNumber(val) || 'Please enter a valid mobile number (e.g. 06 12345678 or +31 6 12345678)';
                         }
                     })}
                     error={!!errors.client?.mobile}

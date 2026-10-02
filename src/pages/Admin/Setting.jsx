@@ -35,10 +35,10 @@ const AppSettings = () => {
   const { userData } = useContext(UserContext) || {};
 
   const [generalSettings, setGeneralSettings] = useState({
-    language: 'US English',
-    country: 'IN India',
+    language: 'Dutch',
+    country: 'NL Netherlands',
     email: userData?.email || '',
-    timezone: getSystemTimezoneLabel() || 'UTC +05:30 (Asia/Kolkata)',
+    timezone: getSystemTimezoneLabel() || 'UTC +01:00 (Europe/Amsterdam)',
   });
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -68,10 +68,10 @@ const AppSettings = () => {
         if (response.status === 200 && response.data) {
           const d = response.data;
           const loadedEmail = d.adminNotificationEmail || userData?.email || '';
-          const loadedTimezone = d.timezone || getSystemTimezoneLabel() || 'UTC +05:30 (Asia/Kolkata)';
+          const loadedTimezone = d.timezone || getSystemTimezoneLabel() || 'UTC +01:00 (Europe/Amsterdam)';
           setGeneralSettings({
-            language: d.language || 'US English',
-            country: d.country || 'IN India',
+            language: d.language || 'Dutch',
+            country: d.country || 'NL Netherlands',
             email: loadedEmail,
             timezone: loadedTimezone,
           });
@@ -207,6 +207,7 @@ const AppSettings = () => {
               onChange={(e) => setGeneralSettings({ ...generalSettings, language: e.target.value })}
               className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium"
             >
+              <option value="Dutch">Dutch (Nederlands)</option>
               <option value="US English">English (United States)</option>
               <option value="UK English">English (United Kingdom)</option>
               <option value="DE German">German (Deutsch)</option>
@@ -246,6 +247,7 @@ const AppSettings = () => {
                 ))
               ) : (
                 <>
+                  <option value="Netherlands">Netherlands (NL)</option>
                   <option value="India">India (IN)</option>
                   <option value="United States">United States (US)</option>
                   <option value="United Kingdom">United Kingdom (UK)</option>

@@ -26,6 +26,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
+import { OfflineNoticeCard } from '../../components/OfflineNoticeCard';
 
 interface Customer {
   _id: string;
@@ -59,11 +60,17 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
   const { role, userData, isAdmin } = useContext(UserContext) || {};
   const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
   const params = new URLSearchParams(window.location.search);
-  const value = [...params.keys()][0];
+  const filterParam = params.get('filter') || params.get('status');
+  const value = [...params.keys()].find(k => k !== 'filter' && k !== 'status' && !params.get(k));
 
   // Search, Filter & Pagination states
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (filterParam) {
+      return filterParam.toUpperCase();
+    }
+    return 'ALL';
+  });
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
@@ -205,7 +212,13 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
         unloadLoc.includes(searchTerm.toLowerCase());
 
       const matchesStatus =
-        statusFilter === 'ALL' || status.includes(statusFilter.toLowerCase());
+        statusFilter === 'ALL'
+          ? true
+          : statusFilter === 'ACTIVE'
+          ? (item.status || '').toLowerCase() !== 'completed' &&
+            (item.status || '').toLowerCase() !== 'cancelled' &&
+            (item.status || '').toLowerCase() !== 'draft'
+          : status.includes(statusFilter.toLowerCase());
 
       return matchesSearch && matchesStatus;
     });
@@ -303,10 +316,14 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
     );
   };
 
-  if (error) {
+  if (error && (!data || data.length === 0)) {
     return (
-      <div className="p-6 text-center text-rose-500 bg-rose-50 dark:bg-rose-950/20 rounded-2xl border border-rose-200 dark:border-rose-900/40">
-        {error}
+      <div className="w-full min-h-[calc(100vh-84px)] bg-slate-50/50 dark:bg-boxdark-2 p-4 flex items-center justify-center">
+        <OfflineNoticeCard
+          title="Unable to Load Jobs"
+          message={error}
+          onRetry={handleAllJob}
+        />
       </div>
     );
   }
@@ -341,7 +358,12 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
 
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm flex items-center gap-4">
+            <div
+              onClick={() => { setStatusFilter('ALL'); setCurrentPage(1); }}
+              className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all cursor-pointer shadow-sm hover:shadow-md ${
+                statusFilter === 'ALL' ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200/80 dark:border-strokedark'
+              } flex items-center gap-4`}
+            >
               <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-primary flex items-center justify-center font-bold">
                 <WorkIcon />
               </div>
@@ -355,7 +377,12 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm flex items-center gap-4">
+            <div
+              onClick={() => { setStatusFilter('PROCESSING'); setCurrentPage(1); }}
+              className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all cursor-pointer shadow-sm hover:shadow-md ${
+                statusFilter === 'PROCESSING' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-200/80 dark:border-strokedark'
+              } flex items-center gap-4`}
+            >
               <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
                 <HourglassEmptyIcon />
               </div>
@@ -369,7 +396,12 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm flex items-center gap-4">
+            <div
+              onClick={() => { setStatusFilter('EXECUTION'); setCurrentPage(1); }}
+              className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all cursor-pointer shadow-sm hover:shadow-md ${
+                statusFilter === 'EXECUTION' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-200/80 dark:border-strokedark'
+              } flex items-center gap-4`}
+            >
               <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
                 <LocalShippingIcon />
               </div>
@@ -383,7 +415,12 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-sm flex items-center gap-4">
+            <div
+              onClick={() => { setStatusFilter('COMPLETED'); setCurrentPage(1); }}
+              className={`bg-white dark:bg-boxdark p-5 rounded-2xl border transition-all cursor-pointer shadow-sm hover:shadow-md ${
+                statusFilter === 'COMPLETED' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200/80 dark:border-strokedark'
+              } flex items-center gap-4`}
+            >
               <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
                 <CheckCircleOutlineIcon />
               </div>
@@ -419,7 +456,7 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
 
               {/* Status Filter Tabs */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-                {['ALL', 'PENDING', 'PROCESSING', 'EXECUTION', 'COMPLETED', 'CANCELLED', 'DRAFT'].map((st) => (
+                {['ALL', 'ACTIVE', 'PENDING', 'PROCESSING', 'EXECUTION', 'COMPLETED', 'CANCELLED', 'DRAFT'].map((st) => (
                   <button
                     key={st}
                     onClick={() => {
@@ -469,13 +506,18 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
                 <tbody className="divide-y divide-slate-200 dark:divide-strokedark text-sm font-medium">
                   {paginatedData.length > 0 ? (
                     paginatedData.map((item) => {
-                      const clientFullName = `${item.customer?.firstName || 'Unknown'} ${item.customer?.lastName || ''}`.trim();
-                      const initials = clientFullName
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2) || 'J';
+                      const hasCustomer = Boolean(item.customer && (item.customer.firstName || item.customer.lastName));
+                      const clientFullName = hasCustomer
+                        ? `${item.customer?.firstName || ''} ${item.customer?.lastName || ''}`.trim()
+                        : 'Customer Removed';
+                      const initials = hasCustomer
+                        ? clientFullName
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2) || 'C'
+                        : '—';
 
                       const dateStr = item?.date
                         ? new Date(item.date).toISOString().split('T')[0]
@@ -490,13 +532,19 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
                           {/* Client & Avatar */}
                           <td className="py-4 px-5">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-primary/10 text-primary dark:bg-primary/20 flex items-center justify-center text-xs font-bold shrink-0">
+                              <div className={`w-9 h-9 rounded-full ${hasCustomer ? 'bg-primary/10 text-primary dark:bg-primary/20' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'} flex items-center justify-center text-xs font-bold shrink-0`}>
                                 {initials}
                               </div>
                               <div>
-                                <span className="block font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
-                                  {clientFullName}
-                                </span>
+                                {hasCustomer ? (
+                                  <span className="block font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
+                                    {clientFullName}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                    Customer Removed
+                                  </span>
+                                )}
                                 {item.index && (
                                   <span className="inline-block text-[11px] font-mono text-slate-400 font-semibold mt-0.5">
                                     #{item.index}

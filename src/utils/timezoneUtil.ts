@@ -12,14 +12,14 @@ export interface TimezoneOption {
 }
 
 export const TIMEZONE_OPTIONS: TimezoneOption[] = [
-  { label: 'UTC +05:30 (Asia/Kolkata - IST)', value: 'UTC +05:30 (Asia/Kolkata)', iana: 'Asia/Kolkata', offset: '+05:30' },
+  { label: 'UTC +01:00 (Europe/Amsterdam - CET)', value: 'UTC +01:00 (Europe/Amsterdam)', iana: 'Europe/Amsterdam', offset: '+01:00' },
   { label: 'UTC +00:00 (Europe/London - GMT)', value: 'UTC +00:00 (Europe/London)', iana: 'Europe/London', offset: '+00:00' },
   { label: 'UTC +00:00 (GMT / UTC)', value: 'UTC +00:00 (UTC)', iana: 'UTC', offset: '+00:00' },
-  { label: 'UTC +01:00 (Europe/Amsterdam - CET)', value: 'UTC +01:00 (Europe/Amsterdam)', iana: 'Europe/Amsterdam', offset: '+01:00' },
   { label: 'UTC +01:00 (Europe/Berlin - CET)', value: 'UTC +01:00 (Europe/Berlin)', iana: 'Europe/Berlin', offset: '+01:00' },
   { label: 'UTC +01:00 (Europe/Paris - CET)', value: 'UTC +01:00 (Europe/Paris)', iana: 'Europe/Paris', offset: '+01:00' },
   { label: 'UTC +02:00 (Europe/Athens - EET)', value: 'UTC +02:00 (Europe/Athens)', iana: 'Europe/Athens', offset: '+02:00' },
   { label: 'UTC +03:00 (Europe/Moscow - MSK)', value: 'UTC +03:00 (Europe/Moscow)', iana: 'Europe/Moscow', offset: '+03:00' },
+  { label: 'UTC +05:30 (Asia/Kolkata - IST)', value: 'UTC +05:30 (Asia/Kolkata)', iana: 'Asia/Kolkata', offset: '+05:30' },
   { label: 'UTC +03:00 (Asia/Riyadh - AST)', value: 'UTC +03:00 (Asia/Riyadh)', iana: 'Asia/Riyadh', offset: '+03:00' },
   { label: 'UTC +04:00 (Asia/Dubai - GST)', value: 'UTC +04:00 (Asia/Dubai)', iana: 'Asia/Dubai', offset: '+04:00' },
   { label: 'UTC +05:00 (Asia/Karachi - PKT)', value: 'UTC +05:00 (Asia/Karachi)', iana: 'Asia/Karachi', offset: '+05:00' },
@@ -42,7 +42,7 @@ export const TIMEZONE_OPTIONS: TimezoneOption[] = [
  * Parses any timezone label, value, or IANA string to a valid IANA name
  */
 export function parseIanaTimezone(input?: string | null): string {
-  if (!input) return 'Asia/Kolkata';
+  if (!input) return 'Europe/Amsterdam';
 
   const trimmed = input.trim();
   const matched = TIMEZONE_OPTIONS.find(
@@ -50,7 +50,7 @@ export function parseIanaTimezone(input?: string | null): string {
   );
   if (matched) return matched.iana;
 
-  // Extract from parentheses e.g. "UTC +05:30 (Asia/Kolkata - IST)" -> "Asia/Kolkata"
+  // Extract from parentheses e.g. "UTC +01:00 (Europe/Amsterdam - CET)" -> "Europe/Amsterdam"
   const parenMatch = trimmed.match(/\(([^)]+)\)/);
   const candidate = parenMatch ? parenMatch[1].split(/[-–]/)[0].trim() : trimmed;
 
@@ -59,7 +59,7 @@ export function parseIanaTimezone(input?: string | null): string {
     return candidate;
   } catch {
     // fallback
-    return 'Asia/Kolkata';
+    return 'Europe/Amsterdam';
   }
 }
 
@@ -68,7 +68,7 @@ let activeIanaTz = (() => {
     const saved = localStorage.getItem('systemTimezone');
     if (saved) return parseIanaTimezone(saved);
   }
-  return 'Asia/Kolkata';
+  return 'Europe/Amsterdam';
 })();
 
 export function getSystemTimezone(): string {

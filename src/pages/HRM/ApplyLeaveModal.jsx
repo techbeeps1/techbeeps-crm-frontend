@@ -95,7 +95,7 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
       .catch((err) => console.error('Error fetching existing requests:', err));
   }, [selectedEmployeeId, id]);
 
-  // Calculate total days (inclusive calendar days)
+  // Calculate total days (working days based, excluding weekends)
   const calculateDays = () => {
     if (durationType === 'Half Day - First Half' || durationType === 'Half Day - Second Half') {
       return 0.5;
@@ -107,20 +107,21 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
 
     const [sY, sM, sD] = startDate.split('-').map(Number);
     const [eY, eM, eD] = endDate.split('-').map(Number);
-    if (!sY || !eY) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const diffTime = end.getTime() - start.getTime();
-      return Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1);
+    if (!sY || !eY) return 1.0;
+
+    let count = 0;
+    const cur = new Date(sY, sM - 1, sD);
+    const end = new Date(eY, eM - 1, eD);
+    if (end < cur) return 1.0;
+
+    while (cur <= end) {
+      const day = cur.getDay(); // 0 is Sun, 6 is Sat
+      if (day !== 0 && day !== 6) {
+        count++;
+      }
+      cur.setDate(cur.getDate() + 1);
     }
-
-    const startUTC = Date.UTC(sY, sM - 1, sD);
-    const endUTC = Date.UTC(eY, eM - 1, eD);
-
-    if (endUTC < startUTC) return 1.0;
-
-    const diffDays = Math.round((endUTC - startUTC) / (1000 * 60 * 60 * 24)) + 1;
-    return Math.max(1, diffDays);
+    return Math.max(1, count);
   };
 
   const calculatedTotalDays = calculateDays();
@@ -137,11 +138,31 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
       if (['Rejected', 'Cancelled'].includes(r.status)) return false;
       const rStart = new Date(r.startDate).setHours(0, 0, 0, 0);
       const rEnd = new Date(r.endDate || r.startDate).setHours(23, 59, 59, 999);
-      return sTime <= rEnd && eTime >= rStart;
+      const isDateOverlap = sTime <= rEnd && eTime >= rStart;
+      if (!isDateOverlap) return false;
+
+      // Allow half-day morning + half-day afternoon on same single date
+      const isSingleDay = startDate === (durationType === 'Multiple Days' ? endDate : startDate);
+      const isExSingleDay = new Date(r.startDate).toDateString() === new Date(r.endDate || r.startDate).toDateString();
+      if (
+        isSingleDay &&
+        isExSingleDay &&
+        ((durationType === 'Half Day - First Half' && r.durationType === 'Half Day - Second Half') ||
+         (durationType === 'Half Day - Second Half' && r.durationType === 'Half Day - First Half'))
+      ) {
+        return false;
+      }
+
+      // Sick leave takes precedence over Annual / Vacation
+      if (leaveType === 'Sick Leave' && (r.leaveType || '').includes('Annual')) {
+        return false;
+      }
+
+      return true;
     });
 
     return conflict || null;
-  }, [startDate, endDate, durationType, existingRequests]);
+  }, [startDate, endDate, durationType, leaveType, existingRequests]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

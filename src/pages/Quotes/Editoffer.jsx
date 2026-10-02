@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
 import AddIcon from '@mui/icons-material/Add';
@@ -13,6 +13,7 @@ import { UserContext } from '../../UserContext';
 import Loader from '../../common/Loader';
 import SearchableClientSelect from '../../components/SearchableClientSelect';
 import { useCurrency } from '../../utils/currencyUtil';
+import { formatLabel } from '../../utils/labelUtil';
 
 const Editoffer = ({ display, offer, onclose }) => {
   const { formatCurrency } = useCurrency();
@@ -23,6 +24,10 @@ const Editoffer = ({ display, offer, onclose }) => {
   const type = queryParams.get('type');
 
   const [packageList, setPackage] = useState([]);
+  const [packageScope, setPackageScope] = useState(''); // 'hourly' | 'fixed_price' | 'without_job'
+  const [packageLoading, setPackageLoading] = useState(false);
+  const originalPackageRef = useRef(null);
+  const initialScopeRef = useRef('without_job');
   const [templateList, setTemplate] = useState([]);
   const [vatSelected, setVatSelected] = useState('exclusive');
   const [salesgroup, setSales] = useState([]);
@@ -67,23 +72,32 @@ const Editoffer = ({ display, offer, onclose }) => {
     register('customer', { required: 'Client selection is required' });
   }, [register]);
 
-  // Calculations
+  // Calculations (Discount applied BEFORE tax per UM-014)
+  const safeDiscountPct = Math.min(Math.max(parseFloat(discountPercentage) || 0, 0), 100);
+  const discountMultiplier = Math.max(0, 1 - (safeDiscountPct / 100));
   const subtotal = items.reduce((acc, item) => {
     const quantity = parseFloat(item.quantity) || 0;
     const price = parseFloat(item.price) || 0;
     return acc + quantity * price;
   }, 0);
 
+  const discountAmount = subtotal * (safeDiscountPct / 100);
+  const discountedSubtotal = subtotal - discountAmount;
+
+  const isInclusive = vatSelected === 'inclusive';
+
   const taxTotal = items.reduce((acc, item) => {
     const quantity = parseFloat(item.quantity) || 0;
     const price = parseFloat(item.price) || 0;
     const btw = parseFloat(item.btw) || 0;
-    const itemTax = price * quantity * (btw / 100);
+    const discountedLine = (price * quantity) * discountMultiplier;
+    const itemTax = isInclusive
+      ? discountedLine * (btw / (100 + btw))
+      : discountedLine * (btw / 100);
     return acc + itemTax;
   }, 0);
 
-  const discountAmount = subtotal * (discountPercentage / 100);
-  const total = subtotal - discountAmount + taxTotal;
+  const total = isInclusive ? discountedSubtotal : (discountedSubtotal + taxTotal);
 
   const navigate = useNavigate();
 
@@ -100,6 +114,53 @@ const Editoffer = ({ display, offer, onclose }) => {
     }
   };
 
+  const getPackageTypeLabel = (pkg) => {
+    if (!pkg) return '';
+    const raw = pkg.priceAgree || (pkg.name && /hour/i.test(pkg.name) ? 'onhourly_basis' : 'fixed_price');
+    return formatLabel(raw) || 'Fixed Price';
+  };
+
+  const loadPackages = async (scope = 'all', targetPkg = null) => {
+    try {
+      setPackageLoading(true);
+      setPackageScope(scope);
+      let endpoint = `${apiPath}/api/packages`;
+      if (scope === 'hourly') {
+        endpoint += '?withJob=true&priceAgree=hourly';
+      } else if (scope === 'fixed_price') {
+        endpoint += '?withJob=true&priceAgree=fixed_price';
+      } else if (scope === 'without_job') {
+        endpoint += '?withJob=false';
+      }
+
+      const response = await axios.get(endpoint);
+      let list = Array.isArray(response.data) ? response.data : [];
+
+      if (scope === 'without_job') {
+        list = list.filter((p) => !p.type_job || p.type_job === 'Manual/No job');
+      }
+
+      // Guarantee that the target package is in the list
+      const targetId = targetPkg ? String(targetPkg._id || targetPkg) : null;
+      if (targetId) {
+        const found = list.some((p) => String(p._id) === targetId);
+        if (!found) {
+          const pkgObj =
+            typeof targetPkg === 'object' && targetPkg.name
+              ? targetPkg
+              : { _id: targetId, name: targetPkg.name || 'Selected Package' };
+          list = [pkgObj, ...list];
+        }
+        setValue('package', targetId, { shouldValidate: true });
+      }
+      setPackage(list);
+    } catch (error) {
+      console.error('Error fetching packages for scope:', scope, error);
+    } finally {
+      setPackageLoading(false);
+    }
+  };
+
   const fetchInvoice = async () => {
     if (!Id) return;
     try {
@@ -108,7 +169,7 @@ const Editoffer = ({ display, offer, onclose }) => {
       const invoiceData = response.data.finance;
       reset();
       setValue('customer', invoiceData?.customer?._id, { shouldValidate: true });
-      setValue('package', invoiceData?.package?._id);
+
       if (invoiceData?.date) {
         const formattedDate = new Date(invoiceData.date)
           .toISOString()
@@ -151,21 +212,39 @@ const Editoffer = ({ display, offer, onclose }) => {
 
       setValue('discount_description', invoiceData?.discount_description || '');
       setValue('discount', invoiceData?.discount || 0);
+
+      // Determine Package Scope conditionally
+      const hasJob = !!invoiceData?.job;
+      const pkg = invoiceData?.package;
+      const jobPkg = invoiceData?.job?.package;
+      const pkgAgree = String(pkg?.priceAgree || '').toLowerCase();
+      const jobPkgAgree = String(jobPkg?.priceAgree || '').toLowerCase();
+      const hasHourlyItem = (invoiceData?.items || []).some((it) =>
+        /hourly/i.test(it?.description || '')
+      );
+
+      let initialScope = 'without_job';
+      if (pkgAgree.includes('hour') || jobPkgAgree.includes('hour') || hasHourlyItem) {
+        initialScope = 'hourly';
+      } else if (
+        hasJob ||
+        (pkg?.type_job && pkg?.type_job !== 'Manual/No job') ||
+        pkgAgree.includes('fix') ||
+        jobPkgAgree.includes('fix')
+      ) {
+        initialScope = 'fixed_price';
+      } else {
+        initialScope = 'without_job';
+      }
+
+      initialScopeRef.current = initialScope;
+      originalPackageRef.current = pkg || jobPkg || invoiceData?.package;
+
+      await loadPackages(initialScope, originalPackageRef.current);
     } catch (error) {
       console.error('Error fetching invoice data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePackage = async () => {
-    try {
-      const response = await axios.get(
-        apiPath + '/api/packages?type=Manual/No job'
-      );
-      setPackage(response.data || []);
-    } catch (error) {
-      console.error('Error fetching package:', error.message);
     }
   };
 
@@ -231,7 +310,6 @@ const Editoffer = ({ display, offer, onclose }) => {
 
   useEffect(() => {
     handleClient();
-    handlePackage();
     handletemplate();
     handlesalesgroup();
   }, [Id]);
@@ -333,22 +411,49 @@ const Editoffer = ({ display, offer, onclose }) => {
 
             {/* Package */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1.5">
-                Package <span className="text-rose-500">*</span>
-              </label>
-              <select
-                className={`w-full rounded-xl border ${
-                  errors.package ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-300 dark:border-slate-600'
-                } bg-white dark:bg-boxdark px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium`}
-                {...register('package', { required: 'Package selection is required' })}
-              >
-                <option value="">Select Package</option>
-                {packageList.map((item, index) => (
-                  <option key={index} value={item._id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">
+                  Package <span className="text-rose-500">*</span>
+                </label>
+                {(() => {
+                  const selectedPkgId = watch('package');
+                  const selectedPkg = packageList.find((p) => String(p._id) === String(selectedPkgId));
+                  const displayBadge = selectedPkg
+                    ? getPackageTypeLabel(selectedPkg)
+                    : (packageScope === 'hourly'
+                      ? 'Hourly Basis'
+                      : packageScope === 'fixed_price'
+                        ? 'Fixed Price'
+                        : packageScope === 'without_job'
+                          ? 'Manual / No Job'
+                          : 'Hourly / Fixed Rate');
+                  return (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-meta-4 dark:text-slate-300 border border-slate-200 dark:border-strokedark">
+                      {displayBadge}
+                    </span>
+                  );
+                })()}
+              </div>
+              <div className="relative">
+                <select
+                  className={`w-full rounded-xl border ${errors.package ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-300 dark:border-slate-600'
+                    } bg-white dark:bg-boxdark px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium`}
+                  {...register('package', { required: 'Package selection is required' })}
+                  value={watch('package') || ''}
+                  onChange={(e) => setValue('package', e.target.value, { shouldValidate: true })}
+                  disabled={packageLoading}
+                >
+                  <option value="">{packageLoading ? 'Loading packages...' : 'Select Package'}</option>
+                  {packageList.map((item, index) => {
+                    const priceTypeLabel = getPackageTypeLabel(item);
+                    return (
+                      <option key={item._id || index} value={item._id}>
+                        {item.name} ({priceTypeLabel})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
               {errors.package && (
                 <p className="text-rose-500 text-xs mt-1 font-medium">
                   {errors.package.message}
@@ -377,9 +482,8 @@ const Editoffer = ({ display, offer, onclose }) => {
                 Financial Template <span className="text-rose-500">*</span>
               </label>
               <select
-                className={`w-full rounded-xl border ${
-                  errors.financialTemplate ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-300 dark:border-slate-600'
-                } bg-white dark:bg-boxdark px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium`}
+                className={`w-full rounded-xl border ${errors.financialTemplate ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-300 dark:border-slate-600'
+                  } bg-white dark:bg-boxdark px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium`}
                 {...register('financialTemplate', { required: 'Template is required' })}
               >
                 <option value="">Select Template</option>
@@ -465,22 +569,20 @@ const Editoffer = ({ display, offer, onclose }) => {
               <button
                 type="button"
                 onClick={() => handleVatSelect('inclusive')}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                  vatSelected === 'inclusive'
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${vatSelected === 'inclusive'
                     ? 'bg-primary text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Including VAT
               </button>
               <button
                 type="button"
                 onClick={() => handleVatSelect('exclusive')}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                  vatSelected === 'exclusive'
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${vatSelected === 'exclusive'
                     ? 'bg-primary text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 Excluding VAT
               </button>
@@ -573,9 +675,11 @@ const Editoffer = ({ display, offer, onclose }) => {
                   </label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
+                    step="any"
                     placeholder="1"
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-3 py-2 text-sm focus:outline-none focus:border-primary font-medium"
+                    onFocus={(e) => e.target.select()}
                     onKeyDown={(e) => {
                       if (e.key === '+' || e.key === '-' || e.key === 'e') {
                         e.preventDefault();
@@ -608,8 +712,11 @@ const Editoffer = ({ display, offer, onclose }) => {
                   </label>
                   <input
                     type="number"
+                    min="0"
+                    step="any"
                     placeholder="0"
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-2.5 py-2 text-sm focus:outline-none focus:border-primary font-medium"
+                    onFocus={(e) => e.target.select()}
                     onKeyDown={(e) => {
                       if (e.key === '+' || e.key === '-' || e.key === 'e') {
                         e.preventDefault();
@@ -682,14 +789,16 @@ const Editoffer = ({ display, offer, onclose }) => {
                 type="number"
                 min="0"
                 max="100"
+                step="any"
                 placeholder="0"
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-3.5 py-2 text-sm focus:outline-none focus:border-primary font-medium"
+                onFocus={(e) => e.target.select()}
                 onKeyDown={(e) => {
                   if (e.key === '+' || e.key === '-' || e.key === 'e') {
                     e.preventDefault();
                   }
                 }}
-                {...register('discount', { valueAsNumber: true })}
+                {...register('discount', { valueAsNumber: true, min: 0, max: 100 })}
               />
             </div>
           </div>
@@ -716,15 +825,15 @@ const Editoffer = ({ display, offer, onclose }) => {
               </div>
 
               <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>Total Tax (BTW):</span>
-                <span className="font-semibold text-emerald-600">
-                  + {formatCurrency(taxTotal)}
+                <span>{isInclusive ? 'Included Tax (BTW):' : 'Total Tax (BTW):'}</span>
+                <span className={`font-semibold ${isInclusive ? 'text-emerald-600' : 'text-blue-600'}`}>
+                  {isInclusive ? formatCurrency(taxTotal) : `+ ${formatCurrency(taxTotal)}`}
                 </span>
               </div>
 
               <div className="pt-2 border-t border-slate-200 dark:border-strokedark flex justify-between items-center">
                 <span className="text-base font-extrabold text-slate-900 dark:text-white">
-                  Grand Total:
+                  Grand Total {isInclusive ? '(Incl. VAT)' : ''}:
                 </span>
                 <span className="text-2xl font-black text-primary dark:text-blue-400">
                   {formatCurrency(total)}

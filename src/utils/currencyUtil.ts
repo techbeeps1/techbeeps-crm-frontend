@@ -9,8 +9,8 @@ export interface CurrencyItem {
 }
 
 export const SUPPORTED_CURRENCIES: CurrencyItem[] = [
+  { code: 'EUR', name: 'Euro', symbol: '€', locale: 'nl-NL', defaultPosition: 'before' },
   { code: 'USD', name: 'US Dollar', symbol: '$', locale: 'en-US', defaultPosition: 'before' },
-  { code: 'EUR', name: 'Euro', symbol: '€', locale: 'de-DE', defaultPosition: 'before' },
   { code: 'GBP', name: 'British Pound', symbol: '£', locale: 'en-GB', defaultPosition: 'before' },
   { code: 'INR', name: 'Indian Rupee', symbol: '₹', locale: 'en-IN', defaultPosition: 'before' },
   { code: 'CAD', name: 'Canadian Dollar', symbol: 'CA$', locale: 'en-CA', defaultPosition: 'before' },
@@ -27,13 +27,13 @@ export interface CurrencySettings {
 
 export function getCurrencySettings(): CurrencySettings {
   if (typeof window === 'undefined') {
-    return { code: 'USD', symbol: '$', position: 'before', decimals: 2 };
+    return { code: 'EUR', symbol: '€', position: 'before', decimals: 2 };
   }
 
-  const code = localStorage.getItem('defaultCurrency') || localStorage.getItem('currencyCode') || 'USD';
+  const code = localStorage.getItem('defaultCurrency') || localStorage.getItem('currencyCode') || 'EUR';
   const matched = SUPPORTED_CURRENCIES.find((c) => c.code === code) || SUPPORTED_CURRENCIES[0];
 
-  const symbol = localStorage.getItem('currencySymbol') || matched.symbol;
+  const symbol = localStorage.getItem('currencySymbol') || matched.symbol || '€';
   const position = (localStorage.getItem('currencyPosition') as 'before' | 'after') || matched.defaultPosition || 'before';
   const savedDecimals = localStorage.getItem('currencyDecimals');
   const decimals = savedDecimals !== null ? Number(savedDecimals) : 2;

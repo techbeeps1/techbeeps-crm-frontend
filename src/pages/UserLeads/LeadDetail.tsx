@@ -1,5 +1,5 @@
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { apiPath } from '../../../apiPath.tsx';
 import { useParams, useNavigate } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -14,6 +14,8 @@ import LanguageIcon from '@mui/icons-material/Language';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import CheckIcon from '@mui/icons-material/Check';
 
 import Loader from '../../common/Loader/index.tsx';
 import toast from 'react-hot-toast';
@@ -21,14 +23,68 @@ import toast from 'react-hot-toast';
 import EditUserLead from './EditUserLead.jsx';
 import ConvertAsCustomer from './ConvertAsCustomer.jsx';
 
+const STATUS_OPTIONS = [
+  {
+    value: 'New',
+    label: 'New Lead',
+    dotBg: 'bg-blue-500 animate-pulse',
+    textColor: 'text-blue-600 dark:text-blue-400',
+    desc: 'Fresh lead awaiting contact',
+  },
+  {
+    value: 'Contacted',
+    label: 'Contacted',
+    dotBg: 'bg-amber-500',
+    textColor: 'text-amber-600 dark:text-amber-400',
+    desc: 'Initial conversation started',
+  },
+  {
+    value: 'Quote Sent',
+    label: 'Quote Sent',
+    dotBg: 'bg-purple-500 animate-pulse',
+    textColor: 'text-purple-600 dark:text-purple-400',
+    desc: 'Pricing quotation delivered',
+  },
+  {
+    value: 'In Progress',
+    label: 'In Progress',
+    dotBg: 'bg-indigo-500',
+    textColor: 'text-indigo-600 dark:text-indigo-400',
+    desc: 'Active negotiations / survey',
+  },
+  {
+    value: 'Not Interested',
+    label: 'Not Interested',
+    dotBg: 'bg-rose-500',
+    textColor: 'text-rose-600 dark:text-rose-400',
+    desc: 'Client declined / lost lead',
+  },
+];
+
 const LeadDetail = () => {
   const [customerData, setcustomerData] = useState<any>(null);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
   const { id } = useParams();
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(e.target as Node)) {
+        setStatusMenuOpen(false);
+      }
+    };
+    if (statusMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [statusMenuOpen]);
 
   const handleCustomer = async () => {
     try {
@@ -58,6 +114,27 @@ const LeadDetail = () => {
   const handleClickOutside = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       setIsRemoveModalOpen(false);
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.post(
+        `${apiPath}/leads/leads`,
+        { _id: id, status: newStatus },
+        { headers }
+      );
+      if (res.data?.success) {
+        toast.success(`Lead status updated to ${newStatus}`);
+        handleCustomer();
+      } else {
+        toast.error(res.data?.message || 'Failed to update status');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update status');
+      console.error(err);
     }
   };
 
@@ -106,6 +183,13 @@ const LeadDetail = () => {
         <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800/60">
           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
           New
+        </span>
+      );
+    } else if (s === 'quote sent') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800/60">
+          <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+          Quote Sent
         </span>
       );
     } else if (s === 'contacted' || s === 'in progress') {
@@ -161,6 +245,78 @@ const LeadDetail = () => {
 
         {/* Action Toolbar */}
         <div className="flex items-center flex-wrap gap-2.5">
+          {/* Custom Modern Status Dropdown */}
+          {customerData?.status !== 'Converted' && (
+            <div className="relative" ref={statusMenuRef}>
+              <button
+                type="button"
+                onClick={() => setStatusMenuOpen(!statusMenuOpen)}
+                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-sm transition-all cursor-pointer group"
+              >
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Status:
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-100">
+                  <span className={`w-2 h-2 rounded-full ${
+                    STATUS_OPTIONS.find(o => o.value.toLowerCase() === (customerData?.status || 'new').toLowerCase())?.dotBg || 'bg-blue-500'
+                  }`} />
+                  {customerData?.status || 'New'}
+                </span>
+                <KeyboardArrowDownIcon
+                  className={`text-slate-400 transition-transform duration-200 ${statusMenuOpen ? 'rotate-180 text-primary' : 'group-hover:text-slate-600'}`}
+                  style={{ fontSize: 18 }}
+                />
+              </button>
+
+              {/* Floating Menu Popup */}
+              {statusMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-boxdark rounded-2xl shadow-xl border border-slate-100 dark:border-strokedark p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800/60 mb-1 flex items-center justify-between">
+                    <span>Change Lead Stage</span>
+                    <span className="text-primary font-semibold">Active</span>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    {STATUS_OPTIONS.map((opt) => {
+                      const isSelected = (customerData?.status || 'New').toLowerCase() === opt.value.toLowerCase();
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            handleUpdateStatus(opt.value);
+                            setStatusMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-primary/10 text-primary font-bold'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${opt.dotBg}`} />
+                            <div>
+                              <p className={`text-xs font-bold leading-tight ${isSelected ? 'text-primary' : 'text-slate-800 dark:text-slate-100'}`}>
+                                {opt.label}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                {opt.desc}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <CheckIcon className="text-primary" style={{ fontSize: 16 }} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Convert Button */}
           <button
             disabled={customerData?.status === 'Converted'}
@@ -237,9 +393,18 @@ const LeadDetail = () => {
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 font-medium uppercase">Email Address</p>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-0.5">
-                    {customerData?.email || 'N/A'}
-                  </p>
+                  {customerData?.email ? (
+                    <a
+                      href={`mailto:${customerData.email}`}
+                      className="text-sm font-semibold text-primary hover:underline mt-0.5 block truncate"
+                    >
+                      {customerData.email}
+                    </a>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mt-0.5">
+                      N/A
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -250,9 +415,18 @@ const LeadDetail = () => {
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 font-medium uppercase">Contact Number</p>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-0.5">
-                    {customerData?.contact || 'N/A'}
-                  </p>
+                  {customerData?.contact ? (
+                    <a
+                      href={`tel:${customerData.contact}`}
+                      className="text-sm font-semibold text-primary hover:underline mt-0.5 block"
+                    >
+                      {customerData.contact}
+                    </a>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mt-0.5">
+                      N/A
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,11 +1,52 @@
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
+import { lookupDutchAddress } from "../../../utils/dutchAddressLookup";
 
 const AddressForm: React.FC<any> = ({ countries, type, property }) => {
-    const { control, register, watch, formState: { errors } } = useFormContext() as any;
+    const { control, register, watch, setValue, formState: { errors } } = useFormContext() as any;
 
     const elevator = watch(`${type}.hasElevator`);
     const addressKnown = watch(`knownAddress`);
+    const currentCountry = watch(`${type}.country`);
+
+    const [isLookingUp, setIsLookingUp] = React.useState(false);
+    const [lookupStatus, setLookupStatus] = React.useState<string | null>(null);
+
+    // Initialize default country to Netherlands for load/unload if blank
+    React.useEffect(() => {
+        if (!currentCountry) {
+            setValue(`${type}.country`, 'Netherlands');
+        }
+    }, [currentCountry, setValue, type]);
+
+    const handleAddressLookup = async () => {
+        const rawPostcode = watch(`${type}.postcode`) || '';
+        const houseNumber = watch(`${type}.houseNumber`) || '';
+        const addition = watch(`${type}.addition`) || '';
+        const country = watch(`${type}.country`) || 'Netherlands';
+
+        if (!rawPostcode || !houseNumber) {
+            return;
+        }
+
+        setIsLookingUp(true);
+        setLookupStatus(null);
+        try {
+            const result = await lookupDutchAddress(rawPostcode, houseNumber, addition, country);
+            if (result.success && result.street && result.city) {
+                setValue(`${type}.street`, result.street, { shouldValidate: true, shouldDirty: true });
+                setValue(`${type}.city`, result.city, { shouldValidate: true, shouldDirty: true });
+                if (!watch(`${type}.country`)) {
+                    setValue(`${type}.country`, 'Netherlands', { shouldValidate: true, shouldDirty: true });
+                }
+                setLookupStatus(result.message || `✓ Address found: ${result.street}, ${result.city}`);
+            } else if (result.message && !result.message.includes('Foreign country')) {
+                setLookupStatus(result.message);
+            }
+        } finally {
+            setIsLookingUp(false);
+        }
+    };
 
     return (
         <div className="p-10">
@@ -44,15 +85,19 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
             {(!!addressKnown || type === 'load') && <div className="w-full">
                 {/* Postcode */}
                 <div className="mb-4">
-                    <label htmlFor="postcode" className="block text-lg font-medium">Postcode*</label>
+                    <div className="flex items-center justify-between">
+                        <label htmlFor="postcode" className="block text-lg font-medium">Postcode*</label>
+                        {isLookingUp && <span className="text-xs text-primary animate-pulse">Looking up Dutch address...</span>}
+                    </div>
                     <input
                         {...register(`${type}.postcode`, { required: "Postcode is required." })}
                         type="text"
                         id="postcode"
+                        placeholder="e.g. 1012 JS"
+                        onBlur={handleAddressLookup}
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                     {errors[type]?.postcode && <p className="text-danger text-md mt-1">{errors[type]?.postcode.message}</p>}
-
                 </div>
 
                 {/* House Number */}
@@ -62,6 +107,8 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         {...register(`${type}.houseNumber`, { required: "House number is required." })}
                         type="text"
                         id="houseNumber"
+                        placeholder="e.g. 1"
+                        onBlur={handleAddressLookup}
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                     {errors[type]?.houseNumber && <p className="text-danger text-md mt-1">{errors[type]?.houseNumber?.message}</p>}
@@ -74,15 +121,24 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         {...register(`${type}.addition`)}
                         type="text"
                         id="addition"
+                        placeholder="e.g. A / bis"
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                 </div>
+
+                {lookupStatus && (
+                    <div className={`mb-4 px-3 py-2 rounded-lg text-xs font-semibold ${lookupStatus.startsWith('✓') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                        {lookupStatus}
+                    </div>
+                )}
+
                 <div className="mb-4">
                     <label htmlFor="street" className="block text-lg font-medium">Street*</label>
                     <input
                         {...register(`${type}.street`, { required: "street is required." })}
                         type="text"
                         id="street"
+                        placeholder="Street name"
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                     {errors[type]?.street && <p className="text-danger text-md mt-1">{errors[type]?.street?.message}</p>}
@@ -93,6 +149,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         {...register(`${type}.city`, { required: "city is required." })}
                         type="text"
                         id="city"
+                        placeholder="City"
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                     {errors[type]?.city && <p className="text-danger text-md mt-1">{errors[type]?.city?.message}</p>}
@@ -104,6 +161,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                     <select
                         {...register(`${type}.country`, { required: "Please select a country." })}
                         id="country"
+                        defaultValue="Netherlands"
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     >
                         <option value="">Select Country</option>

@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
 import { formatCurrency } from '../../utils/currencyUtil';
+import { OfflineNoticeCard } from '../../components/OfflineNoticeCard';
 import { 
   MdReceiptLong, 
   MdAdd, 
@@ -232,12 +233,14 @@ const InvoiceList = ({ customerId }) => {
     return <Loader />;
   }
 
-  if (error) {
+  if (error && (!invoiceData || invoiceData.length === 0)) {
     return (
-      <div className="w-full max-w-6xl mx-auto py-8 px-4 text-center">
-        <div className="bg-red-50 text-red-600 p-4 rounded-2xl border border-red-200 inline-block text-xs font-semibold">
-          {error}
-        </div>
+      <div className="w-full max-w-6xl mx-auto py-8 px-4 flex items-center justify-center">
+        <OfflineNoticeCard
+          title="Unable to Load Invoices"
+          message={error}
+          onRetry={handleAllInvoice}
+        />
       </div>
     );
   }

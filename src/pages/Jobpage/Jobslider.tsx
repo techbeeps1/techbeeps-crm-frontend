@@ -47,6 +47,7 @@ import EmailLayout from '../Emailpage/EmailComponent';
 import TaskPage from '../Taskcomponent/TaskPage';
 import JobOfferRooms from './jobDetailmodules/JobOfferRooms';
 import { formatCurrency } from '../../utils/currencyUtil';
+import { formatLabel } from '../../utils/labelUtil';
 
 interface JobsliderProps {
   job?: any | null;
@@ -382,8 +383,12 @@ const Jobslider: React.FC<JobsliderProps> = ({
       return;
     }
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${apiPath}/api/appointment?jobId=${jobId}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
       );
       setAppointment(response.data || []);
     } catch (error) {
@@ -410,20 +415,27 @@ const Jobslider: React.FC<JobsliderProps> = ({
     }
   };
 
-  function deleteappointment() {
-    fetch(`${apiPath}/api/appointment/${isdeleteBoc}`, {
-      method: 'DELETE',
-    })
-      .then((d) => d.json())
-      .then((data) => {
-        if (data.success) {
-          setIsDeleteBox('');
-          getAppointments();
-          notify('Appointment deleted successfully');
-        } else {
-          notifyError('Error while deleting appointment');
-        }
+  async function deleteappointment() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.delete(`${apiPath}/api/appointment/${isdeleteBoc}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (response.data && response.data.success) {
+        setIsDeleteBox('');
+        getAppointments();
+        notify('Appointment deleted successfully');
+      } else {
+        notifyError('Error while deleting appointment');
+      }
+    } catch (error: any) {
+      console.error('Error deleting appointment:', error);
+      notifyError(
+        error?.response?.data?.msg ||
+        error?.response?.data?.message ||
+        'Error while deleting appointment'
+      );
+    }
   }
 
   useEffect(() => {
@@ -439,26 +451,44 @@ const Jobslider: React.FC<JobsliderProps> = ({
   }, [job]);
 
   const formatDate = (date: any) => {
-    if (date) {
-      const options: Intl.DateTimeFormatOptions = {
+    if (!date) return '';
+    try {
+      if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+        const [y, m, d] = date.slice(0, 10).split('-').map(Number);
+        const localD = new Date(y, m - 1, d, 12, 0, 0);
+        return new Intl.DateTimeFormat('en-GB', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }).format(localD).toUpperCase();
+      }
+      return new Intl.DateTimeFormat('en-GB', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-      };
-      const formattedDate = new Intl.DateTimeFormat('en-GB', options).format(
-        new Date(date),
-      );
-      return formattedDate.toUpperCase();
+      }).format(new Date(date)).toUpperCase();
+    } catch {
+      return String(date);
     }
-    return '';
   };
 
-  const formatTime = (date: any) => {
-    if (!date) return '';
-    return new Date(date).toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const formatTime = (timeVal: any) => {
+    if (!timeVal) return '';
+    if (typeof timeVal === 'string') {
+      if (timeVal.includes('T')) {
+        return timeVal.slice(11, 16);
+      }
+      if (/^\d{1,2}:\d{2}/.test(timeVal)) {
+        return timeVal.length === 4 ? `0${timeVal}` : timeVal.slice(0, 5);
+      }
+    }
+    try {
+      const d = new Date(timeVal);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString().slice(11, 16);
+      }
+    } catch { }
+    return String(timeVal);
   };
 
   const handleNotesFormSubmission = (data: NotesFormInputs) => {
@@ -545,7 +575,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
-              {currentStatus || 'PENDING'}
+              {formatLabel(currentStatus) || 'PENDING'}
             </span>
           </div>
         </div>
@@ -952,8 +982,8 @@ const Jobslider: React.FC<JobsliderProps> = ({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
                 {resolvedServices.map((service: any, idx: number) => {
-                  const sName = service.serviceName || service.serviceTypeName || 'Service';
-                  const sType = service.serviceTypeName || 'service';
+                  const sName = service.serviceName || formatLabel(service.serviceTypeName) || 'Service';
+                  const sType = formatLabel(service.serviceTypeName || 'service');
                   const sPrice = service.price ?? service.appliedPrice ?? 0;
                   const sHours = service.hours ? `${service.hours} hrs` : null;
                   const sQty = service.quantity ? `Qty: ${service.quantity}` : null;
@@ -1222,18 +1252,28 @@ const Jobslider: React.FC<JobsliderProps> = ({
                   </a>
                 )}
                 {[
-                  { label: 'Name', value: `${job?.customer?.salutation || ''} ${job?.customer?.firstName || ''} ${job?.customer?.lastName || ''}`.trim() },
-                  { label: 'Gender', value: job?.customer?.gender },
-                  { label: 'Contact', value: job?.customer?.contact },
-                  { label: 'Language', value: job?.customer?.taal },
-                  { label: 'Email', value: job?.customer?.email },
-                  { label: 'Type', value: job?.customer?.typeOfCustomer },
-                  { label: 'Contact No', value: job?.customer?.contact },
-                  { label: 'Mobile No.', value: job?.customer?.mobile },
-                ].map(({ label, value }) => (
+                  { label: 'Name', value: `${job?.customer?.salutation || ''} ${job?.customer?.firstName || ''} ${job?.customer?.lastName || ''}`.trim(), noCapitalize: false },
+                  { label: 'Gender', value: job?.customer?.gender, noCapitalize: false },
+                  { label: 'Contact', value: job?.customer?.contact, noCapitalize: true, isTel: true },
+                  { label: 'Language', value: job?.customer?.taal, noCapitalize: false },
+                  { label: 'Email', value: job?.customer?.email, noCapitalize: true, isMail: true },
+                  { label: 'Type', value: job?.customer?.typeOfCustomer, noCapitalize: false },
+                  { label: 'Contact No', value: job?.customer?.contact, noCapitalize: true, isTel: true },
+                  { label: 'Mobile No.', value: job?.customer?.mobile, noCapitalize: true, isTel: true },
+                ].map(({ label, value, noCapitalize, isMail, isTel }) => (
                   <div key={label} className="flex gap-4 text-slate-600 dark:text-slate-300 font-medium">
                     <p className="w-24 font-bold text-slate-500">{label}:</p>
-                    <p className="text-slate-900 dark:text-white capitalize font-semibold">{value || 'N/A'}</p>
+                    {isMail && value ? (
+                      <a href={`mailto:${value}`} className="text-primary hover:underline font-semibold truncate">
+                        {value}
+                      </a>
+                    ) : isTel && value ? (
+                      <a href={`tel:${value}`} className="text-primary hover:underline font-semibold">
+                        {value}
+                      </a>
+                    ) : (
+                      <p className={`text-slate-900 dark:text-white font-semibold ${noCapitalize ? '' : 'capitalize'}`}>{value || 'N/A'}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1263,7 +1303,13 @@ const Jobslider: React.FC<JobsliderProps> = ({
       )}
 
       {/* Tab 1: Offers */}
-      {tabIndex === 1 && <JobOffermodule type="offer" job={job} onRefresh={handler} />}
+      {tabIndex === 1 && (
+        <JobOffermodule
+          type="offer"
+          job={job}
+          onRefresh={typeof handler === 'function' ? handler : () => paramJobId && fetchJobById(paramJobId)}
+        />
+      )}
 
       {/* Tab 2: Financial */}
       {tabIndex === 2 && (
@@ -1273,10 +1319,20 @@ const Jobslider: React.FC<JobsliderProps> = ({
             job={job}
             onSuccess={() => {
               setInvoiceRefreshKey((k) => k + 1);
-              handler();
+              if (typeof handler === 'function') {
+                handler();
+              }
+              if (paramJobId) {
+                fetchJobById(paramJobId);
+              }
             }}
           />
-          <JobOffermodule type="invoice" job={job} onRefresh={handler} refreshKey={invoiceRefreshKey} />
+          <JobOffermodule
+            type="invoice"
+            job={job}
+            onRefresh={typeof handler === 'function' ? handler : () => paramJobId && fetchJobById(paramJobId)}
+            refreshKey={invoiceRefreshKey}
+          />
         </div>
       )}
 
@@ -1341,9 +1397,20 @@ const Jobslider: React.FC<JobsliderProps> = ({
                           {item.departureLocation || 'N/A'}
                         </td>
                         <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                          <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
-                            {item.assignedEmployees?.length ?? 0} Employees
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                              {item.assignedEmployees?.length ?? 0} Staff
+                            </span>
+                            {(!item.assignedEmployees || item.assignedEmployees.length === 0 || item.status === 'Draft') ? (
+                              <span className="bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
+                                Draft
+                              </span>
+                            ) : (
+                              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
+                                Scheduled
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">

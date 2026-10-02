@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '../Admin/Header';
 import Packages from './Package';
 import Salesgroup from './Salegroup/Salesgroup';
@@ -9,44 +10,136 @@ import {
   MdSummarize,
   MdDescription,
   MdGroups,
-  MdChevronRight
+  MdChevronRight,
+  MdWarningAmber,
+  MdArrowForward
 } from 'react-icons/md';
 
 const Method = () => {
-  const [activeTab, setActiveTab] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const navItems = [
-    {
-      id: 0,
-      title: 'Packages & Bundles',
-      shortTitle: 'Packages',
-      icon: MdInventory2,
-      desc: 'Preconfigured service bundles',
-    },
-    {
-      id: 1,
-      title: 'Customer Reporting',
-      shortTitle: 'Reporting',
-      icon: MdSummarize,
-      desc: 'Audit & activity summaries',
-    },
-    {
-      id: 2,
-      title: 'Document & Email Templates',
-      shortTitle: 'Templates',
-      icon: MdDescription,
-      desc: 'Quotation and notice layouts',
-    },
-    {
-      id: 3,
-      title: 'Sales Groups & Units',
-      shortTitle: 'Sales Groups',
-      icon: MdGroups,
-      desc: 'Agent distribution & teams',
-    },
-  ];
+  const navItems = useMemo(
+    () => [
+      {
+        id: 0,
+        slug: 'packages',
+        title: 'Packages & Bundles',
+        shortTitle: 'Packages',
+        icon: MdInventory2,
+        desc: 'Preconfigured service bundles',
+      },
+      {
+        id: 1,
+        slug: 'document-templates',
+        title: 'Document Templates',
+        shortTitle: 'Doc Templates',
+        icon: MdDescription,
+        desc: 'Report & document layouts',
+      },
+      {
+        id: 2,
+        slug: 'email-templates',
+        title: 'Email Templates',
+        shortTitle: 'Email Tmpl.',
+        icon: MdSummarize,
+        desc: 'Quotation and notice emails',
+      },
+      {
+        id: 3,
+        slug: 'sales-groups',
+        title: 'Sales Groups & Units',
+        shortTitle: 'Sales Groups',
+        icon: MdGroups,
+        desc: 'Agent distribution & teams',
+      },
+    ],
+    []
+  );
+
+  const rawTab = (searchParams.get('tab') || '').toLowerCase().trim();
+
+  // Determine active tab or detect safe-state condition
+  const { activeTab, isDeprecatedOrInvalid, requestedTab } = useMemo(() => {
+    if (!rawTab) {
+      return { activeTab: 0, isDeprecatedOrInvalid: false, requestedTab: '' };
+    }
+
+    if (rawTab === '0' || rawTab === 'packages' || rawTab === 'bundles') {
+      return { activeTab: 0, isDeprecatedOrInvalid: false, requestedTab: rawTab };
+    }
+    if (
+      rawTab === '1' ||
+      rawTab === 'document-templates' ||
+      rawTab === 'doctemplates' ||
+      rawTab === 'templates' ||
+      rawTab === 'documents'
+    ) {
+      return { activeTab: 1, isDeprecatedOrInvalid: false, requestedTab: rawTab };
+    }
+    if (
+      rawTab === '2' ||
+      rawTab === 'email-templates' ||
+      rawTab === 'emails' ||
+      rawTab === 'email'
+    ) {
+      return { activeTab: 2, isDeprecatedOrInvalid: false, requestedTab: rawTab };
+    }
+    if (
+      rawTab === '3' ||
+      rawTab === 'sales-groups' ||
+      rawTab === 'sales' ||
+      rawTab === 'groups'
+    ) {
+      return { activeTab: 3, isDeprecatedOrInvalid: false, requestedTab: rawTab };
+    }
+
+    // Handled deprecated or unknown tabs (e.g. ?tab=customer-reporting, ?tab=reporting)
+    return { activeTab: -1, isDeprecatedOrInvalid: true, requestedTab: rawTab };
+  }, [rawTab]);
+
+  const handleSelectTab = (id) => {
+    const item = navItems.find((n) => n.id === id);
+    if (item) {
+      setSearchParams({ tab: item.slug });
+    }
+  };
 
   const renderContent = () => {
+    if (isDeprecatedOrInvalid) {
+      return (
+        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-2xl p-6 sm:p-8 max-w-xl mx-auto my-12 text-center shadow-xs">
+          <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+            <MdWarningAmber />
+          </div>
+          <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
+            Requested Destination Not Found: &ldquo;{requestedTab}&rdquo;
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+            The previously titled <strong>&ldquo;Customer Reporting&rdquo;</strong> menu has been reorganized into{' '}
+            <strong>Document Templates</strong> to accurately reflect document and quotation layouts. Real-time audit
+            summaries are available in specialized reporting surfaces.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleSelectTab(1)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-xs sm:text-sm font-semibold shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
+            >
+              <span>Open Document Templates</span>
+              <MdArrowForward />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectTab(0)}
+              className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-all cursor-pointer"
+            >
+              Back to Packages
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 0:
         return <Packages />;
@@ -57,7 +150,7 @@ const Method = () => {
       case 3:
         return <Salesgroup />;
       default:
-        return null;
+        return <Packages />;
     }
   };
 
@@ -83,7 +176,7 @@ const Method = () => {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => handleSelectTab(item.id)}
                   className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-all cursor-pointer group ${
                     isActive
                       ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.01]'

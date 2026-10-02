@@ -46,8 +46,8 @@ const DropdownUser = () => {
     window.location.href = '/auth/signin';
   };
 
-  const initialLetter = username ? username.charAt(0).toUpperCase() : 'T';
-  const displayName = username || 'Techbeeps';
+  const initialLetter = username ? username.charAt(0).toUpperCase() : 'U';
+  const displayName = username || 'Universal Movers Staff';
   const displayRole = role || 'Admin';
 
   return (

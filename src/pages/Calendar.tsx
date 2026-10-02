@@ -37,6 +37,7 @@ import {
 } from '@mui/icons-material';
 
 import { apiPath } from '../../apiPath';
+import { OfflineNoticeCard } from '../components/OfflineNoticeCard';
 
 const localizer = momentLocalizer(moment);
 
@@ -83,12 +84,14 @@ export default function TaskPlanningCalendar({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { username, id, role, userData, isAdmin }: any = useContext(UserContext) || {};
   const isUserAdmin = isAdmin || role === 'Admin' || userData?.role === 'Admin';
 
   const fetchAppointments = async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(`${apiPath}/api/appointment`, {
@@ -96,10 +99,18 @@ export default function TaskPlanningCalendar({
       });
       const list = res.data.data || res.data || [];
 
+      // Exclude Draft / unassigned appointments from the Planning Calendar
+      const confirmedList = list.filter((item: any) => {
+        const isDraft = (item.status || '').toLowerCase() === 'draft';
+        const hasNoEmployees = !item.assignedEmployees || item.assignedEmployees.length === 0;
+        const hasNoTimes = !item.startTime && !item.endTime;
+        return !isDraft && !hasNoEmployees && !hasNoTimes;
+      });
+
       // Filter for non-admin staff in case not filtered by backend
       const userList = isUserAdmin
-        ? list
-        : list.filter((item: any) => {
+        ? confirmedList
+        : confirmedList.filter((item: any) => {
             const emps = item.assignedEmployees || [];
             return emps.some((emp: any) => {
               const empId = emp?.employeeId?._id || emp?.employeeId || emp?._id;
@@ -112,17 +123,30 @@ export default function TaskPlanningCalendar({
             });
           });
 
+      const parseWallClockDate = (val: any) => {
+        if (!val) return new Date();
+        if (typeof val === 'string' && val.includes('T')) {
+          const [datePart, timePartWithZ] = val.split('T');
+          const timePart = timePartWithZ.slice(0, 5);
+          const [y, m, d] = datePart.split('-').map(Number);
+          const [hh, mm] = (timePart.includes(':') ? timePart : '00:00').split(':').map(Number);
+          return new Date(y, m - 1, d, hh, mm, 0);
+        }
+        return new Date(val);
+      };
+
       setEvents(
         userList.map((item: any) => ({
-          start: new Date(item.startTime || item.date),
-          end: new Date(item.endTime || item.date),
+          start: parseWallClockDate(item.startTime || item.date),
+          end: parseWallClockDate(item.endTime || item.date),
           title: item.appointmentType || 'Appointment',
           employees: item.assignedEmployees?.length || 0,
           appointment: item,
         }))
       );
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error fetching appointments:', e);
+      setError(e.response?.data?.message || e.message || 'Failed to connect and fetch appointments');
     } finally {
       setLoading(false);
     }
@@ -130,6 +154,14 @@ export default function TaskPlanningCalendar({
 
   useEffect(() => {
     fetchAppointments();
+
+    const handleReconnected = () => {
+      fetchAppointments();
+    };
+    window.addEventListener('app:network-reconnected', handleReconnected);
+    return () => {
+      window.removeEventListener('app:network-reconnected', handleReconnected);
+    };
   }, [id, username, isUserAdmin]);
 
   // Filtered Events
@@ -367,6 +399,18 @@ export default function TaskPlanningCalendar({
     );
   };
 
+  if (error && events.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50/50 dark:bg-boxdark-2 p-4 flex items-center justify-center">
+        <OfflineNoticeCard
+          title="Unable to Load Planning Calendar"
+          message={error}
+          onRetry={fetchAppointments}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-boxdark-2 text-slate-800 dark:text-slate-100 p-4 md:p-6 font-sans flex flex-col">
       {/* Category Pills Bar */}
@@ -548,8 +592,8 @@ export default function TaskPlanningCalendar({
                       Time Window
                     </span>
                     <span className="text-xs font-bold text-slate-800 dark:text-white font-mono">
-                      {moment(selectedAppointment.startTime).format('hh:mm A')} -{' '}
-                      {moment(selectedAppointment.endTime).format('hh:mm A')}
+                      {moment.utc(selectedAppointment.startTime).format('hh:mm A')} -{' '}
+                      {moment.utc(selectedAppointment.endTime).format('hh:mm A')}
                     </span>
                   </div>
                 </div>
@@ -710,8 +754,8 @@ export default function TaskPlanningCalendar({
 
                           <div className="text-right shrink-0">
                             <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 block">
-                              {moment(emp.startTime).format('hh:mm A')} →{' '}
-                              {moment(emp.endTime).format('hh:mm A')}
+                              {moment.utc(emp.startTime).format('hh:mm A')} →{' '}
+                              {moment.utc(emp.endTime).format('hh:mm A')}
                             </span>
                             {!isDriver && (vehiclePlate || vehicleName) && (
                               <span className="inline-flex items-center gap-1 text-[10px] text-primary font-bold">

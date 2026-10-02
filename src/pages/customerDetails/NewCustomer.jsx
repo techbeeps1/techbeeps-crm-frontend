@@ -7,6 +7,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { isValidPhoneNumber } from '../../utils/phoneUtil';
+import { lookupDutchAddress } from '../../utils/dutchAddressLookup';
 
 const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
   const {
@@ -17,6 +19,7 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
     reset,
     trigger,
     watch,
+    setValue,
   } = useForm({});
 
   const allValues = watch();
@@ -66,12 +69,14 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         `${apiPath}/customer/customeradd`,
         { ...e, type: type },
         {
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         },
       );
@@ -98,7 +103,7 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
 
   const goToNextStep = async (e) => {
     e.preventDefault();
-    const isValid = await trigger([
+    const fieldsToValidate = [
       'typeOfCustomer',
       'firstName',
       'lastName',
@@ -106,7 +111,11 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
       'email',
       'contact',
       'mobile',
-    ]);
+    ];
+    if (allValues?.typeOfCustomer === 'Commerical' || allValues?.typeOfCustomer === 'Commercial') {
+      fieldsToValidate.push('companyName');
+    }
+    const isValid = await trigger(fieldsToValidate);
     if (isValid) setStep(2);
   };
 
@@ -169,7 +178,10 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs cursor-pointer"
                       >
                         <option value="" disabled>Select customer type</option>
-                        <option value="Commerical">Commercial</option>
+                        <option value="Commercial">Commercial</option>
+                        {field.value === 'Commerical' && (
+                          <option value="Commerical" style={{ display: 'none' }}>Commercial</option>
+                        )}
                         <option value="Individual">Individual</option>
                       </select>
                     )}
@@ -181,6 +193,38 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                   )}
                 </div>
 
+                {/* Company Name (for Commercial customer type) */}
+                {(allValues?.typeOfCustomer === 'Commerical' || allValues?.typeOfCustomer === 'Commercial') && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+                      Company Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Acme Corp B.V."
+                      {...register('companyName', {
+                        required: (allValues?.typeOfCustomer === 'Commerical' || allValues?.typeOfCustomer === 'Commercial') ? 'Company name is required for commercial customers' : false,
+                        validate: (value) => {
+                          if (allValues?.typeOfCustomer === 'Commerical' || allValues?.typeOfCustomer === 'Commercial') {
+                            return (typeof value === 'string' && value.trim().length > 0) || 'Company name cannot be blank or spaces only.';
+                          }
+                          return true;
+                        },
+                      })}
+                      className={`w-full px-4 py-2.5 rounded-xl border ${
+                        errors.companyName
+                          ? 'border-rose-500 ring-2 ring-rose-500/10'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400`}
+                    />
+                    {errors.companyName && (
+                      <span className="text-xs text-rose-500 font-medium mt-1 block">
+                        {errors.companyName.message}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* First Name & Last Name */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -190,7 +234,10 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                     <input
                       type="text"
                       placeholder="e.g. Gurjeet"
-                      {...register('firstName', { required: 'First name is required' })}
+                      {...register('firstName', {
+                        required: 'First name is required',
+                        validate: (value) => (typeof value === 'string' && value.trim().length > 0) || 'First name cannot be blank or spaces only.',
+                      })}
                       className={`w-full px-4 py-2.5 rounded-xl border ${
                         errors.firstName
                           ? 'border-rose-500 ring-2 ring-rose-500/10'
@@ -211,7 +258,10 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                     <input
                       type="text"
                       placeholder="e.g. Singh"
-                      {...register('lastName', { required: 'Last name is required' })}
+                      {...register('lastName', {
+                        required: 'Last name is required',
+                        validate: (value) => (typeof value === 'string' && value.trim().length > 0) || 'Last name cannot be blank or spaces only.',
+                      })}
                       className={`w-full px-4 py-2.5 rounded-xl border ${
                         errors.lastName
                           ? 'border-rose-500 ring-2 ring-rose-500/10'
@@ -319,11 +369,16 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 8696671521"
+                      placeholder="e.g. 010 1234567 or +31 10 1234567"
                       {...register('contact', {
-                        pattern: {
-                          value: /^\d{10}$/,
-                          message: 'Contact phone must be exactly 10 digits',
+                        validate: (value) => {
+                          if (!value || (typeof value === 'string' && value.trim().length === 0)) {
+                            return true; // Optional empty telephone does not block
+                          }
+                          return (
+                            isValidPhoneNumber(value) ||
+                            'Please enter a valid telephone number (e.g. 010 1234567 or +31 10 1234567).'
+                          );
                         },
                       })}
                       className={`w-full px-4 py-2.5 rounded-xl border ${
@@ -345,12 +400,17 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. 9876543210"
+                      placeholder="e.g. 06 12345678 or +31 6 12345678"
                       {...register('mobile', {
                         required: 'Mobile number is required',
-                        pattern: {
-                          value: /^\d{10}$/,
-                          message: 'Mobile number must be exactly 10 digits',
+                        validate: (value) => {
+                          if (!value || (typeof value === 'string' && value.trim().length === 0)) {
+                            return 'Mobile number is required';
+                          }
+                          return (
+                            isValidPhoneNumber(value) ||
+                            'Please enter a valid mobile number (e.g. 06 12345678 or +31 6 12345678).'
+                          );
                         },
                       })}
                       className={`w-full px-4 py-2.5 rounded-xl border ${
@@ -427,6 +487,8 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
                 control={control}
                 countries={countries}
                 property={property}
+                setValue={setValue}
+                watch={watch}
               />
             )}
           </form>
@@ -498,7 +560,54 @@ const AddressForm = ({
   control,
   countries,
   property,
+  setValue,
+  watch,
 }) => {
+  const [lookupLoading, setLookupLoading] = React.useState(false);
+  const [lookupStatus, setLookupStatus] = React.useState(null);
+
+  // Initialize country default to Netherlands if untouched
+  React.useEffect(() => {
+    if (watch && setValue) {
+      const currentCountry = watch(`${type}.country`);
+      if (!currentCountry) {
+        setValue(`${type}.country`, 'Netherlands');
+      }
+    }
+  }, [type, watch, setValue]);
+
+  const handleLookup = async () => {
+    if (!watch || !setValue) return;
+    const rawPostcode = watch(`${type}.postcode`) || '';
+    const houseNumber = watch(`${type}.houseNumber`) || '';
+    const addition = watch(`${type}.addition`) || '';
+    const country = watch(`${type}.country`) || 'Netherlands';
+
+    if (!rawPostcode || !houseNumber) {
+      return;
+    }
+
+    setLookupLoading(true);
+    setLookupStatus(null);
+    try {
+      const res = await lookupDutchAddress(rawPostcode, houseNumber, addition, country);
+      if (res.success && res.street && res.city) {
+        setValue(`${type}.street`, res.street, { shouldValidate: true, shouldDirty: true });
+        setValue(`${type}.city`, res.city, { shouldValidate: true, shouldDirty: true });
+        if (!watch(`${type}.country`)) {
+          setValue(`${type}.country`, 'Netherlands', { shouldValidate: true, shouldDirty: true });
+        }
+        setLookupStatus({ type: 'success', text: `✓ Auto-filled: ${res.street}, ${res.city}` });
+      } else if (res.message && !res.message.includes('Foreign country')) {
+        setLookupStatus({ type: 'info', text: res.message });
+      }
+    } catch {
+      setLookupStatus({ type: 'info', text: 'Lookup unavailable; manual entry enabled.' });
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <input type="hidden" {...register(`${type}.${type}`)} value={type} />
@@ -514,8 +623,9 @@ const AddressForm = ({
           </label>
           <input
             type="text"
-            placeholder="e.g. 335701"
+            placeholder="e.g. 3011AD"
             {...register(`${type}.postcode`, { required: 'Postcode is required' })}
+            onBlur={handleLookup}
             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
           />
           {errors[type]?.postcode && (
@@ -531,8 +641,9 @@ const AddressForm = ({
           </label>
           <input
             type="text"
-            placeholder="e.g. 42"
+            placeholder="e.g. 40"
             {...register(`${type}.houseNumber`, { required: 'House number is required' })}
+            onBlur={handleLookup}
             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
           />
           {errors[type]?.houseNumber && (
@@ -542,6 +653,25 @@ const AddressForm = ({
           )}
         </div>
       </div>
+
+      {lookupLoading && (
+        <div className="flex items-center gap-2 text-xs text-primary font-medium animate-pulse">
+          <svg className="animate-spin h-3.5 w-3.5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          Looking up address via PDOK...
+        </div>
+      )}
+      {lookupStatus && !lookupLoading && (
+        <div className={`text-xs p-2 rounded-lg font-medium ${
+          lookupStatus.type === 'success'
+            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50'
+            : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50'
+        }`}>
+          {lookupStatus.text}
+        </div>
+      )}
 
       {/* Street & City */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -589,6 +719,7 @@ const AddressForm = ({
           type="text"
           placeholder="e.g. Apt 2B"
           {...register(`${type}.addition`)}
+          onBlur={handleLookup}
           className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
         />
       </div>

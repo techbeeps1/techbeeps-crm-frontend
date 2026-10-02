@@ -16,6 +16,7 @@ import {
     Send,
     OpenInNew,
     CalendarMonth,
+    CalendarToday as CalendarTodayIcon,
     Notes as NotesIcon,
     ChatBubbleOutline,
     LocalShipping,
@@ -30,6 +31,19 @@ import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
+const getLocalDateString = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+        return val.slice(0, 10);
+    }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+};
+
 const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
     const [comments, setComments] = useState([]);
     const [commentForm, setCommentForm] = useState('');
@@ -37,6 +51,48 @@ const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
     const [appointment, setAppointment] = useState([]);
     const [relocation, setRelocation] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [currentStatus, setCurrentStatus] = useState(task?.status || 'open');
+    const [isEditingDueDate, setIsEditingDueDate] = useState(false);
+    const [tempDueDate, setTempDueDate] = useState(
+        task?.scheduledFor ? getLocalDateString(task.scheduledFor) : ''
+    );
+
+    useEffect(() => {
+        if (task) {
+            setCurrentStatus(task.status || 'open');
+            setTempDueDate(task.scheduledFor ? getLocalDateString(task.scheduledFor) : '');
+        }
+    }, [task]);
+
+    const handleUpdateStatus = async (newStatus) => {
+        if (!task?._id) return;
+        setLoading(true);
+        try {
+            await axios.put(`${apiPath}/api/task/${task._id}`, { status: newStatus });
+            setCurrentStatus(newStatus);
+            notify(`Task marked as ${newStatus}`);
+            if (handler) handler();
+        } catch (err) {
+            notifyError(`Failed to update status: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveDueDate = async () => {
+        if (!task?._id) return;
+        setLoading(true);
+        try {
+            await axios.put(`${apiPath}/api/task/${task._id}`, { scheduledFor: tempDueDate || null });
+            setIsEditingDueDate(false);
+            notify('Schedule date updated successfully');
+            if (handler) handler();
+        } catch (err) {
+            notifyError(`Failed to update schedule date: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const notify = (message) => toast.success(message, {
         autoClose: 2000,
@@ -221,6 +277,15 @@ const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
 
     function formatDate(isoDateString) {
         if (!isoDateString) return "N/A";
+        const dateStr = getLocalDateString(isoDateString);
+        if (dateStr && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            return new Intl.DateTimeFormat('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            }).format(new Date(y, m - 1, d, 12, 0, 0));
+        }
         const date = new Date(isoDateString);
         if (isNaN(date.getTime())) return "N/A";
         return date.toLocaleDateString("en-GB", {
@@ -289,6 +354,108 @@ const TaskSlider = ({ task, roles, onClose, Ondelete, handler }) => {
                 <p className="text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
                     {task?.description || 'No description provided.'}
                 </p>
+            </div>
+
+            {/* Status & Schedule Lifecycle Card */}
+            <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 space-y-3.5">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        STATUS & SCHEDULE
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            type="button"
+                            onClick={() => handleUpdateStatus('open')}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                currentStatus === 'open' || !currentStatus
+                                    ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-300'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                        >
+                            Open
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleUpdateStatus('in progress')}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                currentStatus === 'in progress'
+                                    ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-200 border border-blue-300'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                        >
+                            In Progress
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleUpdateStatus('completed')}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                currentStatus === 'completed'
+                                    ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                        >
+                            Completed
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Scheduled Due Date */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <CalendarMonth style={{ fontSize: 13 }} />
+                                <span>Scheduled For (Due)</span>
+                            </span>
+                            {isUserAdmin && (!isEditingDueDate ? (
+                                <button
+                                    onClick={() => setIsEditingDueDate(true)}
+                                    className="text-primary font-bold text-[11px] hover:underline cursor-pointer"
+                                >
+                                    Change
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setIsEditingDueDate(false)}
+                                        className="text-slate-400 text-[10px] cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSaveDueDate}
+                                        className="text-primary font-bold text-[10px] cursor-pointer"
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        {!isEditingDueDate ? (
+                            <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                                {task?.scheduledFor ? formatDate(task.scheduledFor) : 'Not scheduled'}
+                            </div>
+                        ) : (
+                            <input
+                                type="date"
+                                value={tempDueDate}
+                                onChange={(e) => setTempDueDate(e.target.value)}
+                                className="w-full text-xs p-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark font-medium"
+                            />
+                        )}
+                    </div>
+
+                    {/* Created On Date */}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                            <CalendarTodayIcon style={{ fontSize: 13 }} />
+                            <span>Created On</span>
+                        </span>
+                        <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                            {formatDate(task?.createdAt)}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Snooze Quick Actions */}

@@ -80,6 +80,7 @@ const PackingCalculation: React.FC<any> = ({ packingCharges, type, price }) => {
                   {...field}
                   type="number"
                   min={0}
+                  onFocus={(e) => e.target.select()}
                   placeholder="Enter amount"
                   className="w-full rounded-[5px] border border-slate-300 bg-slate-50 px-4 py-3 text-slate-800 outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                 />
@@ -112,6 +113,7 @@ const PackingCalculation: React.FC<any> = ({ packingCharges, type, price }) => {
                   {...field}
                   type="number"
                   min={0}
+                  onFocus={(e) => e.target.select()}
                   placeholder={
                     type === 'packing'
                       ? 'Enter number of packers'

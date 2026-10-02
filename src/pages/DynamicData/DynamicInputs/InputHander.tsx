@@ -16,18 +16,23 @@ import {
   MdSave,
 } from 'react-icons/md';
 
+import { formatCurrency, useCurrency } from '../../../utils/currencyUtil';
+
 interface SalesGroup {
   _id: string;
   name: string;
   code: string | number;
+  surcharge?: number;
 }
 
 interface FormData {
   name: string;
-  code: string;
+  code?: string;
+  surcharge?: number;
 }
 
 const InputHander: React.FC<{ type: string }> = ({ type }) => {
+  const { symbol: currencySymbol } = useCurrency();
   const {
     register,
     handleSubmit,
@@ -45,9 +50,9 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
     setSelectedSalesGroup(group);
     setModalOpen(true);
     if (group) {
-      reset({ name: group.name, code: String(group.code || '') });
+      reset({ name: group.name, code: String(group.code || ''), surcharge: group.surcharge ?? 0 });
     } else {
-      reset({ name: '', code: '' });
+      reset({ name: '', code: '', surcharge: 0 });
     }
   };
 
@@ -199,6 +204,7 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
                 <th className="py-3 px-5">Name / Title</th>
                 {type === 'country' && <th className="py-3 px-5">Country Code</th>}
                 {type === 'tax' && <th className="py-3 px-5">Tax Percentage</th>}
+                {type === 'property' && <th className="py-3 px-5">Default Surcharge</th>}
                 <th className="py-3 px-5 text-center w-28">Actions</th>
               </tr>
             </thead>
@@ -206,7 +212,7 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
               {filteredData.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={type === 'country' || type === 'tax' ? 3 : 2}
+                    colSpan={type === 'country' || type === 'tax' || type === 'property' ? 3 : 2}
                     className="py-12 text-center text-body dark:text-bodydark text-xs"
                   >
                     No {type} records found. Click "Add New {type}" to create one.
@@ -242,6 +248,14 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
                       <td className="py-3.5 px-5 font-bold text-primary">
                         <span className="inline-block px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
                           {group.code}%
+                        </span>
+                      </td>
+                    )}
+
+                    {type === 'property' && (
+                      <td className="py-3.5 px-5 font-bold text-primary">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                          {formatCurrency(group.surcharge || 0)}
                         </span>
                       </td>
                     )}
@@ -367,6 +381,38 @@ const InputHander: React.FC<{ type: string }> = ({ type }) => {
                 {errors.code && (
                   <p className="text-meta-1 text-xs mt-1">{errors.code.message}</p>
                 )}
+              </div>
+            )}
+
+            {type === 'property' && (
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5">
+                  Default Surcharge ({currencySymbol})
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold text-sm">
+                    {currencySymbol}
+                  </span>
+                  <input
+                    {...register('surcharge', {
+                      valueAsNumber: true,
+                      validate: (value: any) =>
+                        isNaN(value) || value >= 0 || 'Value must be non-negative',
+                    })}
+                    placeholder="0.00"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    defaultValue={selectedSalesGroup?.surcharge || 0}
+                    className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 pl-9 pr-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
+                  />
+                </div>
+                {errors.surcharge && (
+                  <p className="text-meta-1 text-xs mt-1">{errors.surcharge.message}</p>
+                )}
+                <p className="text-[11px] text-body dark:text-bodydark mt-1">
+                  This surcharge automatically syncs with Pricing & Surcharges (Features) and intake quotation calculations.
+                </p>
               </div>
             )}
 

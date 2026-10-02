@@ -28,6 +28,7 @@ import CreateClaimModal from './CreateClaimModal';
 import ClaimDetailModal from './ClaimDetailModal';
 import SettlementActionModal from './SettlementActionModal';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+import { OfflineNoticeCard } from '../../components/OfflineNoticeCard';
 
 const getStatusBadge = (status) => {
   switch (status) {
@@ -70,6 +71,7 @@ export default function DamageClaimsPage() {
   const { symbol: currencySymbol } = useCurrency();
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [summary, setSummary] = useState({
     totalClaimsCount: 0,
     totalClaimedAmount: 0,
@@ -141,6 +143,7 @@ export default function DamageClaimsPage() {
   // Fetch Claims
   const fetchClaims = async () => {
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -173,6 +176,7 @@ export default function DamageClaimsPage() {
       }
     } catch (err) {
       console.error('Error fetching damage claims:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load damage claims');
       toast.error('Failed to load damage claims');
     } finally {
       setLoading(false);
@@ -181,6 +185,14 @@ export default function DamageClaimsPage() {
 
   useEffect(() => {
     fetchClaims();
+
+    const handleReconnected = () => {
+      fetchClaims();
+    };
+    window.addEventListener('app:network-reconnected', handleReconnected);
+    return () => {
+      window.removeEventListener('app:network-reconnected', handleReconnected);
+    };
   }, [dateRange, statusFilter, stageFilter, searchTerm]);
 
   // Delete Claim
@@ -217,6 +229,18 @@ export default function DamageClaimsPage() {
     }`;
     window.open(url, '_blank');
   };
+
+  if (error && (!claims || claims.length === 0)) {
+    return (
+      <div className="w-full min-h-[calc(100vh-140px)] flex items-center justify-center p-4">
+        <OfflineNoticeCard
+          title="Unable to Load Damage Claims"
+          message={error}
+          onRetry={fetchClaims}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto min-h-screen">

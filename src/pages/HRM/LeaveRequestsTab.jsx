@@ -231,6 +231,23 @@ const LeaveRequestsTab = () => {
     }
   };
 
+  const [reconciling, setReconciling] = useState(false);
+  const handleReconcile = async () => {
+    setReconciling(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.post(`${apiPath}/api/leave/reconcile`, {}, { headers });
+      toast.success(res.data?.message || 'Balances reconciled with ledger!');
+      fetchData();
+    } catch (err) {
+      console.error('Error reconciling balances:', err);
+      toast.error('Failed to reconcile balances');
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   const getInitials = (name = '') => {
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
@@ -387,6 +404,19 @@ const LeaveRequestsTab = () => {
                 className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary focus:outline-none"
               />
             </div>
+
+            {isUserAdmin && (
+              <button
+                type="button"
+                disabled={reconciling}
+                onClick={handleReconcile}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs transition cursor-pointer flex items-center gap-1.5 shrink-0"
+                title="Reconcile leave balances with approved requests ledger"
+              >
+                <AccessTimeIcon style={{ fontSize: 16 }} className={reconciling ? 'animate-spin' : ''} />
+                <span>{reconciling ? 'Reconciling...' : 'Reconcile Balances'}</span>
+              </button>
+            )}
 
             <button
               onClick={() => setApplyModalOpen(true)}

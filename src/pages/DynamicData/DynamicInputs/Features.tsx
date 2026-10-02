@@ -1,4 +1,5 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { EmailContext } from '../../../EmailProvider/EmailContext';
 import axios from 'axios';
@@ -13,23 +14,71 @@ import {
   MdMiscellaneousServices,
   MdSave,
   MdInfoOutline,
+  MdAdd,
+  MdOutlineLaunch,
 } from 'react-icons/md';
 import { useCurrency } from '../../../utils/currencyUtil';
+import { formatLabel } from '../../../utils/labelUtil';
 
-const Features: React.FC = () => {
+interface FeaturesProps {
+  onNavigateToPropertyTypes?: () => void;
+}
+
+const Features: React.FC<FeaturesProps> = ({ onNavigateToPropertyTypes }) => {
+  const navigate = useNavigate();
   const { symbol: currencySymbol } = useCurrency();
   const { settings, fetchTemplates } = useContext(EmailContext) as any;
   const [loading, setLoading] = useState<boolean>(false);
+  const [propertySurcharges, setPropertySurcharges] = useState<Record<string, number>>(
+    settings?.standardPrice?.propertySurcharges || {}
+  );
+  const [servicesData, setServicesData] = useState<any[]>([]);
+  const [propertiesList, setPropertiesList] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (settings?.standardPrice?.propertySurcharges) {
+      setPropertySurcharges(settings.standardPrice.propertySurcharges);
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    axios
+      .get(`${apiPath}/api/services`)
+      .then((res) => {
+        setServicesData(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch((err) => console.error('Failed to load services in Features:', err));
+
+    axios
+      .get(`${apiPath}/api/sale_group?type=property`)
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setPropertiesList(res.data);
+          // Seed surcharges from property records if not already in settings
+          setPropertySurcharges((prev) => {
+            const updated = { ...prev };
+            res.data.forEach((p: any) => {
+              if (p.name && (updated[p.name] === undefined || updated[p.name] === 0) && p.surcharge !== undefined && p.surcharge !== 0) {
+                updated[p.name] = Number(p.surcharge) || 0;
+              }
+            });
+            return updated;
+          });
+        }
+      })
+      .catch((err) => console.error('Failed to load property types in Features:', err));
+  }, []);
+
   const [prices, setPrices] = useState<any>([
     { label: 'Price per cubic meter', value: settings.standardPrice?.pricePerMeterCubic || 0, unit: `${currencySymbol} / m³` },
     { label: 'Price per hour for travel time', value: settings.standardPrice?.pricePerHour || 0, unit: `${currencySymbol} / hr` },
     { label: 'Price per kilometer', value: settings.standardPrice?.pricePerKilometer || 0, unit: `${currencySymbol} / km` },
     { label: 'QUOTATION CALCULATION', type: 'heading' },
     { label: 'Cubic meters per employee per hour (average)', value: settings.standardPrice?.cubicMeterPerHourPerEmployee || 0, unit: 'm³ / hr' },
-    { label: 'Packing boxes per hour', value: settings.standardPrice?.packingBoxPerHour || 0, unit: 'boxes / hr' },
-    { label: 'Unpacking boxes per hour', value: settings.standardPrice?.unPackagingBoxPerHour || 0, unit: 'boxes / hr' },
-    { label: 'Minutes of assembly time per piece of furniture (or per door)', value: settings.standardPrice?.assemblingTimePerfurniture || 0, unit: 'minutes' },
-    { label: 'Minutes to disassemble per piece of furniture (or per door)', value: settings.standardPrice?.disassemblingTimePerfurniture || 0, unit: 'minutes' },
+    { label: 'Packing boxes per hour', value: settings.standardPrice?.packingBoxPerHour || 10, unit: 'boxes / hr' },
+    { label: 'Unpacking boxes per hour', value: settings.standardPrice?.unPackagingBoxPerHour || 10, unit: 'boxes / hr' },
+    { label: 'Minutes of assembly time per piece of furniture (or per door)', value: settings.standardPrice?.assemblingTimePerfurniture || 15, unit: 'minutes' },
+    { label: 'Minutes to disassemble per piece of furniture (or per door)', value: settings.standardPrice?.disassemblingTimePerfurniture || 15, unit: 'minutes' },
   ]);
 
   const handlePriceChange = (index: number, value: string) => {
@@ -38,10 +87,25 @@ const Features: React.FC = () => {
     setPrices(updatedPrices);
   };
 
-  const handleSaveSettings = () => {
+  const handleSurchargeChange = (key: string, value: string) => {
+    const num = value === '' ? 0 : parseFloat(value) || 0;
+    setPropertySurcharges((prev) => ({
+      ...prev,
+      [key]: num,
+    }));
+  };
+
+  const handleServicePriceChange = (id: string, value: string) => {
+    const num = value === '' ? 0 : parseFloat(value) || 0;
+    setServicesData((prev) =>
+      prev.map((s) => (s._id === id ? { ...s, price: num } : s))
+    );
+  };
+
+  const handleSaveSettings = async () => {
     setLoading(true);
-    axios
-      .post(`${apiPath}/api/save-settings`, {
+    try {
+      await axios.post(`${apiPath}/api/save-settings`, {
         standardPrice: {
           pricePerMeterCubic: prices[0].value,
           pricePerHour: prices[1].value,
@@ -51,49 +115,46 @@ const Features: React.FC = () => {
           unPackagingBoxPerHour: prices[6].value,
           assemblingTimePerfurniture: prices[7].value,
           disassemblingTimePerfurniture: prices[8].value,
+          propertySurcharges: propertySurcharges,
         },
-      })
-      .then(() => {
-        toast.success('Settings saved successfully!');
-        fetchTemplates();
-      })
-      .catch((error: any) => {
-        toast.error(`Failed to save settings: ${error.message}`);
-      })
-      .finally(() => {
-        setLoading(false);
       });
+
+      // Also persist updated service prices to /api/services
+      for (const service of servicesData) {
+        if (service._id && service.price !== undefined) {
+          try {
+            await axios.put(`${apiPath}/api/services/${service._id}`, {
+              price: Number(service.price) || 0,
+            });
+          } catch (sErr) {
+            console.error(`Failed to update service ${service.serviceName}:`, sErr);
+          }
+        }
+      }
+
+      toast.success('Settings & surcharges saved successfully!');
+      fetchTemplates();
+    } catch (error: any) {
+      toast.error(`Failed to save settings: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const surchargesList = [
-    'Additional charge for Apartment',
-    'Additional charge for House',
-    'Additional charge for Bungalow',
-    'Additional charge for Office',
-    'Additional charge for storage',
-    'Additional charge for Drive in',
-    'Additional charge for Double apartment',
-    'Additional charge for Studio',
-    'Additional charge for Villa',
-    'Additional surcharge for Farm',
-    'Additional surcharge for semi-detached houses',
-    'Additional surcharge for Mansion',
-    'Additional surcharge for upper floor apartment',
-    'Additional surcharge for detached house',
-    'Additional surcharge for terraced house',
-    'Additional surcharge for corner house',
-    'Additional fee for School',
-    'Additional allowance for Nursing Home',
-  ];
-
-  const servicesList = [
-    'Warranty Certificate',
-    'Insurance',
-    'Moving package',
-    'Additional fee for Car',
-    'Additional fee for Boat',
-    'Additional fee for Pets',
-  ];
+  const dynamicSurchargesList = useMemo(() => {
+    if (propertiesList.length === 0) {
+      return Object.keys(propertySurcharges).map((key) => ({
+        key,
+        label: key,
+        surcharge: propertySurcharges[key] || 0,
+      }));
+    }
+    return propertiesList.map((p) => ({
+      key: p.name,
+      label: p.name,
+      surcharge: p.surcharge,
+    }));
+  }, [propertiesList, propertySurcharges]);
 
   return (
     <div className="space-y-8 max-w-5xl">
@@ -388,34 +449,63 @@ const Features: React.FC = () => {
 
       {/* 6. Property Surcharges Grid */}
       <div className="bg-white dark:bg-boxdark rounded-2xl border border-stroke dark:border-strokedark p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex items-center gap-3 pb-3 border-b border-stroke dark:border-strokedark">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-lg shrink-0">
-            <MdHomeWork />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stroke dark:border-strokedark">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-lg shrink-0">
+              <MdHomeWork />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-black dark:text-white">
+                Property Location Surcharges
+              </h4>
+              <p className="text-[11px] text-body dark:text-bodydark">
+                Additional fees applied per housing or commercial structure type (Synced with Property Types)
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="text-sm font-bold text-black dark:text-white">
-              Property Location Surcharges
-            </h4>
-            <p className="text-[11px] text-body dark:text-bodydark">
-              Additional fees applied per housing or commercial structure type
-            </p>
-          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (onNavigateToPropertyTypes) {
+                onNavigateToPropertyTypes();
+              } else {
+                navigate('/data?active=5');
+              }
+            }}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20 transition-all cursor-pointer self-start sm:self-auto shrink-0"
+            title="Manage master property list under Property Classifications"
+          >
+            <MdAdd className="text-sm" />
+            <span>Add / Edit Property Types</span>
+            <MdOutlineLaunch className="text-xs opacity-70" />
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {surchargesList.map((label, idx) => (
+          {dynamicSurchargesList.map((item, idx) => (
             <div
-              key={idx}
+              key={item.key || idx}
               className="bg-gray-2/40 dark:bg-meta-4/20 p-3.5 rounded-xl border border-stroke dark:border-strokedark"
             >
-              <label className="block text-xs font-semibold text-black dark:text-white mb-1.5 truncate">
-                {label}
+              <label className="block text-xs font-semibold text-black dark:text-white mb-1.5 truncate" title={item.label}>
+                {item.label}
               </label>
-              <input
-                type="text"
-                defaultValue={`${currencySymbol} 0.00`}
-                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-1.5 px-3 outline-none focus:border-primary text-xs font-semibold"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
+                  {currencySymbol}
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={propertySurcharges[item.key] ?? item.surcharge ?? ''}
+                  onChange={(e) => handleSurchargeChange(item.key, e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="0.00"
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-1.5 pl-8 pr-3 outline-none focus:border-primary text-xs font-semibold"
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -432,25 +522,40 @@ const Features: React.FC = () => {
               Add-On Services & Protection
             </h4>
             <p className="text-[11px] text-body dark:text-bodydark">
-              Default prices for certificates, protection packages, and special items
+              Configured prices for certificates, protection packages, and special items
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {servicesList.map((label, idx) => (
+          {servicesData.map((service, idx) => (
             <div
-              key={idx}
+              key={service._id || idx}
               className="bg-gray-2/40 dark:bg-meta-4/20 p-3.5 rounded-xl border border-stroke dark:border-strokedark"
             >
-              <label className="block text-xs font-semibold text-black dark:text-white mb-1.5 truncate">
-                {label}
-              </label>
-              <input
-                type="text"
-                defaultValue={`${currencySymbol} 0.00`}
-                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-1.5 px-3 outline-none focus:border-primary text-xs font-semibold"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-black dark:text-white truncate">
+                  {service.serviceName || formatLabel(service.serviceTypeName)}
+                </label>
+                <span className="text-[10px] text-slate-500 uppercase font-mono">
+                  {formatLabel(service.serviceTypeName)}
+                </span>
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">
+                  {currencySymbol}
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={service.price ?? 0}
+                  onChange={(e) => handleServicePriceChange(service._id, e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="0.00"
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-lg border border-stroke dark:border-strokedark py-1.5 pl-8 pr-3 outline-none focus:border-primary text-xs font-semibold"
+                />
+              </div>
             </div>
           ))}
         </div>

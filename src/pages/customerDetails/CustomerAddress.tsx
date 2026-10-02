@@ -55,13 +55,22 @@ const CustomerAddress = ({ handleCustomer, address, customerId }: any) => {
       });
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const handleDelete = async () => {
     try {
       setLoading(true);
-      let response = await axios.post(`${apiPath}/customer/delete_address`, {
-        customerId: customerId,
-        addressId: address._id,
-      });
+      let response = await axios.post(
+        `${apiPath}/customer/delete_address`,
+        {
+          customerId: customerId,
+          addressId: address._id,
+        },
+        { headers: getAuthHeaders() }
+      );
       if (response.status === 200) {
         setIsDeleteModalOpen(false);
         handleClose();
@@ -80,7 +89,11 @@ const CustomerAddress = ({ handleCustomer, address, customerId }: any) => {
     if (loading) return;
     setLoading(true);
     try {
-      let response = await axios.post(`${apiPath}/customer/update_address`, data);
+      let response = await axios.post(
+        `${apiPath}/customer/update_address`,
+        data,
+        { headers: getAuthHeaders() }
+      );
       if (response.status === 200) {
         handleClose();
         handleCustomer();
