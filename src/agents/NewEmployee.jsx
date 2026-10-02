@@ -190,9 +190,9 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
   const sendMail = async (detail) => {
     try {
       await axios.post(`${apiPath}/email/send_email`, {
-        emailTemplateId: settings?.emailTemplates?.confirmation,
+        emailTemplateId: settings?.emailTemplates?.employeeWelcome || '67482f4178cf7071e2d8465b',
         extraData: detail,
-        subject: `hey ${detail.username} It is a confirmation mail regarding to your work with Universal Movers`,
+        subject: `Welcome ${detail.username} to Universal Movers B.V.`,
       });
     } catch (error) {
       console.error(`Error in sending mail: ${error.message}`);

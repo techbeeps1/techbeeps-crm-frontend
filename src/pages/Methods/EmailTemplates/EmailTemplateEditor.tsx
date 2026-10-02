@@ -3,6 +3,8 @@ import { Dialog } from '@mui/material';
 import axios from 'axios';
 import EmailEditor from 'react-email-editor';
 import { apiPath } from '../../../../apiPath';
+import { resolveLogoUrl } from '../../../utils/logoUtil';
+import { OPERATIONAL_TRIGGERS } from './EmailTemplateList';
 import { useForm, Controller } from 'react-hook-form';
 import {
   MdClose,
@@ -12,7 +14,9 @@ import {
   MdLayers,
   MdTranslate,
   MdToggleOn,
-  MdDriveFileRenameOutline
+  MdDriveFileRenameOutline,
+  MdNotificationsActive,
+  MdBolt
 } from 'react-icons/md';
 
 interface TemplateData {
@@ -43,6 +47,9 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
   const [data, setData] = useState<TemplateData | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const [emailSettings, setEmailSettings] = useState<Record<string, string>>({});
+  const [allTemplatesMap, setAllTemplatesMap] = useState<Record<string, string>>({});
+  const [assignedTrigger, setAssignedTrigger] = useState<string>('');
 
   const {
     control,
@@ -53,10 +60,36 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
 
   const fetchTemplate = async () => {
     try {
-      const response = await axios.get(`${apiPath}/api/reporting/${templateId}`);
+      const [response, settingsRes, templatesRes] = await Promise.all([
+        axios.get(`${apiPath}/api/reporting/${templateId}`),
+        axios.get(`${apiPath}/api/available-settings`).catch(() => ({ data: {} })),
+        axios.get(`${apiPath}/api/reporting`).catch(() => ({ data: {} })),
+      ]);
       setDesignJson(response.data.htmlDesign);
       setData(response.data);
       reset(response.data);
+
+      const rawSettings = settingsRes.data?.emailTemplates || {};
+      const filtered = Object.fromEntries(
+        Object.entries(rawSettings).filter(([key]) => key !== '_id')
+      );
+      setEmailSettings(filtered as Record<string, string>);
+
+      const tMap: Record<string, string> = {};
+      const allReps = templatesRes.data?.reportings || [];
+      allReps.forEach((r: any) => {
+        if (r._id) tMap[r._id] = r.name;
+      });
+      setAllTemplatesMap(tMap);
+
+      let foundKey = '';
+      for (const [k, id] of Object.entries(filtered)) {
+        if (String(id) === String(templateId)) {
+          foundKey = k;
+          break;
+        }
+      }
+      setAssignedTrigger(foundKey);
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching template:', error);
@@ -66,7 +99,20 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
 
   const loadDesign = () => {
     if (emailEditorRef.current && designJson && isEditorLoaded) {
-      emailEditorRef.current.editor.loadDesign(designJson);
+      let finalDesign = designJson;
+      try {
+        const str = JSON.stringify(designJson);
+        if (str.includes('1732090350147-logo.png')) {
+          const replaced = str.replace(
+            /https:\/\/assets\.unlayer\.com\/projects\/0\/1732090350147-logo\.png(\?[^"'\s>]*)?/gi,
+            resolveLogoUrl()
+          );
+          finalDesign = JSON.parse(replaced);
+        }
+      } catch (e) {
+        // keep designJson
+      }
+      emailEditorRef.current.editor.loadDesign(finalDesign);
     }
   };
 
@@ -84,10 +130,26 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
     setSaving(true);
     emailEditorRef.current.editor.exportHtml((exportData: any) => {
       const { design, html } = exportData;
+      let cleanHtml = html;
+      let cleanDesign = design;
+      try {
+        cleanHtml = cleanHtml.replace(
+          /https:\/\/assets\.unlayer\.com\/projects\/0\/1732090350147-logo\.png(\?[^"'\s>]*)?/gi,
+          resolveLogoUrl()
+        );
+        const dStr = JSON.stringify(design).replace(
+          /https:\/\/assets\.unlayer\.com\/projects\/0\/1732090350147-logo\.png(\?[^"'\s>]*)?/gi,
+          resolveLogoUrl()
+        );
+        cleanDesign = JSON.parse(dStr);
+      } catch (e) {
+        // ignore
+      }
+
       axios
         .put(`${apiPath}/api/reporting/${templateId}`, {
-          htmlDesign: design,
-          htmlContent: html,
+          htmlDesign: cleanDesign,
+          htmlContent: cleanHtml,
         })
         .then(() => {
           setSaving(false);
@@ -108,16 +170,31 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
     setIsEditDialogOpen(false);
   };
 
-  const onSubmit = (formData: TemplateData) => {
-    axios
-      .put(`${apiPath}/api/reporting/${templateId}`, formData)
-      .then(() => {
-        setData(formData);
-        handleEditDetailClose();
-      })
-      .catch((error) => {
-        console.error('Error updating template details:', error);
+  const onSubmit = async (formData: TemplateData) => {
+    try {
+      await axios.put(`${apiPath}/api/reporting/${templateId}`, formData);
+      setData(formData);
+
+      // Synchronize trigger routing with AppSettings
+      const updated = { ...emailSettings };
+      for (const [k, id] of Object.entries(updated)) {
+        if (String(id) === String(templateId) && k !== '_id') {
+          updated[k] = '';
+        }
+      }
+      if (assignedTrigger) {
+        updated[assignedTrigger] = templateId;
+      }
+      setEmailSettings(updated);
+
+      await axios.post(`${apiPath}/api/save-settings`, {
+        emailTemplates: updated,
       });
+
+      handleEditDetailClose();
+    } catch (error) {
+      console.error('Error updating template details:', error);
+    }
   };
 
   return (
@@ -141,9 +218,17 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
                 <h3 className="text-base font-bold text-black dark:text-white leading-tight">
                   {data?.name || 'Email Template Editor'}
                 </h3>
-                <p className="text-xs text-body dark:text-bodydark">
-                  Template ID: {templateId}
-                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-xs text-body dark:text-bodydark">
+                    Template ID: {templateId}
+                  </p>
+                  {assignedTrigger && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                      <MdBolt style={{ fontSize: 11 }} />
+                      {OPERATIONAL_TRIGGERS.find((t) => t.key === assignedTrigger)?.label || assignedTrigger}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -211,7 +296,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
                         Template Specifications
                       </h4>
                       <p className="text-xs text-body dark:text-bodydark">
-                        Overview of configuration parameters and delivery status
+                        Overview of configuration parameters, operational trigger & delivery status
                       </p>
                     </div>
                     <button
@@ -224,7 +309,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="bg-gray-2/40 dark:bg-meta-4/20 p-4 rounded-xl border border-stroke dark:border-strokedark">
                       <div className="flex items-center gap-2 text-slate-400 mb-1">
                         <MdDriveFileRenameOutline className="text-base" />
@@ -234,6 +319,18 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
                       </div>
                       <p className="text-sm font-bold text-black dark:text-white">
                         {data?.name || 'Untitled Email Template'}
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-2/40 dark:bg-meta-4/20 p-4 rounded-xl border border-stroke dark:border-strokedark">
+                      <div className="flex items-center gap-2 text-slate-400 mb-1">
+                        <MdNotificationsActive className="text-primary text-base" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider">
+                          Assigned Trigger
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-primary truncate">
+                        {OPERATIONAL_TRIGGERS.find((t) => t.key === assignedTrigger)?.label || 'Unassigned (General)'}
                       </p>
                     </div>
 
@@ -345,6 +442,45 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
                   />
                 )}
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1">
+                <MdNotificationsActive className="text-primary text-sm" />
+                Assigned Operational Trigger
+              </label>
+              <select
+                value={assignedTrigger}
+                onChange={(e) => setAssignedTrigger(e.target.value)}
+                className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
+              >
+                <option value="">-- Unassigned (General) --</option>
+                {OPERATIONAL_TRIGGERS.map((trigger) => {
+                  const assignedToId = emailSettings[trigger.key];
+                  const isAssignedToOther =
+                    !!assignedToId && String(assignedToId) !== String(templateId);
+                  const otherTemplateName = isAssignedToOther
+                    ? allTemplatesMap[assignedToId] || 'Other Template'
+                    : '';
+                  return (
+                    <option
+                      key={trigger.key}
+                      value={trigger.key}
+                      disabled={isAssignedToOther}
+                      className={
+                        isAssignedToOther
+                          ? 'text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-meta-4/20'
+                          : ''
+                      }
+                    >
+                      {trigger.label}{' '}
+                      {isAssignedToOther
+                        ? `(Already Assigned: ${otherTemplateName})`
+                        : ''}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             <div>

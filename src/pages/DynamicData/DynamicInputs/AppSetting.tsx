@@ -94,6 +94,23 @@ const AppSettingsForm: React.FC = () => {
       });
   };
 
+  const getEventTitle = (key: string) => {
+    switch (key) {
+      case 'storageInovice':
+        return 'Storage Invoice';
+      case 'quoteReminders':
+        return 'Quote Reminders';
+      case 'paymentReminder':
+        return 'Payment Reminder (1st Notice)';
+      case 'paymentReminder2':
+        return 'Payment Reminder (Final Notice)';
+      case 'rescheduleAppointment':
+        return 'Reschedule Appointment';
+      default:
+        return key.replace(/([A-Z])/g, ' $1').trim();
+    }
+  };
+
   const getEventDescription = (key: string) => {
     switch (key.toLowerCase()) {
       case 'quote':
@@ -102,8 +119,12 @@ const AppSettingsForm: React.FC = () => {
         return 'Follow-up notification for pending quotation acceptance';
       case 'appointment':
         return 'Booking confirmation & survey schedule notification';
+      case 'rescheduleappointment':
+        return 'Updated survey or move appointment schedule notification';
       case 'invoice':
         return 'Dispatched alongside new invoice issue';
+      case 'invoicereminder':
+        return 'Polite reminder for outstanding invoice balance';
       case 'confirmation':
         return 'Job order confirmation & schedule acknowledgment';
       case 'reminder':
@@ -116,6 +137,8 @@ const AppSettingsForm: React.FC = () => {
         return '2nd Stage final notice for overdue invoices';
       case 'thankyou':
         return 'Post-completion courtesy notice and feedback request';
+      case 'storageinovice':
+        return 'Warehouse storage rental billing notice';
       default:
         return 'Automated notification template mapping';
     }
@@ -169,7 +192,7 @@ const AppSettingsForm: React.FC = () => {
                       htmlFor={key}
                       className="block text-xs font-bold text-black dark:text-white capitalize truncate"
                     >
-                      {key.replace(/([A-Z])/g, ' $1')}
+                      {getEventTitle(key)}
                     </label>
                     <p className="text-[10px] text-body dark:text-bodydark truncate">
                       {getEventDescription(key)}

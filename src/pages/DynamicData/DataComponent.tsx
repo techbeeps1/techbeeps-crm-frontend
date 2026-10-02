@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AppointmentType from './DynamicInputs/Inputslist';
-import AppSettingsForm from './DynamicInputs/AppSetting';
 import FeaturePage from './FeaturePage';
 import {
   MdSettingsSuggest,
   MdCalendarMonth,
   MdDynamicForm,
-  MdMarkEmailRead,
 } from 'react-icons/md';
 
 const DataComponent: React.FC = () => {
@@ -37,13 +35,6 @@ const DataComponent: React.FC = () => {
       icon: MdDynamicForm,
       desc: 'Financial & document template fields',
     },
-    {
-      id: 3,
-      label: 'Email Settings',
-      shortLabel: 'Email Settings',
-      icon: MdMarkEmailRead,
-      desc: 'Automated notification mappings',
-    },
   ];
 
   const handleTabChange = (tabId: number) => {
@@ -53,8 +44,9 @@ const DataComponent: React.FC = () => {
 
   useEffect(() => {
     const queryTab = parseInt(searchParams.get('tab') || '0', 10);
-    if (queryTab !== activeTab) {
-      setActiveTab(queryTab);
+    const validTab = queryTab >= 0 && queryTab < tabs.length ? queryTab : 0;
+    if (validTab !== activeTab) {
+      setActiveTab(validTab);
     }
   }, [searchParams, activeTab]);
 
@@ -90,7 +82,6 @@ const DataComponent: React.FC = () => {
         {activeTab === 0 && <FeaturePage />}
         {activeTab === 1 && <AppointmentType inputFor="Appointment" />}
         {activeTab === 2 && <AppointmentType inputFor="Template" />}
-        {activeTab === 3 && <AppSettingsForm />}
       </div>
     </div>
   );

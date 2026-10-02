@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { Modal, Box } from '@mui/material';
 import axios from 'axios';
 import { apiPath } from '../../../../apiPath';
 import EmailTemplateEditor from './EmailTemplateEditor';
 import Loader from '../../../common/Loader';
+import { EmailContext } from '../../../EmailProvider/EmailContext';
 import { toast } from 'react-toastify';
 import {
   MdEmail,
@@ -16,8 +17,25 @@ import {
   MdDriveFileRenameOutline,
   MdCheckCircle,
   MdSave,
-  MdWarningAmber
+  MdWarningAmber,
+  MdNotificationsActive,
+  MdBolt
 } from 'react-icons/md';
+
+export const OPERATIONAL_TRIGGERS = [
+  { key: 'quote', label: 'Quote: Fixed Price Proposal' },
+  { key: 'quoteReminders', label: 'Quote: Follow-up Reminder' },
+  { key: 'appointment', label: 'Appointment: Booking Confirmation' },
+  { key: 'rescheduleAppointment', label: 'Appointment: Rescheduled Notice' },
+  { key: 'invoice', label: 'Invoice: Billing & Payment Due' },
+  { key: 'invoiceReminder', label: 'Invoice: Follow-up Reminder' },
+  { key: 'confirmation', label: 'Job: Move Confirmation & Schedule' },
+  { key: 'cancellation', label: 'Booking: Cancellation Notice' },
+  { key: 'paymentReminder', label: 'Payment: 1st Reminder Notice' },
+  { key: 'paymentReminder2', label: 'Payment: Final Notice' },
+  { key: 'thankyou', label: 'Customer: Thank You & Feedback' },
+  { key: 'storageInovice', label: 'Storage: Monthly Rental Invoice' },
+];
 
 interface Template {
   _id: string;
@@ -31,6 +49,7 @@ interface FormData {
   documentType?: string;
   templateType?: string;
   link_template?: string | null;
+  assignedTrigger?: string;
 }
 
 const EmailTemplateList: React.FC = () => {
@@ -43,6 +62,10 @@ const EmailTemplateList: React.FC = () => {
   const [selectedAgent, setSelectedAgent] = useState<Template | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<any>(null);
+  const [emailSettings, setEmailSettings] = useState<Record<string, string>>({});
+  const [updatingTriggerId, setUpdatingTriggerId] = useState<string | null>(null);
+
+  const { fetchTemplates } = (useContext(EmailContext) as any) || {};
 
   const {
     register,
@@ -55,6 +78,7 @@ const EmailTemplateList: React.FC = () => {
       templateType: '',
       name: '',
       link_template: '',
+      assignedTrigger: '',
     },
   });
 
@@ -94,14 +118,88 @@ const EmailTemplateList: React.FC = () => {
     }
   };
 
+  const fetchEmailSettings = async () => {
+    try {
+      const response = await axios.get(`${apiPath}/api/available-settings`);
+      const rawSettings = response.data?.emailTemplates || {};
+      const filtered = Object.fromEntries(
+        Object.entries(rawSettings).filter(([key]) => key !== '_id')
+      );
+      setEmailSettings(filtered as Record<string, string>);
+    } catch (err) {
+      console.error('Failed to load email routing settings:', err);
+    }
+  };
+
   useEffect(() => {
     handleAllReports();
+    fetchEmailSettings();
   }, [isDeleteModalOpen]);
+
+  const getAssignedTriggerKey = (templateId: string): string => {
+    if (!emailSettings) return '';
+    for (const [key, id] of Object.entries(emailSettings)) {
+      if (String(id) === String(templateId) && key !== '_id') {
+        return key;
+      }
+    }
+    return '';
+  };
+
+  const handleAssignTrigger = async (templateId: string, newTriggerKey: string) => {
+    setUpdatingTriggerId(templateId);
+    try {
+      const updated = { ...emailSettings };
+
+      // Remove template from any previous key
+      for (const [k, id] of Object.entries(updated)) {
+        if (String(id) === String(templateId) && k !== '_id') {
+          updated[k] = '';
+        }
+      }
+
+      // If a new trigger key is selected, assign it
+      if (newTriggerKey) {
+        updated[newTriggerKey] = templateId;
+      }
+
+      setEmailSettings(updated);
+
+      await axios.post(`${apiPath}/api/save-settings`, {
+        emailTemplates: updated,
+      });
+
+      if (newTriggerKey) {
+        const triggerObj = OPERATIONAL_TRIGGERS.find((t) => t.key === newTriggerKey);
+        notify(`Assigned to "${triggerObj?.label || newTriggerKey}"`);
+      } else {
+        notify('Trigger unassigned successfully');
+      }
+
+      if (fetchTemplates) {
+        fetchTemplates();
+      }
+    } catch (err: any) {
+      notifyError(`Failed to update trigger: ${err.message}`);
+      fetchEmailSettings();
+    } finally {
+      setUpdatingTriggerId(null);
+    }
+  };
 
   const onSubmit: SubmitHandler<FormData> = async (formData) => {
     setSaving(true);
     try {
-      await axios.post(`${apiPath}/api/reporting`, formData);
+      const response = await axios.post(`${apiPath}/api/reporting`, {
+        name: formData.name,
+        link_template: formData.link_template || null,
+      });
+      const createdId = response.data?._id || response.data?.reporting?._id;
+
+      if (createdId && formData.assignedTrigger) {
+        await handleAssignTrigger(createdId, formData.assignedTrigger);
+      }
+
       notify('Email template created successfully');
       handleAllReports();
       setShowModal(false);
@@ -119,6 +217,7 @@ const EmailTemplateList: React.FC = () => {
       notify('Template deleted successfully');
       closeDeleteModal();
       handleAllReports();
+      fetchEmailSettings();
     } catch (error: any) {
       notifyError(`Error deleting template: ${error.message}`);
     }
@@ -162,6 +261,7 @@ const EmailTemplateList: React.FC = () => {
             <thead>
               <tr className="border-b border-stroke dark:border-strokedark bg-gray-2/50 dark:bg-meta-4/30 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 <th className="py-3.5 px-5">Template Name</th>
+                <th className="py-3.5 px-5">Assigned Operational Trigger</th>
                 <th className="py-3.5 px-5">Delivery Status</th>
                 <th className="py-3.5 px-5 text-right">Actions</th>
               </tr>
@@ -169,58 +269,81 @@ const EmailTemplateList: React.FC = () => {
             <tbody className="divide-y divide-stroke dark:divide-strokedark text-sm">
               {filteredTemplates.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-10 text-center text-body dark:text-bodydark text-sm">
+                  <td colSpan={4} className="py-10 text-center text-body dark:text-bodydark text-sm">
                     No email notification templates found. Click "New Email Template" to create one.
                   </td>
                 </tr>
               ) : (
-                filteredTemplates.map((item) => (
-                  <tr
-                    key={item._id}
-                    className="hover:bg-gray-2/40 dark:hover:bg-meta-4/20 transition-colors"
-                  >
-                    {/* Name */}
-                    <td
-                      onClick={() => handleEditTemplate(item._id)}
-                      className="py-3.5 px-5 font-bold text-black dark:text-white cursor-pointer hover:text-primary transition-colors flex items-center gap-2.5"
+                filteredTemplates.map((item) => {
+                  const assignedKey = getAssignedTriggerKey(item._id);
+                  const isUpdating = updatingTriggerId === item._id;
+
+                  return (
+                    <tr
+                      key={item._id}
+                      className="hover:bg-gray-2/40 dark:hover:bg-meta-4/20 transition-colors"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-base shrink-0">
-                        <MdEmail />
-                      </div>
-                      <span>{item.name || 'Unnamed Email Template'}</span>
-                    </td>
+                      {/* Name */}
+                      <td
+                        onClick={() => handleEditTemplate(item._id)}
+                        className="py-3.5 px-5 font-bold text-black dark:text-white cursor-pointer hover:text-primary transition-colors flex items-center gap-2.5"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-base shrink-0">
+                          <MdEmail />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block truncate">{item.name || 'Unnamed Email Template'}</span>
+                        </div>
+                      </td>
 
-                    {/* Status */}
-                    <td className="py-3.5 px-5">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
-                        <MdCheckCircle className="text-emerald-500" />
-                        {item.status || 'Active'}
-                      </span>
-                    </td>
+                      {/* Assigned Operational Trigger (Display Only) */}
+                      <td className="py-3.5 px-5">
+                        {assignedKey ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary border border-primary/25">
+                            <MdBolt className="text-sm shrink-0 text-primary" />
+                            <span className="truncate max-w-[240px]">
+                              {OPERATIONAL_TRIGGERS.find((t) => t.key === assignedKey)?.label || assignedKey}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-meta-4/30 border border-slate-200 dark:border-strokedark">
+                            Unassigned
+                          </span>
+                        )}
+                      </td>
 
-                    {/* Actions */}
-                    <td className="py-3.5 px-5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEditTemplate(item._id)}
-                          className="p-2 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
-                          title="Edit Email Template"
-                        >
-                          <MdEdit className="text-base" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteModal(item)}
-                          className="p-2 text-slate-500 hover:text-meta-1 hover:bg-meta-1/10 rounded-xl transition-colors cursor-pointer"
-                          title="Delete Template"
-                        >
-                          <MdDeleteOutline className="text-base" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      {/* Status */}
+                      <td className="py-3.5 px-5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+                          <MdCheckCircle className="text-emerald-500" />
+                          {item.status || 'Active'}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditTemplate(item._id)}
+                            className="p-2 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
+                            title="Edit Email Template"
+                          >
+                            <MdEdit className="text-base" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(item)}
+                            className="p-2 text-slate-500 hover:text-meta-1 hover:bg-meta-1/10 rounded-xl transition-colors cursor-pointer"
+                            title="Delete Template"
+                          >
+                            <MdDeleteOutline className="text-base" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -229,7 +352,11 @@ const EmailTemplateList: React.FC = () => {
 
       <EmailTemplateEditor
         open={isEditorOpen}
-        onClose={() => setIsEditorOpen(false)}
+        onClose={() => {
+          setIsEditorOpen(false);
+          handleAllReports();
+          fetchEmailSettings();
+        }}
         templateId={selectedTemplateId}
       />
 
@@ -278,6 +405,38 @@ const EmailTemplateList: React.FC = () => {
                     {errors.name.message}
                   </p>
                 )}
+              </div>
+
+              {/* Operational Trigger Assignment */}
+              <div>
+                <label className="block text-xs font-bold text-black dark:text-white mb-1.5 flex items-center gap-1">
+                  <MdNotificationsActive className="text-primary text-sm" />
+                  Assign Operational Trigger (Optional)
+                </label>
+                <select
+                  defaultValue=""
+                  {...register('assignedTrigger')}
+                  className="w-full bg-white dark:bg-form-input text-black dark:text-white rounded-xl border border-stroke dark:border-strokedark py-2.5 px-4 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm font-medium"
+                >
+                  <option value="">-- None / Unassigned --</option>
+                  {OPERATIONAL_TRIGGERS.map((trigger) => {
+                    const assignedTemplateId = emailSettings[trigger.key];
+                    const isAssigned = !!assignedTemplateId;
+                    const assignedTpl = isAssigned
+                      ? data.find((d) => String(d._id) === String(assignedTemplateId))
+                      : null;
+                    return (
+                      <option
+                        key={trigger.key}
+                        value={trigger.key}
+                        disabled={isAssigned}
+                        className={isAssigned ? 'text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-meta-4/20' : ''}
+                      >
+                        {trigger.label} {isAssigned ? `(Already Assigned: ${assignedTpl?.name || 'In Use'})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               {/* Inherit / Clone From */}

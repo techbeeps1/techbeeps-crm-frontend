@@ -1098,10 +1098,12 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       handleClose(true);
 
       if (sendCustomerEmail) {
+        const targetTemplateId = isEditMode
+          ? (settings?.emailTemplates?.rescheduleAppointment || settings?.emailTemplates?.appointment)
+          : (settings?.emailTemplates?.appointment || settings?.emailTemplates?.rescheduleAppointment);
         await SendEmail(
           response.data,
-          settings?.emailTemplates?.appointment ||
-          settings?.emailTemplates?.rescheduleAppointment,
+          targetTemplateId,
         );
       }
       notify(

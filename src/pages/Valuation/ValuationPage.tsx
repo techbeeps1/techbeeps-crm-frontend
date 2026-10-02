@@ -503,7 +503,7 @@ const ValuationPage: React.FC = () => {
     try {
       const response = await axios.post(`${apiPath}/finance/send`, {
         Id: data._id,
-        emailTemplateId: settings?.emailTemplates?.quoteReminders,
+        emailTemplateId: settings?.emailTemplates?.quote || settings?.emailTemplates?.quoteReminders,
       });
       if (response.status === 200) {
         let activityData = {

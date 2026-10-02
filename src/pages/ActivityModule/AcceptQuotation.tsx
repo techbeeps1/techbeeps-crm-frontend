@@ -186,28 +186,88 @@ const AcceptOffer: React.FC = () => {
 
         // Evaluate {{...}} placeholders
         processed = processed.replace(/\{\{(.*?)\}\}/g, (match: any, placeholder: any) => {
-            const keys = placeholder.trim().split('.');
-            let value = dataMap;
-            if (keys[0] === 'items' && dataMap.invoice?.items) {
-                return dataMap.invoice?.items
-                    .map(
-                        (item: any) => `
-             <tr style="display: flex; flex-wrap: wrap; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; width: 100%;">
-                <td style="flex: 1; min-width: 50%; font-weight: 600;">${item.description}</td>
-                <td style="width: 10%; text-align: center;">${item.quantity}</td>
-                <td style="width: 15%; text-align: right;">${formatCurrency(item.price || 0)}</td>
-                <td style="width: 15%; text-align: right; font-weight: 700;">${formatCurrency((item.quantity || 0) * (item.price || 0))}</td>
-                <td style="width: 10%; text-align: right; color: #64748b;">${item.btw || 0}%</td>
-              </tr>
-        `
-                    )
-                    .join('');
+            const cleanPlaceholder = placeholder.trim();
+            const keys = cleanPlaceholder.split('.');
+
+            if (cleanPlaceholder === 'currencySymbol') {
+                return dataMap.currencySymbol || '€';
             }
+
+            if (keys[0] === 'items') {
+                const itemsList = dataMap.invoice?.items || [];
+                if (!itemsList.length) {
+                    return '<p style="color: #64748b; font-style: italic; padding: 12px 0;">No itemized services listed.</p>';
+                }
+                const rows = itemsList
+                    .map((item: any, idx: number) => {
+                        const qty = Number(item.quantity) || 1;
+                        const price = Number(item.price) || 0;
+                        const lineTotal = qty * price;
+                        const btw = item.btw !== undefined && item.btw !== null ? item.btw : 21;
+                        const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                        return `
+                          <tr style="border-bottom: 1px solid #e2e8f0; background-color: ${bg};">
+                            <td style="padding: 12px 14px; font-weight: 600; color: #1e293b; vertical-align: top;">${item.description || 'Moving Service'}</td>
+                            <td style="padding: 12px 10px; text-align: center; color: #475569; width: 70px; vertical-align: top;">${qty}</td>
+                            <td style="padding: 12px 14px; text-align: right; font-family: monospace; color: #475569; width: 110px; vertical-align: top;">${formatCurrency(price)}</td>
+                            <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 700; color: #0f172a; width: 120px; vertical-align: top;">${formatCurrency(lineTotal)}</td>
+                            <td style="padding: 12px 12px; text-align: right; color: #64748b; width: 75px; vertical-align: top;">${btw}%</td>
+                          </tr>
+                        `;
+                    })
+                    .join('');
+
+                return `
+                  <div style="overflow-x: auto; margin: 20px 0; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                      <thead>
+                        <tr style="background-color: #f1f5f9; border-bottom: 2px solid #3c50e0; color: #0f172a;">
+                          <th style="padding: 12px 14px; font-weight: 700;">Description</th>
+                          <th style="padding: 12px 10px; font-weight: 700; text-align: center; width: 70px;">Qty</th>
+                          <th style="padding: 12px 14px; font-weight: 700; text-align: right; width: 110px;">Price</th>
+                          <th style="padding: 12px 14px; font-weight: 700; text-align: right; width: 120px;">Total</th>
+                          <th style="padding: 12px 12px; font-weight: 700; text-align: right; width: 75px;">BTW</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${rows}
+                      </tbody>
+                    </table>
+                  </div>
+                `;
+            }
+
+            let value = dataMap;
             for (const key of keys) {
                 value = value?.[key];
-                if (value == undefined || value == null) return '';
+                if (value === undefined || value === null) return '';
                 if (value === 0) return '0';
             }
+
+            // Nicely format ISO dates
+            if (
+                typeof value === 'string' &&
+                (cleanPlaceholder.toLowerCase().includes('date')) &&
+                value.includes('T')
+            ) {
+                try {
+                    const parsed = new Date(value);
+                    if (!isNaN(parsed.getTime())) {
+                        return parsed.toLocaleDateString();
+                    }
+                } catch (e) {
+                    // fallback
+                }
+            }
+
+            // Nicely format totals
+            if (
+                typeof value === 'number' &&
+                (cleanPlaceholder.toLowerCase().includes('total') || cleanPlaceholder.toLowerCase().includes('amount') || cleanPlaceholder.toLowerCase().includes('price'))
+            ) {
+                return formatCurrency(value);
+            }
+
             return value !== undefined && value !== null ? String(value) : '';
         });
 
@@ -243,6 +303,7 @@ const AcceptOffer: React.FC = () => {
         customer: data?.customer,
         invoice: data,
         company: effectiveCompany,
+        currencySymbol: currencySymbol || '€',
     });
 
     const sendMail = async () => {
@@ -269,9 +330,6 @@ const AcceptOffer: React.FC = () => {
             console.error('Error sending confirmation email:', error);
         }
     };
-
-    const discountAmount =
-        data && data.discount ? ((Number(data.subTotal || 0) * Number(data.discount)) / 100).toFixed(2) : '0.00';
 
     return (
         <>
@@ -385,83 +443,6 @@ const AcceptOffer: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Line Items Table Card */}
-                            {data?.items && data.items.length > 0 && (
-                                <div className="bg-white dark:bg-boxdark rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-strokedark shadow-sm space-y-4">
-                                    <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white pb-3 border-b border-slate-100 dark:border-strokedark flex items-center justify-between">
-                                        <span>Itemized Breakdown</span>
-                                        <span className="text-xs font-semibold text-slate-400">
-                                            {data.items.length} {data.items.length === 1 ? 'item' : 'items'}
-                                        </span>
-                                    </h3>
-
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-xs">
-                                            <thead>
-                                                <tr className="border-b border-slate-100 dark:border-strokedark text-slate-400 font-extrabold uppercase tracking-wider">
-                                                    <th className="pb-2.5">Description</th>
-                                                    <th className="pb-2.5 text-center">Qty</th>
-                                                    <th className="pb-2.5 text-right">Price</th>
-                                                    <th className="pb-2.5 text-right">BTW</th>
-                                                    <th className="pb-2.5 text-right">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-strokedark">
-                                                {data.items.map((item: any, idx: number) => (
-                                                    <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                                                        <td className="py-3 pr-2 font-bold text-slate-800 dark:text-white">
-                                                            {item.description}
-                                                        </td>
-                                                        <td className="py-3 px-2 text-center text-slate-600 dark:text-slate-300">
-                                                            {item.quantity}
-                                                        </td>
-                                                        <td className="py-3 px-2 text-right font-mono text-slate-600 dark:text-slate-300">
-                                                            {formatCurrency(item.price || 0)}
-                                                        </td>
-                                                        <td className="py-3 px-2 text-right text-slate-400">
-                                                            {item.btw || 0}%
-                                                        </td>
-                                                        <td className="py-3 pl-2 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                                            {formatCurrency(Number(item.quantity || 0) * Number(item.price || 0))}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    {/* Financial Summary Calculation */}
-                                    <div className="pt-4 border-t border-slate-200/80 dark:border-strokedark space-y-2 text-xs">
-                                        <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                                            <span>Subtotal</span>
-                                            <span className="font-mono font-semibold">
-                                                {formatCurrency(data?.subTotal || 0)}
-                                            </span>
-                                        </div>
-
-                                        {Number(data?.discount || 0) > 0 && (
-                                            <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                                                <span>Discount ({data.discount}%)</span>
-                                                <span className="font-mono font-semibold">- {formatCurrency(discountAmount)}</span>
-                                            </div>
-                                        )}
-
-                                        <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                                            <span>BTW / Tax</span>
-                                            <span className="font-mono font-semibold">
-                                                + {formatCurrency(data?.btw || 0)}
-                                            </span>
-                                        </div>
-
-                                        <div className="pt-2 border-t border-slate-200/80 dark:border-strokedark flex justify-between items-center text-sm font-black text-slate-900 dark:text-white">
-                                            <span>Total (incl. BTW)</span>
-                                            <span className="text-base text-primary font-black font-mono">
-                                                {formatCurrency(data?.total || 0)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                         {/* Right Column: Online Acceptance & Signature Card (Optimal Form Width ~410px) */}

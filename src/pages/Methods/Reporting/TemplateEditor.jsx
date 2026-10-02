@@ -3,6 +3,7 @@ import { Dialog } from '@mui/material';
 import axios from 'axios';
 import EmailEditor from 'react-email-editor';
 import { apiPath } from '../../../../apiPath';
+import { resolveLogoUrl } from '../../../utils/logoUtil';
 import { useForm, Controller } from 'react-hook-form';
 import {
   MdClose,
@@ -43,7 +44,20 @@ const TemplateEditor = ({ open, onClose, templateId }) => {
 
   const loadDesign = () => {
     if (emailEditorRef.current && designJson && isEditorLoaded) {
-      emailEditorRef.current.editor.loadDesign(designJson);
+      let finalDesign = designJson;
+      try {
+        const str = JSON.stringify(designJson);
+        if (str.includes('1734426279225-logo.png') || str.includes('/uploads/logo.png')) {
+          const replaced = str.replace(
+            /(https:\/\/assets\.unlayer\.com\/projects\/0\/1734426279225-logo\.png(\?[^"'\s>]*)?|http:\/\/localhost:8080\/uploads\/logo\.png)/gi,
+            resolveLogoUrl()
+          );
+          finalDesign = JSON.parse(replaced);
+        }
+      } catch (e) {
+        // ignore
+      }
+      emailEditorRef.current.editor.loadDesign(finalDesign);
     }
   };
 
@@ -61,10 +75,26 @@ const TemplateEditor = ({ open, onClose, templateId }) => {
     setSaving(true);
     emailEditorRef.current.editor.exportHtml((exportData) => {
       const { design, html } = exportData;
+      let cleanHtml = html;
+      let cleanDesign = design;
+      try {
+        cleanHtml = cleanHtml.replace(
+          /(https:\/\/assets\.unlayer\.com\/projects\/0\/1734426279225-logo\.png(\?[^"'\s>]*)?|http:\/\/localhost:8080\/uploads\/logo\.png)/gi,
+          resolveLogoUrl()
+        );
+        const dStr = JSON.stringify(design).replace(
+          /(https:\/\/assets\.unlayer\.com\/projects\/0\/1734426279225-logo\.png(\?[^"'\s>]*)?|http:\/\/localhost:8080\/uploads\/logo\.png)/gi,
+          resolveLogoUrl()
+        );
+        cleanDesign = JSON.parse(dStr);
+      } catch (e) {
+        // ignore
+      }
+
       axios
         .put(`${apiPath}/api/templates/${templateId}`, {
-          htmlDesign: design,
-          htmlContent: html,
+          htmlDesign: cleanDesign,
+          htmlContent: cleanHtml,
         })
         .then((response) => {
           setSaving(false);
