@@ -33,7 +33,10 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
   const [otp, setOtp] = useState('');
   const [userData, setUserdata] = useState<any>({});
   const [loading, setLoading] = useState<boolean>(false);
-  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [logoUrl, setLogoUrl] = useState<string>(() => {
+    const cached = typeof window !== 'undefined' ? localStorage.getItem('logoUrl') : null;
+    return (cached && cached.startsWith('http')) ? resolveLogoUrl(cached) : resolveLogoUrl();
+  });
   const [companyName, setCompanyName] = useState<string>('Universal Movers');
 
   const {
@@ -150,7 +153,13 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ handler }) => {
               src={logoUrl}
               alt={companyName}
               className="max-h-14 max-w-[220px] object-contain"
-              onError={() => setLogoUrl('')}
+              onError={() => {
+                if (logoUrl !== resolveLogoUrl()) {
+                  setLogoUrl(resolveLogoUrl());
+                } else {
+                  setLogoUrl('');
+                }
+              }}
             />
           ) : (
             <div className="flex items-center gap-2.5">

@@ -117,7 +117,7 @@ const LogoUploadForm = () => {
     }
   };
 
-  const currentLogoSrc = imageUrl || resolveLogoUrl('/uploads/logo.png');
+  const currentLogoSrc = imageUrl || resolveLogoUrl();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -130,7 +130,7 @@ const LogoUploadForm = () => {
               alt="Current Logo"
               className="max-h-full max-w-full object-contain"
               onError={(e) => {
-                e.currentTarget.src = 'https://placehold.co/180x60/3c50e0/ffffff?text=COMPANY+LOGO';
+                e.currentTarget.src = resolveLogoUrl();
               }}
             />
           </div>

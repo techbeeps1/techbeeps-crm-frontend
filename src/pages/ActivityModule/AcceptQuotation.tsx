@@ -280,9 +280,22 @@ const AcceptOffer: React.FC = () => {
                 {/* Top Navigation Bar */}
                 <header className="sticky top-0 z-40 bg-white/90 dark:bg-boxdark/90 backdrop-blur-md border-b border-slate-200/80 dark:border-strokedark px-4 md:px-10 py-3.5 flex items-center justify-between shadow-xs">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-primary text-white font-black text-lg flex items-center justify-center shadow-md shadow-primary/20">
-                            {effectiveCompany.companyName ? effectiveCompany.companyName.charAt(0) : 'U'}
-                        </div>
+                        {effectiveCompany?.logoUrl ? (
+                            <div className="h-10 max-w-[150px] flex items-center">
+                                <img
+                                    src={effectiveCompany.logoUrl}
+                                    alt={effectiveCompany.companyName || 'Logo'}
+                                    className="max-h-full max-w-full object-contain"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            </div>
+                        ) : (
+                            <div className="w-10 h-10 rounded-2xl bg-primary text-white font-black text-lg flex items-center justify-center shadow-md shadow-primary/20">
+                                {effectiveCompany.companyName ? effectiveCompany.companyName.charAt(0) : 'U'}
+                            </div>
+                        )}
                         <div>
                             <span className="font-extrabold text-sm md:text-base text-slate-900 dark:text-white tracking-tight block">
                                 {effectiveCompany.companyName}

@@ -62,7 +62,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
 
-  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [logoUrl, setLogoUrl] = useState<string>(() => {
+    const cached = typeof window !== 'undefined' ? localStorage.getItem('logoUrl') : null;
+    return (cached && cached.startsWith('http')) ? resolveLogoUrl(cached) : resolveLogoUrl();
+  });
 
   useEffect(() => {
     fetchCompanyLogo().then((url) => {
@@ -306,7 +309,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                   src={logoUrl}
                   alt="Logo"
                   className="max-h-full max-w-full object-contain"
-                  onError={() => setLogoUrl('')}
+                  onError={() => {
+                    if (logoUrl !== resolveLogoUrl()) {
+                      setLogoUrl(resolveLogoUrl());
+                    } else {
+                      setLogoUrl('');
+                    }
+                  }}
                 />
               </div>
             ) : (
