@@ -4,7 +4,6 @@ import axios from 'axios';
 import moment from 'moment';
 import { Calendar, Views, View, momentLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import { format } from 'date-fns';
 import { UserContext } from '../UserContext';
 
 import {
