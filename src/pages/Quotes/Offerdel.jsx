@@ -10,6 +10,8 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import ElevatorOutlined from '@mui/icons-material/ElevatorOutlined';
 import GifBoxOutlined from '@mui/icons-material/GifBoxOutlined';
 import ApprovalOutlined from '@mui/icons-material/ApprovalOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
@@ -24,6 +26,10 @@ const Offer = ({ data, notes, fetchInvoice }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [openPopup, setOpenPopup] = useState(false);
+  const [openOnSiteModal, setOpenOnSiteModal] = useState(false);
+  const [onSiteCustomerName, setOnSiteCustomerName] = useState('');
+  const [onSiteNotes, setOnSiteNotes] = useState('');
+  const [onSiteSubmitting, setOnSiteSubmitting] = useState(false);
   const { symbol: currencySymbol } = useCurrency();
 
   const { role, userData, isAdmin } = useContext(UserContext) || {};
@@ -104,6 +110,34 @@ const Offer = ({ data, notes, fetchInvoice }) => {
       handleActivity(errorActivity);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOnSiteAcceptance = async () => {
+    if (!Id) return;
+    setOnSiteSubmitting(true);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      await axios.post(
+        `${apiPath}/finance/on-site-accept/${Id}`,
+        {
+          name: onSiteCustomerName || clientFullName,
+          comments: onSiteNotes,
+          method: 'ON_SITE_SIGNATURE',
+          customerSignature: 'ON_SITE_STAFF_VERIFIED',
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      notify('On-site quotation acceptance successfully recorded');
+      setOpenOnSiteModal(false);
+      if (typeof fetchInvoice === 'function') fetchInvoice();
+    } catch (err) {
+      console.error('Error in on-site acceptance:', err);
+      notifyError(err.response?.data?.message || err.message || 'Failed to record on-site acceptance');
+    } finally {
+      setOnSiteSubmitting(false);
     }
   };
 
@@ -246,6 +280,20 @@ const Offer = ({ data, notes, fetchInvoice }) => {
             </button>
           )}
 
+          {isUserAdmin && data.Status !== 'Accepted' && (
+            <button
+              type="button"
+              onClick={() => {
+                setOnSiteCustomerName(clientFullName);
+                setOpenOnSiteModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+            >
+              <ApprovalOutlined fontSize="small" />
+              <span>On-Site Acceptance</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -265,7 +313,139 @@ const Offer = ({ data, notes, fetchInvoice }) => {
           SendInvoice={SendInvoice}
           onClose={() => setOpenPopup(false)}
         />
+
+        {/* On-Site Acceptance Dialog */}
+        <Dialog
+          open={openOnSiteModal}
+          onClose={() => !onSiteSubmitting && setOpenOnSiteModal(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <div className="p-6 bg-white dark:bg-boxdark font-sans">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-strokedark">
+              <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                <ApprovalOutlined />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  Record On-Site Acceptance
+                </h3>
+              </div>
+              <IconButton
+                size="small"
+                onClick={() => setOpenOnSiteModal(false)}
+                disabled={onSiteSubmitting}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </div>
+
+            <div className="mt-4 space-y-4 text-xs">
+              <p className="text-slate-600 dark:text-slate-300">
+                Record the customer's on-site agreement and freeze the eligible version with staff provenance.
+              </p>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Customer Signatory Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={onSiteCustomerName}
+                  onChange={(e) => setOnSiteCustomerName(e.target.value)}
+                  placeholder="Full name of customer accepting"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-strokedark bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-xs font-semibold focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  On-Site Notes / Agreed Instructions
+                </label>
+                <textarea
+                  rows={3}
+                  value={onSiteNotes}
+                  onChange={(e) => setOnSiteNotes(e.target.value)}
+                  placeholder="Notes on client consent, agreed start time or on-site remarks..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-strokedark bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-900 text-purple-900 dark:text-purple-200 text-[11px] font-semibold leading-relaxed">
+                By confirming, you verify that the customer reviewed and accepted the quotation. An immutable agreement snapshot and staff actor record will be permanently generated.
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setOpenOnSiteModal(false)}
+                disabled={onSiteSubmitting}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleOnSiteAcceptance}
+                disabled={onSiteSubmitting}
+                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                {onSiteSubmitting ? 'Recording Acceptance...' : 'Confirm & Freeze Quotation'}
+              </button>
+            </div>
+          </div>
+        </Dialog>
       </div>
+
+      {/* Acceptance Provenance & Audit Card (Shown when quote is Accepted) */}
+      {data.Status === 'Accepted' && (
+        <div className="bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-extrabold text-sm">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Legally Bound & Accepted Quotation</span>
+            </div>
+            {data.acceptance?.acknowledgementEvent?.eventId && (
+              <span className="text-[11px] font-mono bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 px-2.5 py-0.5 rounded font-bold border border-emerald-200 dark:border-emerald-800">
+                Ref: {data.acceptance.acknowledgementEvent.eventId}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div className="bg-white/90 dark:bg-slate-800/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">Accepted By</span>
+              <span className="font-bold text-slate-800 dark:text-white mt-0.5 block">
+                {data.acceptance?.customerIdentity?.name || clientFullName || 'Client'}
+              </span>
+              <span className="text-slate-400 text-[11px] block">{data.acceptance?.customerIdentity?.email || data.customer?.email}</span>
+            </div>
+            <div className="bg-white/90 dark:bg-slate-800/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">Acceptance Method</span>
+              <span className="font-bold text-slate-800 dark:text-white mt-0.5 block">
+                {data.acceptance?.method === 'ON_SITE_SIGNATURE' ? '✍️ On-Site Signature' : '🌐 Customer Public Link'}
+              </span>
+              {data.acceptance?.staffActor?.name && (
+                <span className="text-purple-600 dark:text-purple-400 text-[11px] font-semibold block">
+                  Staff: {data.acceptance.staffActor.name} ({data.acceptance.staffActor.role})
+                </span>
+              )}
+            </div>
+            <div className="bg-white/90 dark:bg-slate-800/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">Confirmation Timestamp</span>
+              <span className="font-mono font-bold text-slate-800 dark:text-white mt-0.5 block">
+                {data.acceptance?.acceptedAt ? new Date(data.acceptance.acceptedAt).toLocaleString('en-GB') : (data.acceptedAt ? new Date(data.acceptedAt).toLocaleString('en-GB') : 'Recorded')}
+              </span>
+              <span className="text-slate-400 text-[11px] block">Version: v{data.acceptance?.acceptedVersion || data.version || 1}</span>
+            </div>
+            <div className="bg-white/90 dark:bg-slate-800/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50">
+              <span className="text-slate-400 block text-[10px] uppercase font-bold">Frozen Total</span>
+              <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm mt-0.5 block">
+                {formatCurrency(data.acceptance?.immutableAgreementSnapshot?.total || totalAmount)}
+              </span>
+              <span className="text-slate-400 text-[10px] block">Snapshot immutable</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Overview Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -523,7 +703,7 @@ const Offer = ({ data, notes, fetchInvoice }) => {
                     {item?.btw}%
                   </td>
                   <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
-                    {formatCurrency((parseFloat(item?.price) || 0) * (parseFloat(item?.quantity) || 1))}
+                    {formatCurrency(item?.lineTotal !== undefined ? item.lineTotal : ((parseFloat(item?.price) || 0) * (item?.quantity !== undefined && item?.quantity !== null && item?.quantity !== '' ? Number(item?.quantity) : 0)))}
                   </td>
                 </tr>
               ))}

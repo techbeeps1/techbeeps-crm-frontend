@@ -34,10 +34,14 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
   const downloadInvoice = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.post(
         `${apiPath}/invoice/download`,
         { Id: Id },
-        { responseType: 'blob' }
+        {
+          responseType: 'blob',
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        }
       );
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
@@ -68,10 +72,17 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
     handleActivity(activityData);
 
     try {
-      const response = await axios.post(`${apiPath}/invoice/send`, {
-        Id: Id,
-        emailTemplateId: templateId,
-      });
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${apiPath}/invoice/send`,
+        {
+          Id: Id,
+          emailTemplateId: templateId,
+        },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        }
+      );
       setOpenPopup(false);
       handleActivity({
         type: 'offer',

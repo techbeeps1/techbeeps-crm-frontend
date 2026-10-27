@@ -14,6 +14,8 @@ import Loader from '../../common/Loader';
 import SearchableClientSelect from '../../components/SearchableClientSelect';
 import { useCurrency } from '../../utils/currencyUtil';
 import { formatLabel } from '../../utils/labelUtil';
+import { getStandardTaxOptions, resolveTaxRate } from '../../utils/taxCatalog';
+import { calculateCommercialTotals } from '../../utils/moneyCalculator';
 
 const Editoffer = ({ display, offer, onclose }) => {
   const { formatCurrency } = useCurrency();
@@ -72,32 +74,19 @@ const Editoffer = ({ display, offer, onclose }) => {
     register('customer', { required: 'Client selection is required' });
   }, [register]);
 
-  // Calculations (Discount applied BEFORE tax per UM-014)
-  const safeDiscountPct = Math.min(Math.max(parseFloat(discountPercentage) || 0, 0), 100);
-  const discountMultiplier = Math.max(0, 1 - (safeDiscountPct / 100));
-  const subtotal = items.reduce((acc, item) => {
-    const quantity = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.price) || 0;
-    return acc + quantity * price;
-  }, 0);
+  // Calculations (Authoritative EXEC-20 Engine)
+  const calcResult = calculateCommercialTotals({
+    items: items || [],
+    vat: vatSelected,
+    discount: discountPercentage,
+  });
 
-  const discountAmount = subtotal * (safeDiscountPct / 100);
+  const subtotal = calcResult.subTotal;
+  const discountAmount = calcResult.discountedPrice;
   const discountedSubtotal = subtotal - discountAmount;
-
   const isInclusive = vatSelected === 'inclusive';
-
-  const taxTotal = items.reduce((acc, item) => {
-    const quantity = parseFloat(item.quantity) || 0;
-    const price = parseFloat(item.price) || 0;
-    const btw = parseFloat(item.btw) || 0;
-    const discountedLine = (price * quantity) * discountMultiplier;
-    const itemTax = isInclusive
-      ? discountedLine * (btw / (100 + btw))
-      : discountedLine * (btw / 100);
-    return acc + itemTax;
-  }, 0);
-
-  const total = isInclusive ? discountedSubtotal : (discountedSubtotal + taxTotal);
+  const taxTotal = calcResult.totalVat;
+  const total = calcResult.total;
 
   const navigate = useNavigate();
 
@@ -197,7 +186,7 @@ const Editoffer = ({ display, offer, onclose }) => {
           append({
             salesgroup: item?.salesgroup?._id || item?.salesgroup || '',
             description: item?.description || '',
-            quantity: item?.quantity || 1,
+            quantity: (item?.quantity !== undefined && item?.quantity !== null && item?.quantity !== '') ? Number(item.quantity) : 1,
             btw: item?.btw || '',
             price: item?.price || 0,
           });
@@ -699,9 +688,11 @@ const Editoffer = ({ display, offer, onclose }) => {
                     {...register(`items.${index}.btw`)}
                   >
                     <option value="">Select %</option>
-                    <option value="0">0%</option>
-                    <option value="9">9%</option>
-                    <option value="21">21%</option>
+                    {getStandardTaxOptions().map((tax) => (
+                      <option key={tax.id} value={tax.code}>
+                        {tax.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

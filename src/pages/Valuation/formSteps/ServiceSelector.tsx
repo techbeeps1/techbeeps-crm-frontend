@@ -1,4 +1,5 @@
 import React from "react";
+import { sanitizeSvg } from "../../../utils/sanitizeUtil";
 
 const ServiceSelector: React.FC<any> = ({ services, setItem, item = [] }) => {
   const safeItem = Array.isArray(item) ? item : [];
@@ -40,7 +41,7 @@ const ServiceSelector: React.FC<any> = ({ services, setItem, item = [] }) => {
                     overflow: "hidden",
                     padding: "5px",
                   }}
-                  dangerouslySetInnerHTML={{ __html: service?.icon }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeSvg(service?.icon) }}
                 />
                 <div className="text-lg mt-3 font-semibold">
                   {service?.serviceName || service?.roomTypeName}

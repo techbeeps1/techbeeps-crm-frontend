@@ -48,6 +48,7 @@ import TaskPage from '../Taskcomponent/TaskPage';
 import JobOfferRooms from './jobDetailmodules/JobOfferRooms';
 import { formatCurrency } from '../../utils/currencyUtil';
 import { formatLabel } from '../../utils/labelUtil';
+import { sanitizeSvg } from '../../utils/sanitizeUtil';
 
 interface JobsliderProps {
   job?: any | null;
@@ -998,7 +999,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
                         {service.icon ? (
                           <div
                             className="w-6 h-6 flex items-center justify-center [&>svg]:w-6 [&>svg]:h-6 [&>svg]:fill-primary"
-                            dangerouslySetInnerHTML={{ __html: service.icon }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeSvg(service.icon) }}
                           />
                         ) : (
                           <MiscellaneousServicesIcon fontSize="small" />

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DragDrawer } from './DragDrawer';
 import DragCloseDrawer from '../DragCloseDrawer';
+import { sanitizeSvg } from '../../../utils/sanitizeUtil';
 
 const SelectedRooms: React.FC<any> = ({
   rooms,
@@ -50,7 +51,7 @@ const SelectedRooms: React.FC<any> = ({
                     alignItems: 'center',
                     padding: '3px',
                   }}
-                  dangerouslySetInnerHTML={{ __html: room?.icon }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeSvg(room?.icon) }}
                 />
                 <span className="font-bold text-lg">
                   {room?.name || room?.roomTypeName}
@@ -100,7 +101,7 @@ const SelectedRooms: React.FC<any> = ({
                       padding: '10px',
                       marginBottom: '10px',
                     }}
-                    dangerouslySetInnerHTML={{ __html: item?.icon }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeSvg(item?.icon) }}
                   />
                   <p className="text-center text-lg font-medium">
                     {item?.roomTypeName}

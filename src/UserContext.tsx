@@ -18,6 +18,7 @@ interface UserContextType {
   fetchProfile: () => Promise<void>;
   ws: any;
   connectToWs: any;
+  logout: () => void;
   onlineUsers: Array<{ userId: string; username: string }>;
 }
 
@@ -126,10 +127,51 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
     } catch (error: any) {
       console.error('Failed to fetch CRM user profile:', error?.message);
       if (error.response?.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+        logout();
       }
+    }
+  };
+
+  const logout = () => {
+    try {
+      // 1. Immediately terminate active WebSocket connection
+      if (ws) {
+        try {
+          ws.close();
+        } catch (e) {}
+        setWs(null);
+      }
+
+      // 2. Clear Context state
+      setUsername(null);
+      setId(null);
+      setRole(null);
+      setUserData(null);
+      setOnlineUsers([]);
+
+      // 3. Clear default Authorization header from Axios
+      if (axios.defaults.headers.common) {
+        delete axios.defaults.headers.common['Authorization'];
+      }
+
+      // 4. Wipe sensitive credentials & session cache while preserving user device preferences
+      const rememberEmail = localStorage.getItem('remember_email');
+      const systemTimezone = localStorage.getItem('systemTimezone');
+      const systemTimezoneLabel = localStorage.getItem('systemTimezoneLabel');
+      const colorTheme = localStorage.getItem('color-theme');
+
+      localStorage.clear();
+      sessionStorage.clear();
+
+      if (rememberEmail) localStorage.setItem('remember_email', rememberEmail);
+      if (systemTimezone) localStorage.setItem('systemTimezone', systemTimezone);
+      if (systemTimezoneLabel) localStorage.setItem('systemTimezoneLabel', systemTimezoneLabel);
+      if (colorTheme) localStorage.setItem('color-theme', colorTheme);
+    } catch (e) {
+      console.error('Error during logout cache wipe:', e);
+    } finally {
+      // 5. Navigate with replace to prevent browser Back button from loading stale pages
+      window.location.replace('/login');
     }
   };
 
@@ -140,11 +182,12 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         return;
       }
-      const socket = new WebSocket(
-        `${chatWsUrl}?token=${currentToken}`,
-      );
+      // Connect cleanly without embedding token in URL query
+      const socket = new WebSocket(chatWsUrl);
       socket.onopen = () => {
-        console.log('WebSocket connected to', chatWsUrl);
+        console.log('WebSocket connected cleanly to', chatWsUrl);
+        // Authenticate via initial safe message payload (Zero token in URL)
+        socket.send(JSON.stringify({ type: 'auth', token: currentToken }));
         // Request current online users as soon as socket connects
         socket.send(JSON.stringify({ type: 'getOnline' }));
       };
@@ -196,6 +239,7 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
       value={{
         ws,
         connectToWs,
+        logout,
         userData,
         setUserData,
         fetchProfile,

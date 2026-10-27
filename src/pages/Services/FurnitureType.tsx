@@ -20,6 +20,7 @@ import {
   MdSave,
   MdWarningAmber
 } from 'react-icons/md';
+import { sanitizeSvg } from '../../utils/sanitizeUtil';
 
 const FurnitureType: React.FC = () => {
   const {
@@ -233,7 +234,7 @@ const FurnitureType: React.FC = () => {
                         {group?.icon ? (
                           <div
                             className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current text-black dark:text-white"
-                            dangerouslySetInnerHTML={{ __html: group.icon }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeSvg(group.icon) }}
                           />
                         ) : (
                           <MdOutlineChair className="text-xl text-black dark:text-white" />

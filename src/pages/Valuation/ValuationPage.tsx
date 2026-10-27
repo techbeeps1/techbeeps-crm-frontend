@@ -31,6 +31,20 @@ import { useNavigate, useParams } from 'react-router-dom';
 import KeyboardBackspaceIcon from '@mui/icons-material/KeyboardBackspace';
 import { m } from 'framer-motion';
 import { OfflineBanner } from '../../components/OfflineNoticeCard';
+import {
+  DEFAULT_COUNTRIES,
+  DEFAULT_PROPERTY_TYPES,
+  getEffectiveCountries,
+  getEffectivePropertyTypes,
+} from '../../utils/referenceData';
+import {
+  getDraftKey,
+  saveIntakeDraft,
+  getIntakeDraft,
+  clearIntakeDraft,
+  formatDraftTime,
+  IntakeDraftPayload,
+} from '../../utils/intakeDraftUtil';
 
 const steps = [
   { label: 'Customer Details', heading: 'CUSTOMER' },
@@ -56,8 +70,8 @@ const steps = [
 const ValuationPage: React.FC = () => {
   const methods = useForm<any>();
   const [loading, setLoading] = useState(false);
-  const [countries, setCountries] = useState([]);
-  const [property, setProperty] = useState([]);
+  const [countries, setCountries] = useState<string[]>(DEFAULT_COUNTRIES);
+  const [property, setProperty] = useState<string[]>(DEFAULT_PROPERTY_TYPES);
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<number[]>([]);
   const [activeStep, setActiveStep] = useState(0);
@@ -87,6 +101,89 @@ const ValuationPage: React.FC = () => {
       setActiveStep((prev) => prev - 1);
     }
   };
+
+  const draftKey = getDraftKey(OpenType, OpenId);
+  const [pendingDraft, setPendingDraft] = useState<IntakeDraftPayload | null>(null);
+
+  // Check for existing unsubmitted draft on mount
+  useEffect(() => {
+    // Only check if not opening an existing job from backend
+    if (OpenId && OpenType !== 'customer') {
+      return;
+    }
+    const saved = getIntakeDraft(draftKey);
+    if (saved && (saved.activeStep > 0 || Object.keys(saved.formData?.customer || {}).length > 0)) {
+      setPendingDraft(saved);
+    }
+  }, [draftKey, OpenId, OpenType]);
+
+  const handleRestoreDraft = () => {
+    if (!pendingDraft) return;
+    try {
+      if (pendingDraft.formData) {
+        methods.reset(pendingDraft.formData);
+      }
+      if (Array.isArray(pendingDraft.selectedServices)) {
+        setSelectedServices(pendingDraft.selectedServices);
+      }
+      if (Array.isArray(pendingDraft.selectedRoom)) {
+        setSelectedRoom(pendingDraft.selectedRoom);
+      }
+      if (pendingDraft.packageData) {
+        setPackageData(pendingDraft.packageData);
+      }
+      if (typeof pendingDraft.activeStep === 'number') {
+        setActiveStep(pendingDraft.activeStep);
+      }
+      setPendingDraft(null);
+      notify('Draft restored successfully');
+    } catch (err) {
+      console.error('Error restoring draft:', err);
+      notifyError('Failed to restore draft');
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    clearIntakeDraft(draftKey);
+    setPendingDraft(null);
+    notify('Draft discarded');
+  };
+
+  // Debounced Autosave Effect (500ms)
+  const watchedFormData = methods.watch();
+
+  useEffect(() => {
+    if (pendingDraft) return;
+
+    const hasCustomer = Boolean(
+      watchedFormData?.customer?.firstName ||
+      watchedFormData?.customer?.lastName ||
+      watchedFormData?.customer?.companyName ||
+      watchedFormData?.customer?.email ||
+      watchedFormData?.customer?.mobile
+    );
+    const hasAddress = Boolean(watchedFormData?.load?.postcode || watchedFormData?.load?.city);
+    const hasServices = Array.isArray(selectedServices) && selectedServices.length > 0;
+    const hasRooms = Array.isArray(selectedRoom) && selectedRoom.length > 0;
+
+    if (!hasCustomer && !hasAddress && !hasServices && !hasRooms && activeStep === 0) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      saveIntakeDraft(draftKey, {
+        version: 1,
+        lastSavedAt: new Date().toISOString(),
+        activeStep,
+        selectedServices,
+        selectedRoom,
+        packageData,
+        formData: methods.getValues(),
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [watchedFormData, activeStep, selectedServices, selectedRoom, packageData, draftKey, pendingDraft]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -213,15 +310,21 @@ const ValuationPage: React.FC = () => {
 
     methods.handleSubmit(
       (data) => {
-        setActiveStep((prev) => prev + 1);
-        localStorage.setItem(
-          'valuation',
-          JSON.stringify({
+        const nextStep = activeStep + 1;
+        setActiveStep(nextStep);
+        saveIntakeDraft(draftKey, {
+          version: 1,
+          lastSavedAt: new Date().toISOString(),
+          activeStep: nextStep,
+          selectedServices,
+          selectedRoom,
+          packageData,
+          formData: {
             ...data,
             services: selectedServices,
             rooms: selectedRoom,
-          }),
-        );
+          },
+        });
       },
       (errors) => {
         console.error('Validation errors:', errors);
@@ -417,12 +520,61 @@ const ValuationPage: React.FC = () => {
   }, [OpenId, OpenType]);
 
   const sanitizeEstimateData = (data: Record<string, any>) => {
-    return Object.fromEntries(
+    if (!data || typeof data !== 'object') return {};
+    const sanitized = Object.fromEntries(
       Object.entries(data).map(([key, value]) => [
         key,
         typeof value === 'number' && isNaN(value) ? 0 : value,
       ]),
     );
+
+    // EXEC-14: Zero out any services that are not selected in selectedServices
+    const isServiceActive = (typeName: string) => {
+      if (!Array.isArray(selectedServices) || selectedServices.length === 0) return false;
+      return selectedServices.some(
+        (s: any) => s?.serviceTypeName === typeName || (s?.serviceName && s.serviceName.toLowerCase() === typeName.toLowerCase())
+      );
+    };
+
+    if (!isServiceActive('unpacking')) {
+      sanitized.unpacking_requiredHours = 0;
+      sanitized.unpacking_appliedPrice = 0;
+      sanitized.unpacking_requiredPackers = 0;
+    }
+    if (!isServiceActive('packing')) {
+      sanitized.packing_requiredHours = 0;
+      sanitized.packing_appliedPrice = 0;
+      sanitized.packing_requiredPackers = 0;
+    }
+    if (!isServiceActive('assembling')) {
+      sanitized.assembling_requiredHours = 0;
+      sanitized.assembling_appliedPrice = 0;
+      sanitized.assembling_requiredHandyman = 0;
+    }
+    if (!isServiceActive('disassembling')) {
+      sanitized.disassembling_requiredHours = 0;
+      sanitized.disassembling_appliedPrice = 0;
+      sanitized.disassembling_requiredHandyman = 0;
+    }
+    if (!isServiceActive('movingLift')) {
+      sanitized.movingLift_quantity = 0;
+      sanitized.movingLift_price = 0;
+    }
+    if (!isServiceActive('storage')) {
+      sanitized.storage_storageVolume = 0;
+      sanitized.storage_appliedPrice = 0;
+      sanitized.storage_additionCharges = 0;
+    }
+    if (!isServiceActive('insurance')) {
+      sanitized.insurance_quantity = 0;
+      sanitized.insurance_price = 0;
+    }
+    if (!isServiceActive('certificate')) {
+      sanitized.certificate_quantity = 0;
+      sanitized.certificate_price = 0;
+    }
+
+    return sanitized;
   };
   const postData = async (data: any) => {
     setLoading(true);
@@ -431,6 +583,7 @@ const ValuationPage: React.FC = () => {
 
       if (response.status === 200) {
         notify('Valuation Success');
+        clearIntakeDraft(draftKey);
         const targetJobId = (OpenType !== 'customer' && OpenId) || response.data?.job?._id || data?.jobId;
         if (targetJobId && targetJobId !== 'new') {
           navigate(`/jobs/${targetJobId}`);
@@ -535,10 +688,12 @@ const ValuationPage: React.FC = () => {
   const fetchFunction = async (setItem: any, path: string) => {
     setLoading(true);
     try {
-      const response = await axios.get(`${apiPath}/api/${path}`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/api/${path}`, { headers });
       setItem(response.data);
     } catch (err: any) {
-      notifyError(err.message);
+      console.warn(`Error fetching ${path}:`, err);
     } finally {
       setLoading(false);
     }
@@ -547,32 +702,69 @@ const ValuationPage: React.FC = () => {
   useEffect(() => {
     fetchFunction(setServices, 'services');
     fetchFunction(setRooms, 'room');
+
+    const token = localStorage.getItem('token');
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
     axios
-      .get(`${apiPath}/api/sale_group?type=country`)
+      .get(`${apiPath}/api/sale_group?type=country`, { headers: authHeaders })
       .then((response) => {
-        const countryNames = response?.data?.map(
-          (country: { name: string }) => country?.name,
-        );
-        setCountries(countryNames);
+        const effective = getEffectiveCountries(response?.data);
+        setCountries(effective);
       })
       .catch((error: any) => {
-        notifyError('Error fetching countries:');
-        console.error('Error fetching countries:', error);
+        console.warn('Could not fetch server countries catalogue, using default reference data:', error?.message);
+        setCountries(DEFAULT_COUNTRIES);
       });
+
     axios
-      .get(`${apiPath}/api/sale_group?type=property`)
+      .get(`${apiPath}/api/sale_group?type=property`, { headers: authHeaders })
       .then((response) => {
-        const countryNames = response.data.map((country: any) => country.name);
-        setProperty(countryNames);
+        const effective = getEffectivePropertyTypes(response?.data);
+        setProperty(effective);
       })
-      .catch((error) => {
-        console.error('Error fetching countries:', error);
+      .catch((error: any) => {
+        console.warn('Could not fetch server properties catalogue, using default reference data:', error?.message);
+        setProperty(DEFAULT_PROPERTY_TYPES);
       });
   }, []);
 
   return (
     <>
       <OfflineBanner />
+      {pendingDraft && (
+        <div className="bg-slate-900 text-white px-6 py-3 flex flex-wrap items-center justify-between shadow-2xl z-50 sticky top-0 border-b border-indigo-500">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📋</span>
+            <div>
+              <p className="font-semibold text-sm text-indigo-300">
+                Unsaved Intake Draft Found
+              </p>
+              <p className="text-xs text-slate-300">
+                Last saved {formatDraftTime(pendingDraft.lastSavedAt)} at Step {pendingDraft.activeStep + 1} ({steps[pendingDraft.activeStep]?.label || 'Details'}). Would you like to resume?
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <button
+              type="button"
+              id="resume-draft-btn"
+              onClick={handleRestoreDraft}
+              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded shadow transition-colors cursor-pointer"
+            >
+              Resume Draft
+            </button>
+            <button
+              type="button"
+              id="discard-draft-btn"
+              onClick={handleDiscardDraft}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs rounded transition-colors cursor-pointer"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
       {loading && <Loader />}
       <FormProvider {...methods}>
         <div className="relative">
@@ -697,6 +889,7 @@ const ValuationPage: React.FC = () => {
                       setAppendedItems={setAppendedItems}
                       appendedItemsRef={appendedItemsRef}
                       rooms={selectedRoom}
+                      selectedServices={selectedServices}
                     />
                   )}
                   {activeStep === 13 && <FinalStep />}

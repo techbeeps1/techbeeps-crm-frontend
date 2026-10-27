@@ -11,6 +11,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import 'simple-datatables/src/css/style.css';
 import ValuationPage from './pages/Valuation/ValuationPage';
+import NotFound from './pages/NotFound';
 import { UserContext } from './UserContext';
 import { NetworkStatusProvider } from './context/NetworkStatusContext';
 
@@ -107,7 +108,7 @@ function App() {
                       }
                     />
                   ))}
-                  <Route path="*" element={<Navigate to="/" />} key="root-dashboard" />
+                  <Route path="*" element={<NotFound />} key="root-not-found" />
                 </Route>
                 <Route path="/intake/:type/:Id/" element={<ValuationPage />} />
                 <Route path="/intake" element={<ValuationPage />} />

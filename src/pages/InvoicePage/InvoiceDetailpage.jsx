@@ -27,7 +27,10 @@ const InvoiceDetailpage = () => {
   const fetchInvoice = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${apiPath}/invoice/invoice/${Id}`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${apiPath}/invoice/invoice/${Id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       setData(response.data?.invoice || null);
     } catch (error) {
       console.error('Error fetching invoice data:', error);
@@ -43,8 +46,12 @@ const InvoiceDetailpage = () => {
   const handleNotes = async () => {
     if (!data?.job?._id) return;
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.get(
-        `${apiPath}/api/notesListByJobId?jobId=${data.job._id}`
+        `${apiPath}/api/notesListByJobId?jobId=${data.job._id}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        }
       );
       setNotes(response.data?.notesListByJobId || []);
     } catch (error) {

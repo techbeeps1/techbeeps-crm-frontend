@@ -15,6 +15,7 @@ import {
 } from 'react-icons/md';
 import axios from 'axios';
 import { apiPath } from '../../apiPath';
+import { sanitizeHtml } from '../utils/sanitizeUtil';
 
 interface EmailItemProps {
     fetchEmails: any;
@@ -239,7 +240,7 @@ const EmailItem: React.FC<EmailItemProps> = ({
                     <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm min-h-[160px]">
                         <div 
                             className="text-slate-800 text-sm leading-relaxed prose max-w-none break-words"
-                            dangerouslySetInnerHTML={{ __html: message }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(message) }}
                         />
                     </div>
                 </div>

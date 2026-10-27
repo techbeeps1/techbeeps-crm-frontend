@@ -20,6 +20,8 @@ import { apiPath } from '../../../apiPath';
 import { UserContext } from '../../UserContext';
 import NewCustomer from '../customerDetails/NewCustomer';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+import { getStandardTaxOptions } from '../../utils/taxCatalog';
+import { calculateCommercialTotals } from '../../utils/moneyCalculator';
 
 const NewInvoice = () => {
     const { id } = useContext(UserContext) || {};
@@ -89,46 +91,21 @@ const NewInvoice = () => {
         return (customerList || []).find((c) => c._id === selectedCustomerId);
     }, [customerList, selectedCustomerId]);
 
-    // Financial Calculations
-    const subtotal = useMemo(() => {
-        return (watchedItems || []).reduce((acc, item) => {
-            const quantity = Number(item?.quantity) || 0;
-            const price = Number(item?.price) || 0;
-            return acc + quantity * price;
-        }, 0);
-    }, [watchedItems]);
+    // Financial Calculations (Authoritative EXEC-20 Engine)
+    const calcResult = useMemo(() => {
+        return calculateCommercialTotals({
+            items: watchedItems || [],
+            vat: vatSelected,
+            discount: discountPercentage,
+        });
+    }, [watchedItems, vatSelected, discountPercentage]);
 
-    const discountMultiplier = useMemo(() => {
-        const pct = Math.min(Math.max(Number(discountPercentage) || 0, 0), 100);
-        return Math.max(0, 1 - (pct / 100));
-    }, [discountPercentage]);
-
-    const discountAmount = useMemo(() => {
-        const pct = Math.min(Math.max(Number(discountPercentage) || 0, 0), 100);
-        return subtotal * (pct / 100);
-    }, [subtotal, discountPercentage]);
-
-    const discountedSubtotal = useMemo(() => {
-        return subtotal - discountAmount;
-    }, [subtotal, discountAmount]);
-
+    const subtotal = calcResult.subTotal;
+    const discountAmount = calcResult.discountedPrice;
+    const discountedSubtotal = subtotal - discountAmount;
     const isInclusive = vatSelected === 'inclusive';
-
-    const taxTotal = useMemo(() => {
-        return (watchedItems || []).reduce((acc, item) => {
-            const quantity = Number(item?.quantity) || 0;
-            const price = Number(item?.price) || 0;
-            const btw = Number(item?.btw) || 0;
-            const discountedLine = (quantity * price) * discountMultiplier;
-            return acc + (isInclusive
-                ? discountedLine * (btw / (100 + btw))
-                : discountedLine * (btw / 100));
-        }, 0);
-    }, [watchedItems, discountMultiplier, isInclusive]);
-
-    const grandTotal = useMemo(() => {
-        return isInclusive ? discountedSubtotal : (discountedSubtotal + taxTotal);
-    }, [discountedSubtotal, taxTotal, isInclusive]);
+    const taxTotal = calcResult.totalVat;
+    const grandTotal = calcResult.total;
 
     // Fetch initial data
     const handleClient = async () => {
@@ -400,6 +377,13 @@ const NewInvoice = () => {
         return result;
     };
 
+    // EXEC-23: Detect if invoice contains explicit labour/mover lines
+    const hasLabourLine = (watchedItems || []).some((item) => {
+        const desc = (item?.description || '').toLowerCase();
+        const sg = (salesGroupList || []).find((s) => s._id === item?.salesgroup)?.name?.toLowerCase() || '';
+        return desc.includes('mover') || desc.includes('labour') || desc.includes('crew') || desc.includes('verhuizer') || sg.includes('labour') || sg.includes('mover');
+    });
+
     // Submit invoice
     const onSubmit = async (formData) => {
         if (isSubmitting) return;
@@ -443,7 +427,18 @@ const NewInvoice = () => {
                 contactPerson: id,
             };
 
-            await axios.post(`${apiPath}/invoice/new_invoice`, finalData);
+            const idempotencyKey = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            finalData.idempotencyKey = idempotencyKey;
+
+            const token = localStorage.getItem('token');
+            const reqHeaders = { 'X-Idempotency-Key': idempotencyKey };
+            if (token) {
+                reqHeaders.Authorization = `Bearer ${token}`;
+            }
+
+            await axios.post(`${apiPath}/invoice/new_invoice`, finalData, {
+                headers: reqHeaders
+            });
             toast.success('Invoice created successfully!');
             navigate(-1);
         } catch (error) {
@@ -762,26 +757,30 @@ const NewInvoice = () => {
                                     Template Custom Inputs
                                 </h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {inputFields.map((field, index) => (
-                                        <div key={index}>
-                                            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                                {field.label} {field.required && <span className="text-rose-500">*</span>}
-                                            </label>
-                                            <input
-                                                {...register(`jobinput_${field.name}`, {
-                                                    required: field.required ? `${field.label} is required` : false,
-                                                })}
-                                                placeholder={field.label}
-                                                type={field.type || 'text'}
-                                                className="w-full p-2.5 rounded-xl border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-                                            />
-                                            {errors[`jobinput_${field.name}`] && (
-                                                <p className="text-rose-500 text-[11px] font-bold mt-0.5">
-                                                    {errors[`jobinput_${field.name}`].message}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))}
+                                    {inputFields.map((field, index) => {
+                                        const isMoverField = field.name === 'movers' || (field.label || '').toLowerCase().includes('mover');
+                                        const isRequired = field.required && (!isMoverField || hasLabourLine);
+                                        return (
+                                            <div key={index}>
+                                                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                                    {field.label} {isRequired && <span className="text-rose-500">*</span>}
+                                                </label>
+                                                <input
+                                                    {...register(`jobinput_${field.name}`, {
+                                                        required: isRequired ? `${field.label} is required` : false,
+                                                    })}
+                                                    placeholder={field.label}
+                                                    type={field.type || 'text'}
+                                                    className="w-full p-2.5 rounded-xl border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                                                />
+                                                {errors[`jobinput_${field.name}`] && (
+                                                    <p className="text-rose-500 text-[11px] font-bold mt-0.5">
+                                                        {errors[`jobinput_${field.name}`].message}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -961,11 +960,11 @@ const NewInvoice = () => {
                                                          className="w-full p-2 rounded-lg border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary"
                                                          {...register(`items.${index}.btw`)}
                                                      >
-                                                         {taxTypeList.map((tax) => (
-                                                             <option key={tax._id || tax.taxRate} value={tax.taxRate}>
-                                                                 {tax.taxRate}%
-                                                             </option>
-                                                         ))}
+                                                         {getStandardTaxOptions().map((tax) => (
+                                                            <option key={tax.id} value={tax.code}>
+                                                                {tax.label}
+                                                            </option>
+                                                        ))}
                                                      </select>
                                                  </td>
 

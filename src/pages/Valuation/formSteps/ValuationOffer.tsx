@@ -6,9 +6,20 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { IconButton } from '@mui/material';
 import axios from 'axios';
 import { formatCurrency } from '../../../utils/currencyUtil';
+import { calculateCommercialTotals } from '../../../utils/moneyCalculator';
+import { getStandardTaxOptions } from '../../../utils/taxCatalog';
+import { generateTargetLines, reconcilePackageLines, deriveComponentId } from '../../../utils/packageLineRebuilder';
+import { convertToTimeFormat, handleTimeToQuantity } from '../../../utils/timeUtil';
 
 
-const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appendedItemsRef, rooms }) => {
+const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appendedItemsRef, rooms, selectedServices }) => {
+    const isServiceActive = (typeName: string) => {
+        if (!Array.isArray(selectedServices)) return true;
+        return selectedServices.some(
+            (s: any) => s?.serviceTypeName === typeName || (s?.serviceName && s.serviceName.toLowerCase() === typeName.toLowerCase())
+        );
+    };
+
     const [templateList, setTemplate] = useState([]);
     const { register, control, watch, formState: { errors }, setValue } = useFormContext() as any;
     const initialVat = watch('offer.vat') || packageData?.vat || 'exclusive';
@@ -22,27 +33,6 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
         name: 'offer.items',
     });
     const items = watch('offer.items');
-
-    const convertToTimeFormat = (value: number): string => {
-        if (!Number.isFinite(value) || value <= 0) return '00:00';
-        const hours = Math.floor(value);
-        const minutes = Math.round((value - hours) * 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    };
-
-    const handleTimeToQuantity = (timeInput: any) => {
-        if (!timeInput) return 0;
-        if (typeof timeInput === 'number') return timeInput;
-        if (typeof timeInput === 'string') {
-            if (timeInput.includes(':')) {
-                const [hours, minutes] = timeInput.split(':').map((time: any) => parseInt(time, 10));
-                return (hours || 0) + (minutes || 0) / 60;
-            }
-            const parsed = parseFloat(timeInput);
-            return !isNaN(parsed) ? parsed : 0;
-        }
-        return 0;
-    };
 
     const relocation = watch('relocation');
     const movingLift = watch('movingLift');
@@ -85,18 +75,18 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
 
         const updatedEstimateData = {
             ...convertTimeToQuantity(mergeWithPrefix(relocation, 'relocation')),
-            ...convertTimeToQuantity(mergeWithPrefix(movingLift, 'movingLift')),
-            ...convertTimeToQuantity(mergeWithPrefix(packing, 'packing')),
-            ...convertTimeToQuantity(mergeWithPrefix(unpacking, 'unpacking')),
-            ...convertTimeToQuantity(mergeWithPrefix(assembling, 'assembling')),
-            ...convertTimeToQuantity(mergeWithPrefix(certificate, 'certificate')),
-            ...convertTimeToQuantity(mergeWithPrefix(disassembling, 'disassembling')),
-            ...convertTimeToQuantity(mergeWithPrefix(storage, 'storage')),
-            ...convertTimeToQuantity(mergeWithPrefix(insurance, 'insurance')),
-            total_handyman: Number(assembling?.requiredHandyman || 0) + Number(disassembling?.requiredHandyman || 0)
+            ...(isServiceActive('movingLift') ? convertTimeToQuantity(mergeWithPrefix(movingLift, 'movingLift')) : { movingLift_quantity: 0, movingLift_price: 0 }),
+            ...(isServiceActive('packing') ? convertTimeToQuantity(mergeWithPrefix(packing, 'packing')) : { packing_requiredHours: 0, packing_appliedPrice: 0, packing_requiredPackers: 0 }),
+            ...(isServiceActive('unpacking') ? convertTimeToQuantity(mergeWithPrefix(unpacking, 'unpacking')) : { unpacking_requiredHours: 0, unpacking_appliedPrice: 0, unpacking_requiredPackers: 0 }),
+            ...(isServiceActive('assembling') ? convertTimeToQuantity(mergeWithPrefix(assembling, 'assembling')) : { assembling_requiredHours: 0, assembling_appliedPrice: 0, assembling_requiredHandyman: 0 }),
+            ...(isServiceActive('certificate') ? convertTimeToQuantity(mergeWithPrefix(certificate, 'certificate')) : { certificate_quantity: 0, certificate_price: 0 }),
+            ...(isServiceActive('disassembling') ? convertTimeToQuantity(mergeWithPrefix(disassembling, 'disassembling')) : { disassembling_requiredHours: 0, disassembling_appliedPrice: 0, disassembling_requiredHandyman: 0 }),
+            ...(isServiceActive('storage') ? convertTimeToQuantity(mergeWithPrefix(storage, 'storage')) : { storage_storageVolume: 0, storage_appliedPrice: 0, storage_additionCharges: 0 }),
+            ...(isServiceActive('insurance') ? convertTimeToQuantity(mergeWithPrefix(insurance, 'insurance')) : { insurance_quantity: 0, insurance_price: 0 }),
+            total_handyman: (isServiceActive('assembling') ? Number(assembling?.requiredHandyman || 0) : 0) + (isServiceActive('disassembling') ? Number(disassembling?.requiredHandyman || 0) : 0)
         };
         setEstimateData(updatedEstimateData);
-    }, [relocation, movingLift, packing, unpacking, assembling, certificate, disassembling, storage, insurance]);
+    }, [relocation, movingLift, packing, unpacking, assembling, certificate, disassembling, storage, insurance, selectedServices]);
 
     // const relocationAdded = useRef(false);
     // const packingAdded = useRef(false);
@@ -122,290 +112,50 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
         const availableSalesGroups = customSgList || salesgroup || [];
         const defaultSg = availableSalesGroups[0]?._id || '';
 
-        const hasPackageRules = Array.isArray(packageData?.offers?.rules) && packageData.offers.rules.length > 0;
-        const isFixedPackage = packageData?.priceAgree === 'fixed' || packageData?.priceAgree === 'fixed_price';
-
-        // Clean up invalid or obsolete calculated lines if present in offer.items
         const priceAgree = watch('priceAgree') || packageData?.priceAgree || '';
-        const isHourlyAgreement = String(priceAgree).toLowerCase().includes('hour');
-        const pkgQuantity = Number(movingPackages?.quantity) || 0;
 
-        let existingItems = watch('offer.items') || [];
-        let filteredItems = existingItems.filter((it: any) => {
-            // Remove Moving Packages Service if actual quantity is 0
-            if (it.description === 'Moving Packages Service' && pkgQuantity === 0) {
-                return false;
-            }
-            // Remove old Volume-based Moving Service if the agreement is Hourly
-            if (isHourlyAgreement && typeof it.description === 'string' && it.description.startsWith('Moving Service (Volume:')) {
-                return false;
-            }
-            // Remove old Hourly Moving Service if the agreement is Fixed/Volume
-            if (!isHourlyAgreement && typeof it.description === 'string' && it.description.startsWith('Moving Service (Hourly:')) {
-                return false;
-            }
-            return true;
+        // Deterministically generate target lines with stable component IDs
+        const targetLines = generateTargetLines({
+            packageData,
+            priceAgree,
+            relocation,
+            movingLift,
+            packing,
+            unpacking,
+            assembling,
+            disassembling,
+            storage,
+            insurance,
+            certificate,
+            movingPackages,
+            rooms,
+            materials,
+            selectedServices,
+            defaultSalesGroup: defaultSg,
+            estimateData,
         });
 
-        if (filteredItems.length !== existingItems.length) {
-            setValue('offer.items', filteredItems);
+        const currentItems = watch('offer.items') || [];
+        const reconciled = reconcilePackageLines(currentItems, targetLines);
+
+        // Check if reconciled items differ from current items to avoid redundant state updates
+        const isDifferent = reconciled.length !== currentItems.length ||
+            reconciled.some((item, idx) => {
+                const curr = currentItems[idx];
+                if (!curr) return true;
+                return curr.componentId !== item.componentId ||
+                    curr.quantity !== item.quantity ||
+                    curr.price !== item.price ||
+                    curr.btw !== item.btw ||
+                    curr.description !== item.description;
+            });
+
+        if (isDifferent) {
+            setValue('offer.items', reconciled);
         }
 
-        let newItems = new Set(appendedItemsRef instanceof Set ? appendedItemsRef : []);
-        filteredItems.forEach((it: any) => {
-            if (it.description && it.price !== undefined) {
-                newItems.add(`${it.description}/${it.price}`);
-            }
-        });
-
-        if (hasPackageRules && isFixedPackage) {
-            // Apply fixed package rules with evaluated tokens
-            packageData.offers.rules.forEach((item: any) => {
-                const uniqueKey = `${item.description}/${item.unitPrice}`;
-                if (!newItems.has(uniqueKey)) {
-                    const resolvedNumber = typeof item.number === 'string'
-                        ? replacePlaceholders(item.number, estimateData || {})
-                        : item.number;
-                    const resolvedPrice = typeof item.unitPrice === 'string'
-                        ? replacePlaceholders(item.unitPrice, estimateData || {})
-                        : item.unitPrice;
-
-                    const rawSg = item.salesGroup || item.salesgroup || '';
-                    let matchedSgId = '';
-                    if (typeof rawSg === 'object' && rawSg !== null) {
-                        matchedSgId = rawSg._id || '';
-                    } else if (rawSg) {
-                        const found = availableSalesGroups.find(
-                            (s: any) => s._id === rawSg || s.name?.trim().toLowerCase() === String(rawSg).trim().toLowerCase()
-                        );
-                        matchedSgId = found ? found._id : rawSg;
-                    }
-                    if (!matchedSgId) matchedSgId = defaultSg;
-
-                    append({
-                        salesgroup: matchedSgId,
-                        description: item.description,
-                        quantity: Number(resolvedNumber) || 1,
-                        btw: item.btw || '21',
-                        price: Number(resolvedPrice) || 0,
-                    });
-                    newItems.add(uniqueKey);
-                }
-            });
-        } else {
-            // Populate traceable calculated lines directly from the customer's move estimate
-            const calculatedLines: Array<{ desc: string; qty: number; price: number; btw: string }> = [];
-
-            if (relocation && (Number(relocation?.totalVolume) > 0 || Number(relocation?.appliedPrice) > 0 || Number(relocation?.priceCalculation) > 0)) {
-                if (isHourlyAgreement) {
-                    const hourlyRate = Number(relocation?.pricePerMeterCubic) || Number(relocation?.appliedPrice) || 0;
-                    const reqHours = typeof relocation?.requiredHours === 'string'
-                        ? handleTimeToQuantity(relocation.requiredHours)
-                        : Number(relocation?.requiredHours) || 0;
-                    const fallbackHours = (Number(relocation?.totalVolume) || 0) / 3;
-                    const finalHours = reqHours > 0 ? reqHours : fallbackHours;
-
-                    if (finalHours > 0 && hourlyRate > 0) {
-                        calculatedLines.push({
-                            desc: `Moving Service (Hourly: ${relocation?.requiredHours || convertToTimeFormat(finalHours)} hrs)`,
-                            qty: finalHours,
-                            price: hourlyRate,
-                            btw: '21',
-                        });
-                    }
-                } else {
-                    calculatedLines.push({
-                        desc: `Moving Service (Volume: ${relocation?.totalVolume || 0} m³)`,
-                        qty: Number(relocation?.totalVolume) || 1,
-                        price: Number(relocation?.pricePerMeterCubic) || Number(relocation?.appliedPrice) || 0,
-                        btw: '21',
-                    });
-                }
-
-                if (Number(relocation?.travelTime) > 0 || (typeof relocation?.travelTime === 'string' && relocation?.travelTime !== '0:00' && relocation?.travelTime !== '0')) {
-                    const travelHrs = typeof relocation.travelTime === 'string' ? handleTimeToQuantity(relocation.travelTime) : Number(relocation.travelTime);
-                    if (travelHrs > 0 && Number(relocation?.pricePerHour) > 0) {
-                        calculatedLines.push({
-                            desc: 'Total Travel Time',
-                            qty: travelHrs,
-                            price: Number(relocation?.pricePerHour) || 0,
-                            btw: '21',
-                        });
-                    }
-                }
-                if (Number(relocation?.distance) > 0 && Number(relocation?.pricePerKilometer) > 0) {
-                    calculatedLines.push({
-                        desc: 'Travel Distance (km)',
-                        qty: Number(relocation.distance),
-                        price: Number(relocation.pricePerKilometer) || 0,
-                        btw: '21',
-                    });
-                }
-                if (Number(relocation?.propertySurcharge) > 0) {
-                    calculatedLines.push({
-                        desc: 'Property Location Surcharge',
-                        qty: 1,
-                        price: Number(relocation.propertySurcharge),
-                        btw: '21',
-                    });
-                }
-            }
-
-            // Inventory moving boxes configured in rooms (part of Relocation calculation in Step 11)
-            if (Array.isArray(rooms)) {
-                const groupedBoxes = rooms
-                    ?.flatMap((item: any) => item?.inventoryItems || [])
-                    .reduce((acc: Record<string, any>, box: any) => {
-                        if (!box) return acc;
-                        const key = box._id || box.name;
-                        if (!key) return acc;
-                        if (acc[key]) {
-                            acc[key].quantity += (Number(box.quantity) || 0);
-                        } else {
-                            acc[key] = { ...box, quantity: Number(box.quantity) || 0 };
-                        }
-                        return acc;
-                    }, {});
-
-                Object.values(groupedBoxes || {}).forEach((box: any) => {
-                    const qty = Number(box.quantity) || 0;
-                    const price = Number(box.price) || 0;
-                    if (qty > 0 && price > 0) {
-                        calculatedLines.push({
-                            desc: `Moving Item: ${box.name || 'Moving Box'}`,
-                            qty: qty,
-                            price: price,
-                            btw: '21',
-                        });
-                    }
-                });
-            }
-
-            if (packing && Number(packing?.appliedPrice) > 0) {
-                const packingHrs = typeof packing.requiredHours === 'string' ? handleTimeToQuantity(packing.requiredHours) : Number(packing.requiredHours) || 0;
-                if (packingHrs > 0) {
-                    calculatedLines.push({
-                        desc: 'Packing Service',
-                        qty: packingHrs,
-                        price: Number(packing.appliedPrice),
-                        btw: '21',
-                    });
-                }
-            }
-
-            if (unpacking && Number(unpacking?.appliedPrice) > 0) {
-                const unpackingHrs = typeof unpacking.requiredHours === 'string' ? handleTimeToQuantity(unpacking.requiredHours) : Number(unpacking.requiredHours) || 0;
-                if (unpackingHrs > 0) {
-                    calculatedLines.push({
-                        desc: 'Unpacking Service',
-                        qty: unpackingHrs,
-                        price: Number(unpacking.appliedPrice),
-                        btw: '21',
-                    });
-                }
-            }
-
-            if (assembling && Number(assembling?.appliedPrice) > 0) {
-                const assembleHrs = typeof assembling.requiredHours === 'string' ? handleTimeToQuantity(assembling.requiredHours) : Number(assembling.requiredHours) || 0;
-                if (assembleHrs > 0) {
-                    calculatedLines.push({
-                        desc: 'Furniture Assembly Service',
-                        qty: assembleHrs,
-                        price: Number(assembling.appliedPrice),
-                        btw: '21',
-                    });
-                }
-            }
-
-            if (disassembling && Number(disassembling?.appliedPrice) > 0) {
-                const disHrs = typeof disassembling.requiredHours === 'string' ? handleTimeToQuantity(disassembling.requiredHours) : Number(disassembling.requiredHours) || 0;
-                if (disHrs > 0) {
-                    calculatedLines.push({
-                        desc: 'Furniture Disassembly Service',
-                        qty: disHrs,
-                        price: Number(disassembling.appliedPrice),
-                        btw: '21',
-                    });
-                }
-            }
-
-            if (movingLift && Number(movingLift?.quantity) > 0 && (Number(movingLift?.appliedPrice) > 0 || Number(movingLift?.price) > 0)) {
-                calculatedLines.push({
-                    desc: 'Moving Lift Service',
-                    qty: Number(movingLift?.quantity),
-                    price: Number(movingLift?.price) || Number(movingLift?.appliedPrice) || 0,
-                    btw: '21',
-                });
-            }
-
-            const storageQty = Number(storage?.storageVolume) || Number(storage?.quantity) || 0;
-            if (storage && storageQty > 0 && (Number(storage?.appliedPrice) > 0 || Number(storage?.price) > 0)) {
-                calculatedLines.push({
-                    desc: 'Storage Service',
-                    qty: storageQty,
-                    price: Number(storage?.appliedPrice) || Number(storage?.price) || 0,
-                    btw: '21',
-                });
-            }
-
-            if (insurance && Number(insurance?.quantity) > 0 && (Number(insurance?.price) > 0 || Number(insurance?.appliedPrice) > 0)) {
-                calculatedLines.push({
-                    desc: 'Insurance Coverage',
-                    qty: Number(insurance?.quantity),
-                    price: Number(insurance?.price) || Number(insurance?.appliedPrice) || 0,
-                    btw: '21',
-                });
-            }
-
-            if (certificate && Number(certificate?.quantity) > 0 && (Number(certificate?.price) > 0 || Number(certificate?.appliedPrice) > 0)) {
-                calculatedLines.push({
-                    desc: 'Certificate Service',
-                    qty: Number(certificate?.quantity),
-                    price: Number(certificate?.price) || Number(certificate?.appliedPrice) || 0,
-                    btw: '21',
-                });
-            }
-
-            if (movingPackages && Number(movingPackages?.quantity) > 0 && (Number(movingPackages?.price) > 0 || Number(movingPackages?.appliedPrice) > 0)) {
-                calculatedLines.push({
-                    desc: 'Moving Packages Service',
-                    qty: Number(movingPackages?.quantity),
-                    price: Number(movingPackages?.price) || Number(movingPackages?.appliedPrice) || 0,
-                    btw: '21',
-                });
-            }
-
-            if (Array.isArray(materials)) {
-                materials.forEach((mat: any) => {
-                    const qty = Number(mat.quantity) || 0;
-                    const price = Number(mat.sellingPrice) || Number(mat.price) || 0;
-                    if (qty > 0 && price > 0) {
-                        calculatedLines.push({
-                            desc: `Packing Material: ${mat.name || 'Moving Item'}`,
-                            qty: qty,
-                            price: price,
-                            btw: '21',
-                        });
-                    }
-                });
-            }
-
-            calculatedLines.forEach((cLine) => {
-                const uniqueKey = `${cLine.desc}/${cLine.price}`;
-                if (!newItems.has(uniqueKey)) {
-                    append({
-                        salesgroup: defaultSg,
-                        description: cLine.desc,
-                        quantity: cLine.qty,
-                        btw: cLine.btw,
-                        price: cLine.price,
-                    });
-                    newItems.add(uniqueKey);
-                }
-            });
-        }
-
-        setAppendedItems(newItems);
+        const compIds = new Set<string>(reconciled.map((it: any) => it.componentId || deriveComponentId(it)));
+        setAppendedItems(compIds);
     };
 
 
@@ -571,43 +321,17 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
     const discountPercentage = Math.min(Math.max(Number(rawDiscount) || 0, 0), 100);
     const selectedTemplate = watch(`offer.financialTemplate`) || "";
 
-    const subtotal = items?.reduce((acc: any, item: any) => {
-        const quantity = Number(item.quantity) || 0;
-        const price = Number(item.price) || 0;
-        return acc + quantity * price;
-    }, 0);
+    const calcResult = calculateCommercialTotals({
+        items: items || [],
+        vat: vatSelected,
+        discount: discountPercentage,
+    });
 
-    const discountMultiplier = Math.max(0, 1 - (discountPercentage / 100));
-    const discountAmount = subtotal * (discountPercentage / 100);
+    const subtotal = calcResult.subTotal;
+    const discountAmount = calcResult.discountedPrice;
+    const taxTotal = calcResult.totalVat;
+    const total = calcResult.total;
     const discountedSubtotal = subtotal - discountAmount;
-
-    let taxTotal = 0;
-    let total = 0;
-
-    if (vatSelected === 'inclusive') {
-        // Including VAT: line item prices already include VAT.
-        // Tax is extracted from the discounted gross base: gross * (btw / (100 + btw))
-        taxTotal = items?.reduce((acc: any, item: any) => {
-            const quantity = Number(item.quantity) || 0;
-            const price = Number(item.price) || 0;
-            const btw = Number(item.btw) || 0;
-            const discountedLineGross = (price * quantity) * discountMultiplier;
-            const itemTax = btw > 0 ? discountedLineGross * (btw / (100 + btw)) : 0;
-            return acc + itemTax;
-        }, 0);
-        total = discountedSubtotal;
-    } else {
-        // Excluding VAT (standard): prices are net. Discount applies before tax.
-        taxTotal = items?.reduce((acc: any, item: any) => {
-            const quantity = Number(item.quantity) || 0;
-            const price = Number(item.price) || 0;
-            const btw = Number(item.btw) || 0;
-            const discountedLineNet = (price * quantity) * discountMultiplier;
-            const itemTax = discountedLineNet * (btw / 100);
-            return acc + itemTax;
-        }, 0);
-        total = discountedSubtotal + taxTotal;
-    }
 
     useEffect(() => {
         setValue('offer.subTotal', subtotal?.toFixed(2));
@@ -843,9 +567,11 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                                 {...register(`offer.items.${index}.btw`, { required: 'btw is required' })}
                             >
 
-                                <option value="0">0%</option>
-                                <option value="9">9%</option>
-                                <option value="21">21%</option>
+                                {getStandardTaxOptions().map((tax) => (
+                                    <option key={tax.id} value={tax.code}>
+                                        {tax.label}
+                                    </option>
+                                ))}
                             </select>
                             <input
                                 type="number"
@@ -870,7 +596,7 @@ const ValuationOffer: React.FC<any> = ({ packageData, setAppendedItems, appended
                     ))}
                     <button
                         type="button"
-                        onClick={() => append({ salesgroup: '', description: '', quantity: 1, btw: "", price: 0 })}
+                        onClick={() => append({ salesgroup: (salesgroup && salesgroup[0]?._id) || '', description: '', quantity: 1, btw: "21", price: 0, isManual: true, componentId: `manual_${Date.now()}` })}
                         className="bg-blue-500 font-bold text-white px-4 py-2 shadow text-lg hover:bg-black"
                     >
                         + Add Item

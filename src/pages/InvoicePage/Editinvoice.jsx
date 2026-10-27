@@ -21,6 +21,8 @@ import { UserContext } from '../../UserContext';
 import Loader from '../../common/Loader';
 import NewCustomer from '../customerDetails/NewCustomer';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+import { getStandardTaxOptions } from '../../utils/taxCatalog';
+import { calculateCommercialTotals } from '../../utils/moneyCalculator';
 
 const EditInvoice = () => {
     const { id } = useContext(UserContext) || {};
@@ -98,46 +100,21 @@ const EditInvoice = () => {
         return (customerList || []).find((c) => c._id === selectedCustomerId);
     }, [customerList, selectedCustomerId]);
 
-    // Financial Calculations
-    const subtotal = useMemo(() => {
-        return (watchedItems || []).reduce((acc, item) => {
-            const quantity = Number(item?.quantity) || 0;
-            const price = Number(item?.price) || 0;
-            return acc + quantity * price;
-        }, 0);
-    }, [watchedItems]);
+    // Financial Calculations (Authoritative EXEC-20 Engine)
+    const calcResult = useMemo(() => {
+        return calculateCommercialTotals({
+            items: watchedItems || [],
+            vat: vatSelected,
+            discount: discountPercentage,
+        });
+    }, [watchedItems, vatSelected, discountPercentage]);
 
-    const discountMultiplier = useMemo(() => {
-        const pct = Math.min(Math.max(Number(discountPercentage) || 0, 0), 100);
-        return Math.max(0, 1 - (pct / 100));
-    }, [discountPercentage]);
-
-    const discountAmount = useMemo(() => {
-        const pct = Math.min(Math.max(Number(discountPercentage) || 0, 0), 100);
-        return subtotal * (pct / 100);
-    }, [subtotal, discountPercentage]);
-
-    const discountedSubtotal = useMemo(() => {
-        return subtotal - discountAmount;
-    }, [subtotal, discountAmount]);
-
+    const subtotal = calcResult.subTotal;
+    const discountAmount = calcResult.discountedPrice;
+    const discountedSubtotal = subtotal - discountAmount;
     const isInclusive = vatSelected === 'inclusive';
-
-    const taxTotal = useMemo(() => {
-        return (watchedItems || []).reduce((acc, item) => {
-            const quantity = Number(item?.quantity) || 0;
-            const price = Number(item?.price) || 0;
-            const btw = Number(item?.btw) || 0;
-            const discountedLine = (quantity * price) * discountMultiplier;
-            return acc + (isInclusive
-                ? discountedLine * (btw / (100 + btw))
-                : discountedLine * (btw / 100));
-        }, 0);
-    }, [watchedItems, discountMultiplier, isInclusive]);
-
-    const grandTotal = useMemo(() => {
-        return isInclusive ? discountedSubtotal : (discountedSubtotal + taxTotal);
-    }, [discountedSubtotal, taxTotal, isInclusive]);
+    const taxTotal = calcResult.totalVat;
+    const grandTotal = calcResult.total;
 
     // Fetch initial dropdown metadata
     const handleClient = async () => {
@@ -240,7 +217,7 @@ const EditInvoice = () => {
                 const mappedItems = invoiceData.items.map((item) => ({
                     salesgroup: item.salesgroup?._id || item.salesgroup || (salesGroupList[0]?._id ?? ''),
                     description: item.description || '',
-                    quantity: Number(item.quantity) || 1,
+                    quantity: (item.quantity !== undefined && item.quantity !== null && item.quantity !== '') ? Number(item.quantity) : 1,
                     btw: item.btw !== undefined ? String(item.btw) : '21',
                     price: Number(item.price) || 0,
                 }));
@@ -1040,9 +1017,11 @@ const EditInvoice = () => {
                                                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
                                                          {...register(`items.${index}.btw`)}
                                                      >
-                                                         <option value="0">0%</option>
-                                                         <option value="9">9%</option>
-                                                         <option value="21">21%</option>
+                                                         {getStandardTaxOptions().map((tax) => (
+                                                        <option key={tax.id} value={tax.code}>
+                                                            {tax.label}
+                                                        </option>
+                                                    ))}
                                                      </select>
                                                  </td>
 

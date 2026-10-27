@@ -22,6 +22,7 @@ import axios from "axios";
 import { apiPath } from "../../../apiPath";
 import { toast } from 'react-toastify';
 import Loader from "../../common/Loader";
+import { sanitizeHtml } from "../../utils/sanitizeUtil";
 
 interface Activity {
   _id?: string;
@@ -357,7 +358,7 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
               {/* Email Rendered Content */}
               <div className="p-4 bg-white dark:bg-boxdark rounded-2xl border border-slate-200/60 dark:border-strokedark text-slate-800 dark:text-slate-100 text-sm leading-relaxed overflow-x-auto min-h-[160px]">
                 {emailData?.htmlContent ? (
-                  <div dangerouslySetInnerHTML={{ __html: emailData.htmlContent }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(emailData.htmlContent) }} />
                 ) : (
                   <p className="text-slate-400 italic">No message content available.</p>
                 )}

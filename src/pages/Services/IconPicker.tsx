@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MdCloudUpload, MdCode, MdCheckCircle } from 'react-icons/md';
+import { sanitizeSvg } from '../../utils/sanitizeUtil';
 
 interface IconPickerProps {
   control?: any;
@@ -84,7 +85,7 @@ const IconPicker: React.FC<IconPickerProps> = ({
               <div className="flex items-center gap-3">
                 <div
                   className="w-12 h-12 rounded-xl bg-white dark:bg-boxdark border border-stroke dark:border-strokedark p-2 text-black dark:text-white flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current"
-                  dangerouslySetInnerHTML={{ __html: svgCode }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeSvg(svgCode) }}
                 />
                 <div className="text-left">
                   <p className="text-xs font-bold text-black dark:text-white flex items-center gap-1">

@@ -540,7 +540,12 @@ const AddressForm = ({ register, errors, control, countries, property, setValue,
     setLookupLoading(true);
     setLookupStatus(null);
     try {
-      const res = await lookupDutchAddress(rawPostcode, houseNumber, addition, country);
+      const res = await lookupDutchAddress({
+        postcode: rawPostcode,
+        houseNumber,
+        addition,
+        country
+      });
       if (res.success && res.street && res.city) {
         setValue('street', res.street, { shouldValidate: true, shouldDirty: true });
         setValue('city', res.city, { shouldValidate: true, shouldDirty: true });

@@ -21,6 +21,7 @@ import {
   MdOutlineScale,
   MdOutlineFilterAlt,
 } from 'react-icons/md';
+import { sanitizeSvg } from '../../utils/sanitizeUtil';
 
 interface FurnitureDrawerProps {
   selectItem: any;
@@ -275,7 +276,7 @@ export const FurnitureDrawer: React.FC<FurnitureDrawerProps> = ({
                       {selectItem?.icon ? (
                         <div
                           className="w-8 h-8 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-primary text-primary"
-                          dangerouslySetInnerHTML={{ __html: selectItem.icon }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeSvg(selectItem.icon) }}
                         />
                       ) : (
                         <MdOutlineMeetingRoom className="text-3xl text-primary" />
@@ -521,7 +522,7 @@ export const FurnitureDrawer: React.FC<FurnitureDrawerProps> = ({
                                     : 'text-slate-700 dark:text-slate-200 group-hover:text-primary'
                                 }`}
                                 dangerouslySetInnerHTML={{
-                                  __html: item.icon,
+                                  __html: sanitizeSvg(item.icon),
                                 }}
                               />
                             ) : (
@@ -853,7 +854,7 @@ export const FurnitureDrawer: React.FC<FurnitureDrawerProps> = ({
                                     : 'text-slate-700 dark:text-slate-200 group-hover:text-primary'
                                 }`}
                                 dangerouslySetInnerHTML={{
-                                  __html: item.icon,
+                                  __html: sanitizeSvg(item.icon),
                                 }}
                               />
                             ) : (

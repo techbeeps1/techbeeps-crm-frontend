@@ -23,6 +23,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import { useForm } from 'react-hook-form';
 import { apiPath } from '../../../apiPath';
+import { sanitizeSvg } from '../../utils/sanitizeUtil';
 import axios from 'axios';
 import Loader from '../../common/Loader';
 import { formatLabel } from '../../utils/labelUtil';
@@ -953,7 +954,7 @@ const NewJob = ({ handler }) => {
                             {service.icon ? (
                               <div
                                 className="w-5 h-5 flex items-center justify-center [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-current"
-                                dangerouslySetInnerHTML={{ __html: service.icon }}
+                                dangerouslySetInnerHTML={{ __html: sanitizeSvg(service.icon) }}
                               />
                             ) : (
                               <MiscellaneousServicesIcon fontSize="small" />

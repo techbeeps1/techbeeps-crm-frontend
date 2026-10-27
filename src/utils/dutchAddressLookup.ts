@@ -1,12 +1,15 @@
 /**
- * UM-035: Dutch Address Lookup (PDOK Locatieserver) & Country Defaults
+ * EXEC-13: Dutch Address Lookup (PDOK Locatieserver) & Argument Reversal Resilience
  * 
  * Features:
  * - Free, public Dutch Government Locatieserver API
  * - Query by Postcode + House Number + optional addition
- * - Never overwrites an explicit foreign country (only runs if country is Netherlands or empty)
- * - Safe fallback if service is unavailable or no match is found (allows manual entry)
- * - Preserves user input and editable fields
+ * - Flexible signature: Supports named object { postcode, houseNumber, addition, country }
+ *   as well as positional arguments (postcode, houseNumber, addition, country) OR (postcode, houseNumber, country, addition).
+ * - Automatic disambiguation prevents argument reversal bugs where house addition ('A', 'bis')
+ *   was previously mistaken for a country and caused foreign bypass.
+ * - Never overwrites an explicit foreign country (only runs if country is Netherlands or empty).
+ * - Safe fallback if service is unavailable or no match is found (allows manual entry).
  */
 
 export interface DutchAddressResult {
@@ -15,39 +18,120 @@ export interface DutchAddressResult {
   city?: string;
   postcode?: string;
   houseNumber?: string;
+  addition?: string;
   country?: string;
   message?: string;
 }
 
-export const lookupDutchAddress = async (
-  rawPostcode: string,
-  rawHouseNumber: string,
-  currentCountry?: string,
-  rawAddition?: string
-): Promise<DutchAddressResult> => {
-  const cleanPostcode = String(rawPostcode || '').replace(/\s+/g, '').toUpperCase();
-  const houseNumber = String(rawHouseNumber || '').trim();
-  const addition = String(rawAddition || '').trim();
+export interface DutchAddressLookupParams {
+  postcode?: string;
+  houseNumber?: string;
+  addition?: string;
+  country?: string;
+}
 
-  if (!cleanPostcode || !houseNumber) {
+/**
+ * Smart country detector to disambiguate reversed arguments.
+ */
+export const isCountryIdentifier = (val: unknown): boolean => {
+  if (!val || typeof val !== 'string') return false;
+  const v = val.trim().toLowerCase();
+  if (!v) return false;
+  return (
+    v === 'netherlands' ||
+    v === 'nederland' ||
+    v === 'nl' ||
+    v === 'the netherlands' ||
+    v === 'holland' ||
+    v === 'germany' ||
+    v === 'deutschland' ||
+    v === 'de' ||
+    v === 'belgium' ||
+    v === 'belgië' ||
+    v === 'be' ||
+    v === 'france' ||
+    v === 'fr' ||
+    v === 'united kingdom' ||
+    v === 'uk' ||
+    v === 'spain' ||
+    v === 'italy' ||
+    (v.length > 5 && !/^[0-9]/.test(v))
+  );
+};
+
+export const lookupDutchAddress = async (
+  paramsOrPostcode: string | DutchAddressLookupParams,
+  rawHouseNumber?: string,
+  arg3?: string,
+  arg4?: string
+): Promise<DutchAddressResult> => {
+  let postcode = '';
+  let houseNumber = '';
+  let addition = '';
+  let country = 'Netherlands';
+
+  if (typeof paramsOrPostcode === 'object' && paramsOrPostcode !== null) {
+    postcode = String(paramsOrPostcode.postcode || '').trim();
+    houseNumber = String(paramsOrPostcode.houseNumber || '').trim();
+    addition = String(paramsOrPostcode.addition || '').trim();
+    country = String(paramsOrPostcode.country || 'Netherlands').trim();
+  } else {
+    postcode = String(paramsOrPostcode || '').trim();
+    houseNumber = String(rawHouseNumber || '').trim();
+
+    const param3 = arg3 !== undefined ? String(arg3).trim() : '';
+    const param4 = arg4 !== undefined ? String(arg4).trim() : '';
+
+    // Smart Disambiguation:
+    // If arg3 is a country (e.g. 'Netherlands', 'Germany'), then signature was (postcode, houseNumber, country, addition)
+    if (isCountryIdentifier(param3)) {
+      country = param3 || 'Netherlands';
+      addition = param4;
+    } else if (isCountryIdentifier(param4)) {
+      // If arg4 is a country, then signature was (postcode, houseNumber, addition, country)
+      addition = param3;
+      country = param4 || 'Netherlands';
+    } else {
+      // Default: arg3 is addition (e.g. 'A', 'bis'), arg4 is country or defaults to Netherlands
+      addition = param3;
+      country = param4 || 'Netherlands';
+    }
+  }
+
+  const cleanPostcode = postcode.replace(/\s+/g, '').toUpperCase();
+  const cleanHouseNumber = houseNumber.trim();
+  const cleanAddition = addition.trim();
+
+  if (!cleanPostcode || !cleanHouseNumber) {
     return { success: false, message: 'Postcode and house number are required for lookup.' };
   }
 
   // Dutch postcode format: 4 digits + 2 letters (e.g. 1012JS, 3011AD)
   const isDutchFormat = /^[1-9][0-9]{3}[A-Z]{2}$/.test(cleanPostcode);
   if (!isDutchFormat) {
-    return { success: false, message: 'Not a standard Dutch postcode format (e.g. 3011AD).' };
+    return { success: false, message: 'Not a standard Dutch postcode format (e.g. 1012JS).' };
   }
 
-  // Respect deliberate foreign country selections (never overwrite)
-  if (currentCountry && currentCountry.trim().toLowerCase() !== 'netherlands') {
+  // Respect deliberate foreign country selections (only run for Netherlands / blank)
+  const normCountry = country.toLowerCase();
+  const isDutchCountry =
+    !normCountry ||
+    normCountry === 'netherlands' ||
+    normCountry === 'nederland' ||
+    normCountry === 'nl' ||
+    normCountry === 'the netherlands' ||
+    normCountry === 'holland';
+
+  if (!isDutchCountry) {
     return { success: false, message: 'Foreign country selected; skipping Dutch lookup.' };
   }
 
   try {
-    const query = addition ? `${cleanPostcode} ${houseNumber} ${addition}` : `${cleanPostcode} ${houseNumber}`;
+    const query = cleanAddition
+      ? `${cleanPostcode} ${cleanHouseNumber} ${cleanAddition}`
+      : `${cleanPostcode} ${cleanHouseNumber}`;
     const url = `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(query)}`;
-    
+
     const response = await fetch(url, { method: 'GET' });
     if (!response.ok) {
       return { success: false, message: 'Lookup service temporarily unavailable. Please enter details manually.' };
@@ -58,8 +142,8 @@ export const lookupDutchAddress = async (
 
     if (docs.length === 0) {
       // Fallback: retry without addition if addition was provided
-      if (addition) {
-        const fallbackUrl = `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(`${cleanPostcode} ${houseNumber}`)}`;
+      if (cleanAddition) {
+        const fallbackUrl = `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(`${cleanPostcode} ${cleanHouseNumber}`)}`;
         const fallbackRes = await fetch(fallbackUrl);
         if (fallbackRes.ok) {
           const fallbackData = await fallbackRes.json();
@@ -70,7 +154,8 @@ export const lookupDutchAddress = async (
               street: fallbackDoc.straatnaam,
               city: fallbackDoc.woonplaatsnaam,
               postcode: cleanPostcode,
-              houseNumber,
+              houseNumber: cleanHouseNumber,
+              addition: cleanAddition,
               country: 'Netherlands',
               message: `✓ Address found: ${fallbackDoc.straatnaam}, ${fallbackDoc.woonplaatsnaam}`,
             };
@@ -87,7 +172,8 @@ export const lookupDutchAddress = async (
         street: doc.straatnaam,
         city: doc.woonplaatsnaam,
         postcode: cleanPostcode,
-        houseNumber,
+        houseNumber: cleanHouseNumber,
+        addition: cleanAddition,
         country: 'Netherlands',
         message: `✓ Address found: ${doc.straatnaam}, ${doc.woonplaatsnaam}`,
       };
@@ -95,7 +181,7 @@ export const lookupDutchAddress = async (
 
     return { success: false, message: 'Address details incomplete in registry. Please enter manually.' };
   } catch (error) {
-    console.warn('[UM-035] PDOK Lookup error:', error);
+    console.warn('[EXEC-13] PDOK Lookup error:', error);
     return { success: false, message: 'Lookup service unavailable. Please enter details manually.' };
   }
 };

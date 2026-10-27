@@ -6,6 +6,7 @@ import App from './App';
 import './index.css';
 import './satoshi.css';
 import './utils/timezoneUtil';
+import './utils/correlationUtil';
 import store from './pages/Redux/store';
 import { EmailProvider } from './EmailProvider/EmailContext';
 import { UserContextProvider } from './UserContext';

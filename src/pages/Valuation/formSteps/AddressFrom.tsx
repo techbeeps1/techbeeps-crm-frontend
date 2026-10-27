@@ -1,9 +1,13 @@
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { lookupDutchAddress } from "../../../utils/dutchAddressLookup";
+import { getEffectiveCountries, getEffectivePropertyTypes } from "../../../utils/referenceData";
 
 const AddressForm: React.FC<any> = ({ countries, type, property }) => {
     const { control, register, watch, setValue, formState: { errors } } = useFormContext() as any;
+
+    const effectiveCountries = React.useMemo(() => getEffectiveCountries(countries), [countries]);
+    const effectiveProperties = React.useMemo(() => getEffectivePropertyTypes(property), [property]);
 
     const elevator = watch(`${type}.hasElevator`);
     const addressKnown = watch(`knownAddress`);
@@ -32,7 +36,12 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
         setIsLookingUp(true);
         setLookupStatus(null);
         try {
-            const result = await lookupDutchAddress(rawPostcode, houseNumber, addition, country);
+            const result = await lookupDutchAddress({
+                postcode: rawPostcode,
+                houseNumber,
+                addition,
+                country
+            });
             if (result.success && result.street && result.city) {
                 setValue(`${type}.street`, result.street, { shouldValidate: true, shouldDirty: true });
                 setValue(`${type}.city`, result.city, { shouldValidate: true, shouldDirty: true });
@@ -122,6 +131,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         type="text"
                         id="addition"
                         placeholder="e.g. A / bis"
+                        onBlur={handleAddressLookup}
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     />
                 </div>
@@ -165,7 +175,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     >
                         <option value="">Select Country</option>
-                        {countries.map((country: string) => (
+                        {effectiveCountries.map((country: string) => (
                             <option key={country} value={country}>{country}</option>
                         ))}
                     </select>
@@ -173,16 +183,6 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                 </div>
 
                 {/* Type of Property */}
-                {/* <div className="mb-4">
-                    <label htmlFor="typeOfProperty" className="block text-lg font-medium">Type of property*</label>
-                    <input
-                        {...register(`${type}.typeOfProperty`, { required: "Type of property is required." })}
-                        type="text"
-                        id="typeOfProperty"
-                        className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
-                    />
-                    {errors[type]?.typeOfProperty && <p className="text-danger text-md mt-1">{errors[type]?.typeOfProperty?.message}</p>}
-                </div> */}
                 <div className="mb-4">
                     <label htmlFor="typeOfProperty" className="block text-lg font-medium">Type of property*</label>
                     <select
@@ -191,8 +191,8 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"
                     >
                         <option value="">Select property</option>
-                        {property?.map((property: string) => (
-                            <option key={property} value={property}>{property}</option>
+                        {effectiveProperties.map((prop: string) => (
+                            <option key={prop} value={prop}>{prop}</option>
                         ))}
                     </select>
                     {errors[type]?.typeOfProperty && <p className="text-danger text-md mt-1">{errors[type]?.typeOfProperty?.message}</p>}

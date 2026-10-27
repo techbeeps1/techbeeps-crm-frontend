@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import CustomFurniture from './CustomFurniture';
 import Loader from '../../../common/Loader';
+import { sanitizeSvg } from '../../../utils/sanitizeUtil';
 
 const FurnitureSelection: React.FC<any> = ({  data, setData }) => {
     const [isModalOpen, setModalOpen] = useState(false);
@@ -184,7 +185,7 @@ const FurnitureSelection: React.FC<any> = ({  data, setData }) => {
                                         marginBottom: '1px',
                                         color: 'white'
                                     }}
-                                    dangerouslySetInnerHTML={{ __html: item?.icon }}
+                                    dangerouslySetInnerHTML={{ __html: sanitizeSvg(item?.icon) }}
                                 />
                                 <div className="text-lg mt-1 font-bold">{item?.furnitureTypeName}</div>
                                 <div className="text-3xl mt-1 text-white">✓</div>
@@ -200,7 +201,7 @@ const FurnitureSelection: React.FC<any> = ({  data, setData }) => {
                                 padding: '5px',
                                 marginBottom: '1px',
                             }}
-                            dangerouslySetInnerHTML={{ __html: item?.icon }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeSvg(item?.icon) }}
                         />
                         <div className="text-lg font-bold text-black">{item?.furnitureTypeName}</div>
                         {!item?.custom && (
@@ -264,7 +265,7 @@ const FurnitureSelection: React.FC<any> = ({  data, setData }) => {
                                         padding: '10px',
                                         marginBottom: '10px',
                                     }}
-                                    dangerouslySetInnerHTML={{ __html: item?.icon }}
+                                    dangerouslySetInnerHTML={{ __html: sanitizeSvg(item?.icon) }}
                                 />
                                 <p className="text-center text-lg font-medium">{item?.furnitureTypeName}</p>
                             </div>

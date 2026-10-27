@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fi';
 import ModulePermissionsSelector, { ALL_MODULE_IDS } from './ModulePermissionsSelector';
 import { useCurrency } from '../utils/currencyUtil';
+import { parseDutchName } from '../utils/phoneUtil';
 
 const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
   const { symbol: currencySymbol } = useCurrency();
@@ -49,10 +50,11 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
 
   useEffect(() => {
     if (!userData) return;
+    const parsedName = parseDutchName(userData.username);
     const defaultValues = {
       gender: userData.gender || '',
-      firstName: userData.username?.split(' ')[0] || '',
-      surname: userData.username?.split(' ')[1] || '',
+      firstName: parsedName.firstName || '',
+      surname: parsedName.surname || '',
       language: userData.language || '',
       dob: userData.dob ? userData.dob.split('T')[0] : '',
       email: userData.email || '',

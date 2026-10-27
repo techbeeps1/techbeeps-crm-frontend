@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useFormContext, Controller } from "react-hook-form";
 import { EmailContext } from "../../../EmailProvider/EmailContext";
 import axios from "axios";
@@ -10,6 +10,9 @@ import MaterialsCalculation from "../InnerForm/MaterialsCalculation";
 import { formatCurrency } from "../../../utils/currencyUtil";
 import { apiPath } from "../../../../apiPath";
 import { resolveRatePrecedence } from "../../../utils/ratePrecedenceUtil";
+import { convertToTimeFormat } from "../../../utils/timeUtil";
+import { calculateLiftService, resolvePropertySurcharge } from "../../../utils/labourCalculator";
+import { buildRouteCacheKey, calculateHaversineFallback, RouteCalculationResult } from "../../../utils/routeCalculator";
 
 
 const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packageData }) => {
@@ -29,6 +32,8 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
     const [movingLiftCharges, setMovingLiftCharges] = useState<any>(0)
     const [totalPrice, setTotalPrice] = useState<any>(0);
     const priceAgreement = watch("priceAgree");
+    const lastAddressKey = useRef<string>('');
+    const routeRequestId = useRef<number>(0);
 
     useEffect(() => {
         let isMounted = true;
@@ -71,12 +76,6 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
                 totalVolume
             };
         }).filter((room: any) => (room.furnitureType && room.furnitureType.length > 0) || (Array.isArray(room.inventoryItems) && room.inventoryItems.some((b: any) => Number(b.quantity) > 0)));
-    }
-    function convertToTimeFormat(value: number): string {
-        if (!Number.isFinite(value) || value <= 0) return '00:00';
-        const hours = Math.floor(value);
-        const minutes = Math.round((value - hours) * 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
     const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
@@ -239,7 +238,7 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
     const calculateRoute = async (
         startCoords: [number, number],
         endCoords: [number, number],
-    ): Promise<{ distanceKm: number; durationHours: number }> => {
+    ): Promise<RouteCalculationResult> => {
         const apiKey = '5b3ce3597851110001cf6248495a99f209a54de397d7d927a4a3f00b';
 
         // Tier 1: OpenRouteService Driving Directions
@@ -251,6 +250,9 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
                 return {
                     distanceKm: summary.distance / 1000,
                     durationHours: (summary.duration || 0) / 3600,
+                    source: 'ORS',
+                    isFallback: false,
+                    status: 'CONFIRMED_ROAD',
                 };
             }
         } catch (e) {
@@ -266,31 +268,17 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
                 return {
                     distanceKm: route.distance / 1000,
                     durationHours: route.duration / 3600,
+                    source: 'OSRM',
+                    isFallback: false,
+                    status: 'CONFIRMED_ROAD',
                 };
             }
         } catch (e) {
             // Fallback to Haversine
         }
 
-        // Tier 3: Haversine distance with road factor
-        const [lon1, lat1] = startCoords;
-        const [lon2, lat2] = endCoords;
-        const R = 6371;
-        const dLat = ((lat2 - lat1) * Math.PI) / 180;
-        const dLon = ((lon2 - lon1) * Math.PI) / 180;
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos((lat1 * Math.PI) / 180) *
-                Math.cos((lat2 * Math.PI) / 180) *
-                Math.sin(dLon / 2) *
-                Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const roadKm = R * c * 1.3;
-        const hours = roadKm / 60;
-        return {
-            distanceKm: roadKm,
-            durationHours: hours,
-        };
+        // Tier 3: Haversine distance with road factor & explicit fallback labeling
+        return calculateHaversineFallback(startCoords, endCoords);
     };
 
     async function getDistanceAndTime(force = false) {
@@ -308,33 +296,60 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
             return;
         }
 
+        const addressKey = buildRouteCacheKey(load, unload);
+        const isAddressChanged = Boolean(lastAddressKey.current && addressKey !== lastAddressKey.current);
+
         const currentDistance = Number(watch('relocation.distance'));
         const currentTravelTime = Number(watch('relocation.travelTime'));
 
-        if (!force && currentDistance > 0 && currentTravelTime > 0) {
+        // If distance and travel time already exist, ONLY skip if address DID NOT change and force is false
+        if (!force && !isAddressChanged && currentDistance > 0 && currentTravelTime > 0) {
             return;
         }
 
+        const currentReqId = ++routeRequestId.current;
         setIsCalculatingDistance(true);
         try {
             const startCoords = await geocodeAddress(load);
             const endCoords = await geocodeAddress(unload);
 
+            // Discard late responses if another calculation was triggered in the meantime
+            if (currentReqId !== routeRequestId.current) {
+                return;
+            }
+
             if (startCoords && endCoords) {
                 const route = await calculateRoute(startCoords, endCoords);
+                if (currentReqId !== routeRequestId.current) {
+                    return;
+                }
+                lastAddressKey.current = addressKey;
                 setValue('relocation.distance', route.distanceKm.toFixed(2));
                 setValue('relocation.travelTime', route.durationHours.toFixed(2));
+                setValue('relocation.routeSource', route.source);
+                setValue('relocation.routeStatus', route.status);
             }
         } catch (error) {
             console.error('Error calculating distance and time:', error);
         } finally {
-            setIsCalculatingDistance(false);
+            if (currentReqId === routeRequestId.current) {
+                setIsCalculatingDistance(false);
+            }
         }
     }
 
+    const loadStreet = watch('load.street');
+    const loadHouse = watch('load.houseNumber');
+    const loadPost = watch('load.postcode');
+    const loadCity = watch('load.city');
+    const unloadStreet = watch('unload.street');
+    const unloadHouse = watch('unload.houseNumber');
+    const unloadPost = watch('unload.postcode');
+    const unloadCity = watch('unload.city');
+
     useEffect(() => {
         getDistanceAndTime().catch(console.error);
-    }, [watch('load'), watch('unload')]);
+    }, [loadStreet, loadHouse, loadPost, loadCity, unloadStreet, unloadHouse, unloadPost, unloadCity]);
 
     let totalVolume = Number(watch('relocation.totalVolume')) || 0;
     let pricePerMeterCubic = Number(watch('relocation.pricePerMeterCubic')) || 0;
@@ -362,54 +377,8 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
         const unloadProperty = watch('unload.typeOfProperty');
         const propertySurcharges = activeSettings?.standardPrice?.propertySurcharges || localSettings?.standardPrice?.propertySurcharges || settings?.standardPrice?.propertySurcharges || {};
 
-        const getSurchargeForProperty = (propName: string): number => {
-            if (!propName || typeof propName !== 'string') return 0;
-            const clean = propName.trim().toLowerCase();
-            for (const [key, val] of Object.entries(propertySurcharges)) {
-                if (key.toLowerCase() === clean) return Number(val) || 0;
-            }
-            const aliases: Record<string, string> = {
-                apartment: 'Appartement',
-                flat: 'Appartement',
-                appratment: 'Appartement',
-                appartmant: 'Appartement',
-                house: 'Huis',
-                home: 'Huis',
-                woonhuis: 'Huis',
-                farm: 'Boerderij',
-                farmhouse: 'Boerderij',
-                'semi-detached': '2-onder-1-kap',
-                'semi detached': '2-onder-1-kap',
-                mansion: 'Herenhuis',
-                detached: 'Vrijstaande woning',
-                'detached house': 'Vrijstaande woning',
-                terraced: 'Rijtjeswoning',
-                'terraced house': 'Rijtjeswoning',
-                corner: 'Hoekwoning',
-                'corner house': 'Hoekwoning',
-                office: 'Kantoor',
-                storage: 'Opslag',
-                'storage unit': 'Opslag',
-                warehouse: 'Opslag',
-                'commercial space': 'Bedrijfspand',
-                'commercial property': 'Bedrijfspand',
-                commercial: 'Bedrijfspand',
-                penthouse: 'Appartement',
-                penthouses: 'Appartement',
-                'single family home': 'Huis',
-                townhouse: 'Rijtjeswoning',
-                villa: 'Villa',
-                studio: 'Studio',
-            };
-            const mappedKey = aliases[clean];
-            if (mappedKey && propertySurcharges[mappedKey] !== undefined) {
-                return Number(propertySurcharges[mappedKey]) || 0;
-            }
-            return 0;
-        };
-
-        const loadSurcharge = getSurchargeForProperty(loadProperty);
-        const unloadSurcharge = getSurchargeForProperty(unloadProperty);
+        const loadSurcharge = resolvePropertySurcharge(loadProperty, propertySurcharges);
+        const unloadSurcharge = resolvePropertySurcharge(unloadProperty, propertySurcharges);
         const totalPropertySurcharge = loadSurcharge + unloadSurcharge;
         setValue('relocation.loadPropertySurcharge', loadSurcharge);
         setValue('relocation.unloadPropertySurcharge', unloadSurcharge);
@@ -430,6 +399,23 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
         }
     }, [totalVolume, pricePerMeterCubic, travelTime, pricePerHour, distance, pricePerKilometer, priceAgreement, rooms, settings, localSettings, activeSettings, setValue, watch('load.typeOfProperty'), watch('unload.typeOfProperty')]);
 
+    const isServiceSelected = (typeName: string) => {
+        if (!Array.isArray(selectedServices)) return true;
+        return selectedServices.some(
+            (s: any) => s?.serviceTypeName === typeName || (s?.serviceName && s.serviceName.toLowerCase() === typeName.toLowerCase())
+        );
+    };
+
+    const isPackingSelected = isServiceSelected('packing');
+    const isUnpackingSelected = isServiceSelected('unpacking');
+    const isAssemblingSelected = isServiceSelected('assembling');
+    const isDisassemblingSelected = isServiceSelected('disassembling');
+    const isMovingLiftSelected = isServiceSelected('movingLift');
+    const isStorageSelected = isServiceSelected('storage');
+    const isInsuranceSelected = isServiceSelected('insurance');
+    const isCertificateSelected = isServiceSelected('certificate');
+    const isMovingPackagesSelected = isServiceSelected('movingPackage');
+
     let packingRate = Number(watch('packing.appliedPrice')) || 0;
     let unpackingRate = Number(watch('unpacking.appliedPrice')) || 0;
 
@@ -449,19 +435,32 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
         const packingBoxesPerHour = Math.max(1, Number(settings?.standardPrice?.packingBoxPerHour) || 10);
         const unpackingBoxesPerHour = Math.max(1, Number(settings?.standardPrice?.unPackagingBoxPerHour) || 10);
 
-        // Labor hours = totalBoxes / productivity (e.g. 2 boxes / 10 boxes/hr = 0.2 hrs)
-        const packingLaborHours = totalBoxes > 0 ? (totalBoxes / packingBoxesPerHour) : 0;
-        const unpackingLaborHours = totalBoxes > 0 ? (totalBoxes / unpackingBoxesPerHour) : 0;
+        // Packing calculations
+        if (isPackingSelected) {
+            const packingLaborHours = totalBoxes > 0 ? (totalBoxes / packingBoxesPerHour) : 0;
+            const totalPackingCharge = packingLaborHours * packingRate;
+            setValue('packing.requiredHours', convertToTimeFormat(packingLaborHours));
+            setPackingCharges(totalPackingCharge.toFixed(2));
+        } else {
+            setValue('packing.requiredHours', '00:00');
+            setValue('packing.appliedPrice', 0);
+            setValue('packing.requiredPackers', 0);
+            setPackingCharges('0.00');
+        }
 
-        setValue('packing.requiredHours', convertToTimeFormat(packingLaborHours));
-        setValue('unpacking.requiredHours', convertToTimeFormat(unpackingLaborHours));
-
-        const totalPackingCharge = packingLaborHours * packingRate;
-        const totalUnpackingCharge = unpackingLaborHours * unpackingRate;
-
-        setPackingCharges(totalPackingCharge.toFixed(2));
-        setUnpackingCharges(totalUnpackingCharge.toFixed(2));
-    }, [rooms, packingRate, unpackingRate, settings, setValue]);
+        // Unpacking calculations (EXEC-14: Unselected unpacking service contributes no active charge or misleading duration)
+        if (isUnpackingSelected) {
+            const unpackingLaborHours = totalBoxes > 0 ? (totalBoxes / unpackingBoxesPerHour) : 0;
+            const totalUnpackingCharge = unpackingLaborHours * unpackingRate;
+            setValue('unpacking.requiredHours', convertToTimeFormat(unpackingLaborHours));
+            setUnpackingCharges(totalUnpackingCharge.toFixed(2));
+        } else {
+            setValue('unpacking.requiredHours', '00:00');
+            setValue('unpacking.appliedPrice', 0);
+            setValue('unpacking.requiredPackers', 0);
+            setUnpackingCharges('0.00');
+        }
+    }, [rooms, packingRate, unpackingRate, settings, setValue, isPackingSelected, isUnpackingSelected]);
 
     let assemblingRate = watch('assembling.appliedPrice')
     let dismantleRate = watch('disassembling.appliedPrice')
@@ -521,10 +520,13 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
 
     let movingLift = watch('movingLift')
     useEffect(() => {
-        const validQuantity = Number(movingLift?.quantity) || 0;
-        const validPrice = Number(movingLift?.price) || 0;
-        setMovingLiftCharges(validQuantity * validPrice);
-    }, [movingLift?.quantity, movingLift?.price]);
+        const liftResult = calculateLiftService({
+            isSelected: isMovingLiftSelected,
+            quantity: movingLift?.quantity,
+            unitPrice: movingLift?.price,
+        });
+        setMovingLiftCharges(liftResult.charge);
+    }, [movingLift?.quantity, movingLift?.price, isMovingLiftSelected]);
 
     let movingPackages = watch('movingPackages')
     useEffect(() => {
@@ -576,18 +578,18 @@ useEffect(() => {
 
     useEffect(() => {
         const validTotalSum = isNaN(Number(totalSum)) ? 0 : Number(totalSum);
-        const validPackingCharges = isNaN(Number(packingCharges)) ? 0 : Number(packingCharges);
-        const validUnpackingCharges = isNaN(Number(unpackingCharges)) ? 0 : Number(unpackingCharges);
-        const validMovingLiftCharges = isNaN(Number(movingLiftCharges)) ? 0 : Number(movingLiftCharges);
-        const validMovingPackagesCharge = isNaN(Number(movingPackagesCharge)) ? 0 : Number(movingPackagesCharge);
-        const validInsuranceCharge = isNaN(Number(insuranceCharge)) ? 0 : Number(insuranceCharge);
+        const validPackingCharges = isPackingSelected && !isNaN(Number(packingCharges)) ? Number(packingCharges) : 0;
+        const validUnpackingCharges = isUnpackingSelected && !isNaN(Number(unpackingCharges)) ? Number(unpackingCharges) : 0;
+        const validMovingLiftCharges = isMovingLiftSelected && !isNaN(Number(movingLiftCharges)) ? Number(movingLiftCharges) : 0;
+        const validMovingPackagesCharge = isMovingPackagesSelected && !isNaN(Number(movingPackagesCharge)) ? Number(movingPackagesCharge) : 0;
+        const validInsuranceCharge = isInsuranceSelected && !isNaN(Number(insuranceCharge)) ? Number(insuranceCharge) : 0;
         const validMaterialsCharge = isNaN(Number(materialsCharge)) ? 0 : Number(materialsCharge);
-        const validCertificateCharge = isNaN(Number(certificateCharge)) ? 0 : Number(certificateCharge);
-        const validAssemblingCharge = isNaN(Number(totalAssemblingCharge)) ? 0 : Number(totalAssemblingCharge);
-        const validTotalDismantleCharge = isNaN(Number(totalDismantleCharge)) ? 0 : Number(totalDismantleCharge);
-        const validTotalStorageCharge = isNaN(Number(totalStorageCharge)) ? 0 : Number(totalStorageCharge);
+        const validCertificateCharge = isCertificateSelected && !isNaN(Number(certificateCharge)) ? Number(certificateCharge) : 0;
+        const validAssemblingCharge = isAssemblingSelected && !isNaN(Number(totalAssemblingCharge)) ? Number(totalAssemblingCharge) : 0;
+        const validTotalDismantleCharge = isDisassemblingSelected && !isNaN(Number(totalDismantleCharge)) ? Number(totalDismantleCharge) : 0;
+        const validTotalStorageCharge = isStorageSelected && !isNaN(Number(totalStorageCharge)) ? Number(totalStorageCharge) : 0;
         setTotalPrice(validTotalSum + validTotalStorageCharge + validAssemblingCharge + validTotalDismantleCharge + validPackingCharges + validUnpackingCharges + validMovingLiftCharges + validMovingPackagesCharge + validInsuranceCharge + validMaterialsCharge + validCertificateCharge);
-    }, [totalSum, totalAssemblingCharge, totalStorageCharge, totalDismantleCharge, packingCharges, unpackingCharges, movingLiftCharges, movingPackagesCharge, insuranceCharge, materialsCharge, certificateCharge]);
+    }, [totalSum, totalAssemblingCharge, totalStorageCharge, totalDismantleCharge, packingCharges, unpackingCharges, movingLiftCharges, movingPackagesCharge, insuranceCharge, materialsCharge, certificateCharge, isPackingSelected, isUnpackingSelected, isMovingLiftSelected, isMovingPackagesSelected, isInsuranceSelected, isCertificateSelected, isAssemblingSelected, isDisassemblingSelected, isStorageSelected]);
 
     return (
         <div className="p-5 flex flex-col gap-2">

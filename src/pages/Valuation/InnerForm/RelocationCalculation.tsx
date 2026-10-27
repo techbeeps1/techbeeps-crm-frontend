@@ -20,6 +20,7 @@ const RelocationCalculation: React.FC<any> = ({
   const loadSurcharge = Number(watch('relocation.loadPropertySurcharge')) || 0;
   const unloadSurcharge = Number(watch('relocation.unloadPropertySurcharge')) || 0;
   const totalPropertySurcharge = Number(watch('relocation.propertySurcharge')) || 0;
+  const routeSource = watch('relocation.routeSource');
 
   const handleUserEdit = (fieldName: string) => {
     setUserEditedRates((prev) => ({ ...prev, [fieldName]: true }));
@@ -497,9 +498,16 @@ const RelocationCalculation: React.FC<any> = ({
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Distance (KM)
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Distance (KM)
+                  </label>
+                  {routeSource && (
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${routeSource === 'HAVERSINE_FALLBACK' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300'}`}>
+                      {routeSource === 'HAVERSINE_FALLBACK' ? 'Estimate (Haversine)' : `Route (${routeSource})`}
+                    </span>
+                  )}
+                </div>
 
                 <Controller
                   name="relocation.distance"

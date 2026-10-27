@@ -9,7 +9,7 @@ import { UserContext } from '../UserContext';
 
 const DropdownUser = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { username, role } = useContext(UserContext) as any;
+  const { username, role, logout } = useContext(UserContext) as any;
 
   const trigger = useRef<any>(null);
   const dropdown = useRef<any>(null);
@@ -41,9 +41,13 @@ const DropdownUser = () => {
   }, [dropdownOpen]);
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('token');
-    window.location.href = '/auth/signin';
+    if (logout) {
+      logout();
+    } else {
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.replace('/login');
+    }
   };
 
   const initialLetter = username ? username.charAt(0).toUpperCase() : 'U';

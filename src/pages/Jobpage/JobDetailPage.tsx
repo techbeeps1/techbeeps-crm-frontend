@@ -565,11 +565,17 @@ const JobDetailPage: React.FC<any> = ({ customerId, offer, invoice }) => {
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                 <LocationOnIcon style={{ fontSize: 13 }} className="text-slate-400" />
                                 {item?.load?.city || 'N/A'} {item?.load?.country || ''}
+                                {item?.load?.typeOfProperty && (
+                                  <span className="ml-1 text-[10px] text-slate-400 font-normal">({item.load.typeOfProperty})</span>
+                                )}
                               </span>
                               <ArrowForwardIcon style={{ fontSize: 15 }} className="text-slate-400" />
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                 <LocationOnIcon style={{ fontSize: 13 }} className="text-slate-400" />
                                 {item?.unload?.city || 'N/A'} {item?.unload?.country || ''}
+                                {item?.unload?.typeOfProperty && (
+                                  <span className="ml-1 text-[10px] text-slate-400 font-normal">({item.unload.typeOfProperty})</span>
+                                )}
                               </span>
                             </div>
                           </td>

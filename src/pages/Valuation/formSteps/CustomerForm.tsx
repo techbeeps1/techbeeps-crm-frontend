@@ -95,15 +95,17 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
     }
   };
 
-  // Safe auto-detection of existing customer data from form context without infinite loops
+  // Auto-detect customer data from form context (on mount or when draft is restored)
+  const watchedCustomer = watch ? watch(type) : null;
   useEffect(() => {
-    const cust = getValues ? getValues(type) : null;
-    if (cust && (cust._id || cust.firstName || cust.email)) {
-      setCustomerMode((prev) => prev || 'existing');
-      setSelectedCustomer((prev: any) => prev || cust);
-      setInitialLockedFields((prev) => (Object.keys(prev).length > 0 ? prev : computeInitialLockedFields(cust)));
+    if (watchedCustomer && (watchedCustomer._id || watchedCustomer.firstName || watchedCustomer.email || watchedCustomer.companyName)) {
+      setCustomerMode((prev) => prev || (watchedCustomer._id ? 'existing' : 'new'));
+      if (watchedCustomer._id) {
+        setSelectedCustomer((prev: any) => prev || watchedCustomer);
+        setInitialLockedFields((prev) => (Object.keys(prev).length > 0 ? prev : computeInitialLockedFields(watchedCustomer)));
+      }
     }
-  }, []);
+  }, [watchedCustomer?._id, watchedCustomer?.firstName, watchedCustomer?.email, watchedCustomer?.companyName]);
 
   useEffect(() => {
     if (!customerid) return;
@@ -280,17 +282,25 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
             <div className="absolute left-0 right-0 bg-white border border-gray shadow-lg rounded mt-1 max-h-72 overflow-auto z-50">
               {(() => {
                 const safeCustomers = Array.isArray(customers) ? customers : [];
-                const filtered = searchCustomer
-                  ? safeCustomers.filter(
-                      (customer: any) =>
-                        `${customer.firstName || ''} ${customer.lastName || ''}`
-                          .toLowerCase()
-                          .includes(searchCustomer.toLowerCase()) ||
-                        customer.email
-                          ?.toLowerCase()
-                          .includes(searchCustomer.toLowerCase()) ||
-                        customer.mobile?.includes(searchCustomer),
-                    )
+                const q = searchCustomer.trim().toLowerCase();
+                const qNoSpace = q.replace(/[\s\-\(\)\.]+/g, '');
+
+                const filtered = q
+                  ? safeCustomers.filter((customer: any) => {
+                      const fullName = `${customer.firstName || ''} ${customer.lastName || ''}`.toLowerCase();
+                      const company = (customer.companyName || '').toLowerCase();
+                      const email = (customer.email || '').toLowerCase();
+                      const mobile = (customer.mobile ? String(customer.mobile) : '').replace(/[\s\-\(\)\.]+/g, '');
+                      const contact = (customer.contact ? String(customer.contact) : '').replace(/[\s\-\(\)\.]+/g, '');
+
+                      return (
+                        fullName.includes(q) ||
+                        company.includes(q) ||
+                        email.includes(q) ||
+                        (qNoSpace.length > 0 && mobile.includes(qNoSpace)) ||
+                        (qNoSpace.length > 0 && contact.includes(qNoSpace))
+                      );
+                    })
                   : safeCustomers;
 
                 if (filtered.length === 0) {
@@ -301,24 +311,47 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
                   );
                 }
 
-                return filtered.map((customer: any) => (
-                  <div
-                    key={customer._id}
-                    onClick={() => {
-                      handleCustomerSelect(customer._id);
-                      setSearchCustomer(
-                        `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
-                      );
-                      setShowDropdown(false);
-                    }}
-                    className="px-4 py-2 hover:bg-gray cursor-pointer border-2 border-b border-gray"
-                  >
-                    <p className="font-medium">
-                      {customer.firstName} {customer.lastName}
-                    </p>
-                    <p className="text-sm text-gray-500">{customer.email}</p>
-                  </div>
-                ));
+                return filtered.map((customer: any) => {
+                  const isCommercial =
+                    customer.typeOfCustomer === 'Commercial' ||
+                    customer.typeOfCustomer === 'Commerical' ||
+                    Boolean(customer.companyName);
+
+                  const personName = [customer.firstName, customer.lastName].filter(Boolean).join(' ');
+                  const displayName = customer.companyName
+                    ? `${customer.companyName}${personName ? ` (${personName})` : ''}`
+                    : personName || customer.email || 'Customer';
+
+                  const phoneDisplay = customer.mobile || customer.contact || '';
+
+                  return (
+                    <div
+                      key={customer._id}
+                      onClick={() => {
+                        handleCustomerSelect(customer._id);
+                        const selText = customer.companyName || personName || customer.email || '';
+                        setSearchCustomer(selText);
+                        setShowDropdown(false);
+                      }}
+                      className="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-slate-800">
+                          {displayName}
+                        </p>
+                        {isCommercial && (
+                          <span className="text-[11px] font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                            Company
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                        {customer.email && <span>{customer.email}</span>}
+                        {phoneDisplay && <span>• {phoneDisplay}</span>}
+                      </div>
+                    </div>
+                  );
+                });
               })()}
             </div>
           )}
@@ -467,6 +500,8 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
             <label className="block text-lg font-medium">First name*</label>
 
             <input
+              id="customer-firstName"
+              placeholder="First name"
               readOnly={isFieldLocked('firstName')}
               {...register(`${type}.firstName`, {
                 required: 'First name is required.',
@@ -486,6 +521,8 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
             <label className="block text-lg font-medium">Surname*</label>
 
             <input
+              id="customer-lastName"
+              placeholder="Surname"
               readOnly={isFieldLocked('lastName')}
               {...register(`${type}.lastName`, {
                 required: 'Surname is required.',
@@ -505,6 +542,8 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
             <label className="block text-lg font-medium">Email address*</label>
 
             <input
+              id="customer-email"
+              placeholder="Email address"
               readOnly={isFieldLocked('email')}
               {...register(`${type}.email`, {
                 required: 'Email address is required.',
@@ -524,6 +563,7 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
             <label className="block text-lg font-medium">Mobile</label>
 
             <input
+              id="customer-mobile"
               readOnly={isFieldLocked('mobile')}
               {...register(`${type}.mobile`, {
                 validate: (value) => {
@@ -551,6 +591,7 @@ const CustomerForm: React.FC<any> = ({ type, customerid }) => {
             <label className="block text-lg font-medium">Telephone</label>
 
             <input
+              id="customer-contact"
               readOnly={isFieldLocked('contact')}
               {...register(`${type}.contact`, {
                 validate: (value) => {

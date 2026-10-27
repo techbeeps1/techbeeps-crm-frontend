@@ -18,6 +18,7 @@ import { UserContext } from '../../../UserContext';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
 import { useCurrency, formatCurrency } from '../../../utils/currencyUtil';
+import { getStandardTaxOptions, resolveTaxRate, resolveTaxCode } from '../../../utils/taxCatalog';
 interface FinanceModuleProps {
   data?: any;
   job?: any;
@@ -338,7 +339,7 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
     return rules.map((rule) => {
       const evalQty = rule.isCalculated ? resolveTokenValue(rule.number) : Number(rule.number) || 0;
       const evalPrice = rule.isCalculated ? resolveTokenValue(rule.unitPrice) : Number(rule.unitPrice) || 0;
-      const btwRate = Number(rule.btw) || 0;
+      const btwRate = resolveTaxRate(rule.btw);
       const lineSubtotal = rule.enabled ? evalQty * evalPrice : 0;
       const lineTax = rule.enabled
         ? (isInclusive ? lineSubtotal * (btwRate / (100 + btwRate)) : lineSubtotal * (btwRate / 100))
@@ -454,9 +455,12 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
         })),
       };
 
+      const token = localStorage.getItem('token');
       await axios.post(`${apiPath}/api/packages/${packageId}`, {
         [selectedForm]: updatedSection,
         vat: vatSelected,
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       // Update in-memory objects immediately so UI remains synchronized
@@ -573,13 +577,28 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
         type: activeStepObj.type, // "Acceptance of offer", "Start job", "Storage loaded", "After last appointment"
       };
 
-      const response = await axios.post(`${apiPath}/invoice/new_invoice`, invoicePayload);
+      const idempotencyKey = `inv_job_${job?._id || 'direct'}_${activeStepObj?.id || 'action'}_${Date.now()}`;
+      invoicePayload.idempotencyKey = idempotencyKey;
+
+      const token = localStorage.getItem('token');
+      const reqHeaders: any = {
+        'X-Idempotency-Key': idempotencyKey,
+      };
+      if (token) {
+        reqHeaders.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await axios.post(`${apiPath}/invoice/new_invoice`, invoicePayload, {
+        headers: reqHeaders,
+      });
 
       // Link invoice to job schedule
       if (job?._id && response.data?._id) {
         try {
           await axios.put(`${apiPath}/api/job-schedule/${job._id}`, {
             invoice: response.data._id,
+          }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
         } catch (linkErr) {
           console.warn('Could not update job schedule:', linkErr);
@@ -1075,21 +1094,16 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
                         {/* BTW */}
                         <td className="p-2.5 min-w-[125px] w-32 text-center">
                           <select
-                            value={parseBtw(rule.btw)}
+                            value={resolveTaxCode(rule.btw)}
                             onChange={(e) => updateRuleField(idx, 'btw', e.target.value)}
                             className="w-full min-w-[110px] h-9 py-1.5 pl-3 pr-7 rounded-xl border border-slate-300 dark:border-strokedark bg-white dark:bg-boxdark text-xs font-extrabold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary shadow-xs cursor-pointer appearance-auto"
                             title="BTW Percentage"
                           >
-                            <option value="21">21%</option>
-                            <option value="9">9%</option>
-                            <option value="0">0%</option>
-                            {rule.btw !== undefined &&
-                              rule.btw !== null &&
-                              !['0', '9', '21', ''].includes(String(rule.btw).replace('%', '').trim()) && (
-                                <option value={String(rule.btw).replace('%', '').trim()}>
-                                  {String(rule.btw).replace('%', '').trim()}%
-                                </option>
-                              )}
+                            {getStandardTaxOptions().map((tax) => (
+                              <option key={tax.id} value={tax.code}>
+                                {tax.label}
+                              </option>
+                            ))}
                           </select>
                         </td>
 

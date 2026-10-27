@@ -46,7 +46,10 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
   const handlePayments = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${apiPath}/api/payments/${Id}`);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${apiPath}/api/payments/${Id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       setPaymentsList(response.data?.payments || []);
     } catch (err) {
       console.error('Error fetching payments:', err);
@@ -101,8 +104,15 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
 
     setIsSubmitting(true);
     try {
-      const finalData = { ...formData, invoiceId: Id, amount: amt };
-      const response = await axios.post(`${apiPath}/api/record-payment`, finalData);
+      const token = localStorage.getItem('token');
+      const idempotencyKey = `KEY-PAY-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const finalData = { ...formData, invoiceId: Id, amount: amt, idempotencyKey };
+      const response = await axios.post(`${apiPath}/api/record-payment`, finalData, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'X-Idempotency-Key': idempotencyKey,
+        }
+      });
 
       if (
         response.data?.message === 'Payment recorded successfully' ||
@@ -166,6 +176,21 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
             <CreditCardIcon style={{ fontSize: 14 }} />
             <span>Online / iDEAL</span>
+          </span>
+        );
+      case 'credit_deduction':
+      case 'credit_note':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+            <AccountBalanceWalletIcon style={{ fontSize: 14 }} />
+            <span>Credit Note</span>
+          </span>
+        );
+      case 'reversal':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+            <PaymentIcon style={{ fontSize: 14 }} />
+            <span>Reversal</span>
           </span>
         );
       default:
@@ -338,13 +363,25 @@ const RecordPayment = ({ invoiceData, fetchInvoice }) => {
                     <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 max-w-xs truncate">
                       {item.description || '—'}
                     </td>
-                    <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm whitespace-nowrap">
+                    <td className={`py-3.5 px-4 text-right font-mono font-black text-sm whitespace-nowrap ${
+                      item.status === 'reversed' || Number(item.amount) < 0
+                        ? 'text-rose-600 dark:text-rose-400 line-through'
+                        : item.type === 'credit_note'
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                    }`}>
                       {formatCurrency(item.amount || 0)}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                        Completed
-                      </span>
+                      {item.status === 'reversed' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                          Reversed
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          Completed
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo, useContext } from 're
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import moment from 'moment';
+import { format as dateFnsFormat, isValid as dateFnsIsValid } from 'date-fns';
 import { Calendar, Views, View, momentLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { UserContext } from '../UserContext';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
 
 import {
   Dialog,
@@ -73,7 +75,25 @@ const getEventColor = (typeString: string) => {
   return typeColors.default;
 };
 
-export default function TaskPlanningCalendar({
+/**
+ * Bulletproof date formatter compliant with EXEC-07:
+ * Eliminates 'format is not defined' runtime crashes, handles invalid/null dates gracefully.
+ */
+export const safeFormatTime = (dateInput: any, formatPattern: string = 'HH:mm'): string => {
+  if (!dateInput) return '--:--';
+  try {
+    const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    if (!dateFnsIsValid(d) || isNaN(d.getTime())) return '--:--';
+    return dateFnsFormat(d, formatPattern);
+  } catch (err) {
+    return '--:--';
+  }
+};
+
+// Aliased format function so all format(date, 'HH:mm') calls resolve safely
+const format = safeFormatTime;
+
+export function TaskPlanningCalendar({
   dayLayoutAlgorithm = 'no-overlap',
 }: Props) {
   const [events, setEvents] = useState<AppointmentEvent[]>([]);
@@ -370,6 +390,7 @@ export default function TaskPlanningCalendar({
             {(
               [
                 { id: Views.MONTH, label: 'Month' },
+                { id: Views.WEEK, label: 'Week' },
                 { id: Views.DAY, label: 'Day' },
                 { id: Views.AGENDA, label: 'Agenda' },
               ] as { id: View; label: string }[]
@@ -471,12 +492,15 @@ export default function TaskPlanningCalendar({
             dayLayoutAlgorithm={dayLayoutAlgorithm}
             selectable
             popup
-            views={{ month: true, day: true, agenda: true }}
+            views={{ month: true, week: true, day: true, agenda: true }}
             onSelectEvent={handleSelectEvent}
             eventPropGetter={eventStyleGetter}
             components={{
               toolbar: CustomToolbar,
               day: {
+                event: CustomEvent,
+              },
+              week: {
                 event: CustomEvent,
               },
               month: {
@@ -895,3 +919,17 @@ export default function TaskPlanningCalendar({
 TaskPlanningCalendar.propTypes = {
   dayLayoutAlgorithm: PropTypes.oneOf(['overlap', 'no-overlap']),
 };
+
+/**
+ * Calendar wrapped in resilient React ErrorBoundary (EXEC-07 Release Gate)
+ */
+const CalendarWithErrorBoundary: React.FC<Props> = (props) => (
+  <ErrorBoundary
+    fallbackTitle="Unable to Display Planning Calendar"
+    fallbackMessage="A rendering exception occurred while processing calendar appointments. Click 'Retry View' to reload."
+  >
+    <TaskPlanningCalendar {...props} />
+  </ErrorBoundary>
+);
+
+export default CalendarWithErrorBoundary;

@@ -20,6 +20,7 @@ import {
   MdWarningAmber
 } from 'react-icons/md';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+import { sanitizeSvg } from '../../utils/sanitizeUtil';
 
 const ServicePage: React.FC = () => {
   const { symbol: currencySymbol } = useCurrency();
@@ -199,7 +200,7 @@ const ServicePage: React.FC = () => {
                         {group?.icon ? (
                           <div
                             className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current text-black dark:text-white"
-                            dangerouslySetInnerHTML={{ __html: group.icon }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeSvg(group.icon) }}
                           />
                         ) : (
                           <MdOutlineDesignServices className="text-xl text-black dark:text-white" />
@@ -352,7 +353,7 @@ const ServicePage: React.FC = () => {
                     <div
                       className="w-12 h-12 bg-white dark:bg-boxdark rounded-lg border border-stroke dark:border-strokedark p-2 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:fill-current text-black dark:text-white"
                       dangerouslySetInnerHTML={{
-                        __html: selectedSalesGroup.icon,
+                        __html: sanitizeSvg(selectedSalesGroup.icon),
                       }}
                     />
                     <div>

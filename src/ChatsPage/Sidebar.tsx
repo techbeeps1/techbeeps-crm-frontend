@@ -15,9 +15,11 @@ const Sidebar = () => {
   const { user, setUser } = useContext(Context);
 
   const handleLogout = () => {
-    // Clear the user data from local storage and reset the state.
-    localStorage.removeItem("user");
+    // Clear the user session cache and redirect cleanly
+    localStorage.clear();
+    sessionStorage.clear();
     setUser(undefined);
+    window.location.replace('/login');
   };
 
   return (

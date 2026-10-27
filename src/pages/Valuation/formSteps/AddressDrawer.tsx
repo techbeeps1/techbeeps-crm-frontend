@@ -13,7 +13,7 @@ import AddressForm from "./AddressFrom";
 import { useFormContext } from "react-hook-form";
 
 
-export const AddressDrawer: React.FC<any> = ({selectItem, setSelectItem, countries, type }) => {
+export const AddressDrawer: React.FC<any> = ({selectItem, setSelectItem, countries, type, property }) => {
 
     const {handleSubmit } = useFormContext() as any;
 
@@ -29,7 +29,7 @@ export const AddressDrawer: React.FC<any> = ({selectItem, setSelectItem, countri
             <DragCloseDrawer open={selectItem} setOpen={setSelectItem}>
                 <div className="flex justify-center align-center flex-col h-full space-y-4 text-neutral-400" style={{ minWidth: '650px' }}>
                     <div className="h-full overflow-auto" style={{ scrollbarWidth: 'none' }}>
-                        <AddressForm countries={countries} type={type} />
+                        <AddressForm countries={countries} type={type} property={property} />
                     </div>
                     <div className="bg-sky-900 flex justify-between">
                         <Button
