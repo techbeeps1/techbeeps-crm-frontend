@@ -21,6 +21,7 @@ import {
 } from 'react-icons/md';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 import { sanitizeSvg } from '../../utils/sanitizeUtil';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const ServicePage: React.FC = () => {
   const { symbol: currencySymbol } = useCurrency();
@@ -30,7 +31,7 @@ const ServicePage: React.FC = () => {
     control,
     setValue,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm();
   const [data, setData] = useState<any[]>([]);
   const [removeicon, setremoveIcon] = useState(false);
@@ -38,6 +39,7 @@ const ServicePage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedSalesGroup, setSelectedSalesGroup] = useState<any>(null);
 
@@ -68,6 +70,14 @@ const ServicePage: React.FC = () => {
     setModalOpen(false);
     setSelectedSalesGroup(null);
     reset();
+  };
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDirtyConfirm(true);
+    } else {
+      closeModal();
+    }
   };
 
   const openDeleteModal = (group: any) => {
@@ -256,12 +266,12 @@ const ServicePage: React.FC = () => {
       </div>
 
       {/* New / Edit Service Modal */}
-      <Modal open={isModalOpen} onClose={closeModal}>
+      <Modal open={isModalOpen} onClose={handleRequestClose}>
         <Box className="fixed inset-0 flex items-center justify-center p-4 z-99999 outline-none">
           <div className="bg-white dark:bg-boxdark rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-stroke dark:border-strokedark relative max-h-[90vh] overflow-y-auto">
             <button
               type="button"
-              onClick={closeModal}
+              onClick={handleRequestClose}
               className="absolute top-5 right-5 text-slate-400 hover:text-black dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-meta-4 transition-colors cursor-pointer"
             >
               <MdClose className="text-xl" />
@@ -382,7 +392,7 @@ const ServicePage: React.FC = () => {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-stroke dark:border-strokedark">
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={handleRequestClose}
                   className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-gray-2 dark:hover:bg-strokedark transition-colors cursor-pointer"
                 >
                   Cancel
@@ -400,6 +410,20 @@ const ServicePage: React.FC = () => {
           </div>
         </Box>
       </Modal>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for Service Configuration */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Service Changes"
+        message="You have unsaved changes in this service form. If you close now, all your entered service names and charges will be discarded. What would you like to do?"
+        discardText="Discard Service Changes"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDirtyConfirm(false)}
+        onDiscardChanges={() => {
+          setShowDirtyConfirm(false);
+          closeModal();
+        }}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>

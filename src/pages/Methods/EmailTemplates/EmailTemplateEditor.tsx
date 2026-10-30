@@ -18,6 +18,7 @@ import {
   MdNotificationsActive,
   MdBolt
 } from 'react-icons/md';
+import DirtyConfirmDialog from '../../../components/common/DirtyConfirmDialog';
 
 interface TemplateData {
   name: string;
@@ -46,6 +47,8 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
   const [tabIndex, setTabIndex] = useState<number>(0);
   const [data, setData] = useState<TemplateData | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [showMainDirtyConfirm, setShowMainDirtyConfirm] = useState<boolean>(false);
+  const [showDetailDirtyConfirm, setShowDetailDirtyConfirm] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [emailSettings, setEmailSettings] = useState<Record<string, string>>({});
   const [allTemplatesMap, setAllTemplatesMap] = useState<Record<string, string>>({});
@@ -54,7 +57,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
   } = useForm<TemplateData>();
 
@@ -170,6 +173,22 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
     setIsEditDialogOpen(false);
   };
 
+  const handleDetailRequestClose = () => {
+    if (isDirty) {
+      setShowDetailDirtyConfirm(true);
+    } else {
+      handleEditDetailClose();
+    }
+  };
+
+  const handleMainRequestClose = () => {
+    if (tabIndex === 1) {
+      setShowMainDirtyConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
   const onSubmit = async (formData: TemplateData) => {
     try {
       await axios.put(`${apiPath}/api/reporting/${templateId}`, formData);
@@ -201,7 +220,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
     <>
       <Dialog
         open={open}
-        onClose={onClose}
+        onClose={handleMainRequestClose}
         fullScreen
         PaperProps={{
           className: 'bg-slate-50 dark:bg-boxdark-2 text-black dark:text-white',
@@ -275,7 +294,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
               )}
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleMainRequestClose}
                 className="p-2 rounded-xl text-slate-400 hover:text-black dark:hover:text-white hover:bg-gray-2 dark:hover:bg-meta-4 transition-colors cursor-pointer"
                 title="Close Editor"
               >
@@ -393,7 +412,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
       {/* Edit Details Dialog */}
       <Dialog
         open={isEditDialogOpen}
-        onClose={handleEditDetailClose}
+        onClose={handleDetailRequestClose}
         maxWidth="sm"
         fullWidth
         PaperProps={{
@@ -404,7 +423,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
         <div className="p-6 sm:p-7 relative">
           <button
             type="button"
-            onClick={handleEditDetailClose}
+            onClick={handleDetailRequestClose}
             className="absolute top-5 right-5 text-slate-400 hover:text-black dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-meta-4 transition-colors cursor-pointer"
           >
             <MdClose className="text-xl" />
@@ -509,7 +528,7 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-stroke dark:border-strokedark">
               <button
                 type="button"
-                onClick={handleEditDetailClose}
+                onClick={handleDetailRequestClose}
                 className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-gray-2 dark:hover:bg-strokedark transition-colors cursor-pointer"
               >
                 Cancel
@@ -525,6 +544,34 @@ const EmailTemplateEditor: React.FC<TemplateEditorProps> = ({
           </form>
         </div>
       </Dialog>
+
+      {/* EXEC-30: Dirty Form Confirmation for Email Template Meta Details */}
+      <DirtyConfirmDialog
+        open={showDetailDirtyConfirm}
+        title="Unsaved Template Details"
+        message="You have unsaved changes in this email template configuration. If you close now, your changes will be discarded. What would you like to do?"
+        discardText="Discard Changes"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDetailDirtyConfirm(false)}
+        onDiscardChanges={() => {
+          setShowDetailDirtyConfirm(false);
+          handleEditDetailClose();
+        }}
+      />
+
+      {/* EXEC-30: Dirty Form Confirmation for Full Template Editor */}
+      <DirtyConfirmDialog
+        open={showMainDirtyConfirm}
+        title="Close Email Designer?"
+        message="You are currently working in the email designer. If you close without clicking 'Save Template', any unsaved design changes may be lost. What would you like to do?"
+        discardText="Close Designer"
+        continueText="Stay in Designer"
+        onContinueEditing={() => setShowMainDirtyConfirm(false)}
+        onDiscardChanges={() => {
+          setShowMainDirtyConfirm(false);
+          onClose();
+        }}
+      />
     </>
   );
 };

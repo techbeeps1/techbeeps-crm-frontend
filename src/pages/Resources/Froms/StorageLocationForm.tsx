@@ -7,16 +7,43 @@ import axios from "axios";
 import { toast } from 'react-toastify';
 import Loader from "../../../common/Loader";
 import { MdPlace, MdAdd, MdEdit } from "react-icons/md";
+import DirtyConfirmDialog from "../../../components/common/DirtyConfirmDialog";
 
 const StorageLocationForm: React.FC<any> = ({ warehouse, type, data, handler }) => {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { control, handleSubmit, setValue, formState: { errors }, reset } = useForm();
+    const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+    const { control, handleSubmit, setValue, formState: { errors, isDirty }, watch, reset } = useForm();
 
     const notify = (message: string) => toast.success(message);
     const notifyError = (message: string) => toast.error(message, {
         autoClose: 2000,
     });
+
+    const checkIsDirty = () => {
+        if (isDirty) return true;
+        const vals = watch();
+        if (vals.locationName || vals.code || vals.warehouse) {
+            return true;
+        }
+        return false;
+    };
+
+    const handleRequestCancel = () => {
+        if (checkIsDirty()) {
+            setShowDirtyConfirm(true);
+        } else {
+            handleForceCancel();
+        }
+    };
+
+    const handleForceCancel = () => {
+        setShowDirtyConfirm(false);
+        setOpen(false);
+        reset();
+    };
+
+    const handleCancel = handleRequestCancel;
 
     const onSubmit = (Formdata: any) => {
         wareHouseHandlers(Formdata);
@@ -44,8 +71,7 @@ const StorageLocationForm: React.FC<any> = ({ warehouse, type, data, handler }) 
             if (response.status === 201 || response.status === 200) {
                 notify("Storage location saved successfully!");
                 handler();
-                setOpen(false);
-                reset();
+                handleForceCancel();
             } else {
                 notifyError(response.data.message);
             }
@@ -55,11 +81,6 @@ const StorageLocationForm: React.FC<any> = ({ warehouse, type, data, handler }) 
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleCancel = () => {
-        setOpen(false);
-        reset();
     };
 
     const handleOpen = () => {
@@ -259,6 +280,17 @@ const StorageLocationForm: React.FC<any> = ({ warehouse, type, data, handler }) 
                     </div>
                 </div>
             </Dialog>
+
+            {/* EXEC-30: Dirty Form Confirmation Dialog for Storage Location */}
+            <DirtyConfirmDialog
+                open={showDirtyConfirm}
+                title="Unsaved Location Changes"
+                message="You have unsaved changes in this storage location. If you close now, all your entered location details will be discarded. What would you like to do?"
+                discardText="Discard Location Changes"
+                continueText="Continue Editing"
+                onContinueEditing={() => setShowDirtyConfirm(false)}
+                onDiscardChanges={handleForceCancel}
+            />
         </>
     );
 };

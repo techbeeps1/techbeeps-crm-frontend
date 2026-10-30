@@ -36,6 +36,7 @@ import { apiPath } from '../../../apiPath';
 import { toast } from 'react-toastify';
 import Loader from '../../common/Loader';
 import { EmailContext } from '../../EmailProvider/EmailContext';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 interface Employee {
   label: string;
@@ -185,6 +186,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   viewOnly = false,
 }) => {
   const [innerOpen, setInnerOpen] = useState<boolean>(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState<boolean>(false);
   const [vehicleOptions, setVehicleOptions] = useState<vehicleSummary[]>([]);
   const [vehicleBookings, setVehicleBookings] = useState<any[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
@@ -369,11 +371,10 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const handleClose = (force = false) => {
     if (!force && !viewOnly && isFormDirty) {
-      const confirmDiscard = window.confirm(
-        'You have unsaved changes. Are you sure you want to close without saving?'
-      );
-      if (!confirmDiscard) return;
+      setShowDirtyConfirm(true);
+      return;
     }
+    setShowDirtyConfirm(false);
     initialSnapshotRef.current = null;
     if (open === undefined) {
       setInnerOpen(false);
@@ -2169,8 +2170,15 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
                 <Box className="flex justify-between items-center mt-6">
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="outlined"
+                      onClick={() => handleClose(false)}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </Button>
                     {activeStep > 1 && (
-                      <Button variant="outlined" onClick={handlePrevStep}>
+                      <Button variant="outlined" onClick={handlePrevStep} disabled={loading}>
                         Back
                       </Button>
                     )}
@@ -2178,6 +2186,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                       <Button
                         variant="outlined"
                         onClick={createAppointment}
+                        disabled={loading}
                         style={{ borderColor: '#d97706', color: '#d97706' }}
                       >
                         Save as Draft
@@ -2186,15 +2195,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                   </div>
                   <div className="flex items-center gap-2">
                     {activeStep < 3 ? (
-                      <Button variant="contained" onClick={handleNextStep}>
+                      <Button variant="contained" onClick={handleNextStep} disabled={loading}>
                         Next
                       </Button>
                     ) : (
                       <Button
                         variant="contained"
                         onClick={createAppointment}
+                        disabled={loading}
                       >
-                        {isEditMode ? 'Save changes' : 'Submit appointment'}
+                        {loading ? 'Saving...' : (isEditMode ? 'Save changes' : 'Submit appointment')}
                       </Button>
                     )}
                   </div>
@@ -2202,6 +2212,20 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
               </>)}
           </Box>
         </Modal>
+
+        {/* EXEC-30: Dirty Form Confirmation Dialog for Appointments */}
+        <DirtyConfirmDialog
+          open={showDirtyConfirm}
+          title="Unsaved Appointment Changes"
+          message="You have unsaved changes in this appointment. If you close now, all your entered appointment details will be discarded. What would you like to do?"
+          discardText="Discard Changes"
+          continueText="Continue Editing"
+          onContinueEditing={() => setShowDirtyConfirm(false)}
+          onDiscardChanges={() => {
+            setShowDirtyConfirm(false);
+            handleClose(true);
+          }}
+        />
       </LocalizationProvider>
     </div>
   );

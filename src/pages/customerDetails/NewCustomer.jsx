@@ -9,12 +9,13 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { isValidPhoneNumber } from '../../utils/phoneUtil';
 import { lookupDutchAddress } from '../../utils/dutchAddressLookup';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     control,
     reset,
     trigger,
@@ -27,11 +28,34 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
   const [property, setProperty] = useState([]);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
 
-  const handleClose = () => {
+  const checkIsDirty = () => {
+    if (isDirty) return true;
+    if (step > 1) return true;
+    const vals = watch();
+    if (vals.firstName || vals.lastName || vals.email || vals.mobile || vals.contact || vals.postcode || vals.city || vals.typeOfCustomer || vals.gender || vals.street) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      handleForceClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowDirtyConfirm(false);
+    reset();
     setOpen(false);
     setStep(1);
   };
+
+  const handleClose = handleRequestClose;
 
   const notify = (message) =>
     toast.success(message, {
@@ -81,8 +105,7 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
         },
       );
       if (response.data.message === 'customer created' || response.data.success === true) {
-        handleClose();
-        reset();
+        handleForceClose();
         handler();
         setLoading(false);
         notify('Customer added successfully');
@@ -547,6 +570,17 @@ const NewCustomer = ({ handler, setOpen, open, type = 'Customer' }) => {
           </div>
         </div>
       </div>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for New Customer */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Customer Changes"
+        message="You have unsaved changes in this customer. If you close now, all your entered personal and address details will be discarded. What would you like to do?"
+        discardText="Discard Customer Changes"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDirtyConfirm(false)}
+        onDiscardChanges={handleForceClose}
+      />
     </div>
   );
 };

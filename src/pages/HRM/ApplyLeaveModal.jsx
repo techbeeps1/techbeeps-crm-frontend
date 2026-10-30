@@ -15,6 +15,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import MoneyOffIcon from '@mui/icons-material/MoneyOff';
 import ChildFriendlyIcon from '@mui/icons-material/ChildFriendly';
 import toast from 'react-hot-toast';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const LEAVE_TYPES = [
   { id: 'Annual / Vacation', label: 'Annual Leave', icon: <BeachAccessIcon style={{ fontSize: 15 }} className="text-blue-500" /> },
@@ -56,8 +57,25 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
   const [endDate, setEndDate] = useState(todayStr);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const [userBalance, setUserBalance] = useState(null);
   const [existingRequests, setExistingRequests] = useState([]);
+
+  const checkIsDirty = () => {
+    if (reason && reason.trim().length > 0) return true;
+    if (leaveType !== 'Annual / Vacation') return true;
+    if (durationType !== 'Full Day') return true;
+    if (startDate !== todayStr || endDate !== todayStr) return true;
+    return false;
+  };
+
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      onClose();
+    }
+  };
 
   // When modal opens, sync selected employee
   useEffect(() => {
@@ -253,40 +271,41 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        style: {
-          borderRadius: '20px',
-          overflow: 'hidden',
-        },
-      }}
-    >
-      {/* Lightweight Header */}
-      <div className="relative bg-gradient-to-r from-primary to-indigo-700 px-6 py-4 text-white flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
-            <CalendarMonthIcon style={{ fontSize: 18 }} />
+    <>
+      <Dialog
+        open={open}
+        onClose={handleRequestClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          style: {
+            borderRadius: '20px',
+            overflow: 'hidden',
+          },
+        }}
+      >
+        {/* Lightweight Header */}
+        <div className="relative bg-gradient-to-r from-primary to-indigo-700 px-6 py-4 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
+              <CalendarMonthIcon style={{ fontSize: 18 }} />
+            </div>
+            <div>
+              <h2 className="text-base font-bold leading-tight">Apply for Leave</h2>
+              <p className="text-[11px] text-indigo-200">
+                Balance: <strong className="text-white">{remainingDays} Days Left</strong> (Used: {usedDays}/{totalEnt})
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-bold leading-tight">Apply for Leave</h2>
-            <p className="text-[11px] text-indigo-200">
-              Balance: <strong className="text-white">{remainingDays} Days Left</strong> (Used: {usedDays}/{totalEnt})
-            </p>
-          </div>
-        </div>
 
-        <IconButton
-          onClick={onClose}
-          size="small"
-          style={{
-            color: 'white',
-            backgroundColor: 'rgba(255,255,255,0.15)',
-          }}
-        >
+          <IconButton
+            onClick={handleRequestClose}
+            size="small"
+            style={{
+              color: 'white',
+              backgroundColor: 'rgba(255,255,255,0.15)',
+            }}
+          >
           <CloseIcon fontSize="small" />
         </IconButton>
       </div>
@@ -460,7 +479,7 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleRequestClose}
             disabled={submitting}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
           >
@@ -476,6 +495,21 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
         </div>
       </form>
     </Dialog>
+
+    {/* EXEC-30: Dirty Form Confirmation Dialog for Leave Request */}
+    <DirtyConfirmDialog
+      open={showDirtyConfirm}
+      title="Unsaved Leave Request"
+      message="You have unsaved changes in this leave request. If you close now, all your entered dates and reasons will be discarded. What would you like to do?"
+      discardText="Discard Leave Request"
+      continueText="Continue Editing"
+      onContinueEditing={() => setShowDirtyConfirm(false)}
+      onDiscardChanges={() => {
+        setShowDirtyConfirm(false);
+        onClose();
+      }}
+    />
+  </>
   );
 };
 

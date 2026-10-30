@@ -7,6 +7,7 @@ import { Calendar, Views, View, momentLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { UserContext } from '../UserContext';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { parseAmsterdamWallClockDate, formatSystemTime, formatDateOnly } from '../utils/timezoneUtil';
 
 import {
   Dialog,
@@ -142,22 +143,10 @@ export function TaskPlanningCalendar({
             });
           });
 
-      const parseWallClockDate = (val: any) => {
-        if (!val) return new Date();
-        if (typeof val === 'string' && val.includes('T')) {
-          const [datePart, timePartWithZ] = val.split('T');
-          const timePart = timePartWithZ.slice(0, 5);
-          const [y, m, d] = datePart.split('-').map(Number);
-          const [hh, mm] = (timePart.includes(':') ? timePart : '00:00').split(':').map(Number);
-          return new Date(y, m - 1, d, hh, mm, 0);
-        }
-        return new Date(val);
-      };
-
       setEvents(
         userList.map((item: any) => ({
-          start: parseWallClockDate(item.startTime || item.date),
-          end: parseWallClockDate(item.endTime || item.date),
+          start: parseAmsterdamWallClockDate(item.startTime || item.date),
+          end: parseAmsterdamWallClockDate(item.endTime || item.date),
           title: item.appointmentType || 'Appointment',
           employees: item.assignedEmployees?.length || 0,
           appointment: item,
@@ -599,9 +588,7 @@ export function TaskPlanningCalendar({
                       Date
                     </span>
                     <span className="text-xs font-bold text-slate-800 dark:text-white">
-                      {moment(selectedAppointment.date || selectedAppointment.startTime).format(
-                        'DD MMMM YYYY'
-                      )}
+                      {formatDateOnly(selectedAppointment.date || selectedAppointment.startTime)}
                     </span>
                   </div>
                 </div>
@@ -615,8 +602,8 @@ export function TaskPlanningCalendar({
                       Time Window
                     </span>
                     <span className="text-xs font-bold text-slate-800 dark:text-white font-mono">
-                      {moment.utc(selectedAppointment.startTime).format('hh:mm A')} -{' '}
-                      {moment.utc(selectedAppointment.endTime).format('hh:mm A')}
+                      {formatSystemTime(selectedAppointment.startTime)} -{' '}
+                      {formatSystemTime(selectedAppointment.endTime)}
                     </span>
                   </div>
                 </div>
@@ -777,8 +764,7 @@ export function TaskPlanningCalendar({
 
                           <div className="text-right shrink-0">
                             <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-slate-300 block">
-                              {moment.utc(emp.startTime).format('hh:mm A')} →{' '}
-                              {moment.utc(emp.endTime).format('hh:mm A')}
+                              {formatSystemTime(emp.startTime)} - {formatSystemTime(emp.endTime)}
                             </span>
                             {!isDriver && (vehiclePlate || vehicleName) && (
                               <span className="inline-flex items-center gap-1 text-[10px] text-primary font-bold">

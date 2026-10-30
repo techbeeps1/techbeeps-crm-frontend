@@ -14,19 +14,35 @@ import {
   MdSave,
   MdCheckCircle
 } from 'react-icons/md';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const NewPackageModal = ({ open, onClose }) => {
   const [selectedForm, setSelectedForm] = useState('offers');
   const [vatSelected, setVatSelected] = useState('exclusive');
   const [saving, setSaving] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
     setValue,
     watch,
   } = useForm();
+
+  const handleRequestClose = () => {
+    if (isDirty || watch('name')) {
+      setShowDirtyConfirm(true);
+    } else {
+      handleForceClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowDirtyConfirm(false);
+    onClose();
+    reset();
+  };
 
   const handleVatSelect = (type) => {
     setVatSelected(type);
@@ -99,12 +115,10 @@ const NewPackageModal = ({ open, onClose }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={() => {
-        onClose();
-        reset();
-      }}
+    <>
+      <Dialog
+        open={open}
+        onClose={handleRequestClose}
       maxWidth="lg"
       fullWidth
       PaperProps={{
@@ -115,10 +129,7 @@ const NewPackageModal = ({ open, onClose }) => {
         {/* Close Button */}
         <button
           type="button"
-          onClick={() => {
-            onClose();
-            reset();
-          }}
+          onClick={handleRequestClose}
           className="absolute top-5 right-5 text-slate-400 hover:text-black dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-meta-4 transition-colors cursor-pointer"
         >
           <MdClose className="text-xl" />
@@ -257,10 +268,7 @@ const NewPackageModal = ({ open, onClose }) => {
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-stroke dark:border-strokedark">
             <button
               type="button"
-              onClick={() => {
-                onClose();
-                reset();
-              }}
+              onClick={handleRequestClose}
               className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-gray-2 dark:hover:bg-strokedark transition-colors cursor-pointer"
             >
               Cancel
@@ -277,6 +285,18 @@ const NewPackageModal = ({ open, onClose }) => {
         </form>
       </div>
     </Dialog>
+
+    {/* EXEC-30: Dirty Form Confirmation Dialog for Package Creation */}
+    <DirtyConfirmDialog
+      open={showDirtyConfirm}
+      title="Unsaved Package Changes"
+      message="You have unsaved changes in this quotation package. If you close now, all your configured rules, VAT assignments, and calculation options will be discarded. What would you like to do?"
+      discardText="Discard Package"
+      continueText="Continue Editing"
+      onContinueEditing={() => setShowDirtyConfirm(false)}
+      onDiscardChanges={handleForceClose}
+    />
+  </>
   );
 };
 

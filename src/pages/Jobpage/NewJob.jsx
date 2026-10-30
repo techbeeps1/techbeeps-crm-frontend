@@ -27,6 +27,7 @@ import { sanitizeSvg } from '../../utils/sanitizeUtil';
 import axios from 'axios';
 import Loader from '../../common/Loader';
 import { formatLabel } from '../../utils/labelUtil';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const NewJob = ({ handler }) => {
   const [open, setOpen] = useState(false);
@@ -40,6 +41,7 @@ const NewJob = ({ handler }) => {
     setValue,
     watch,
     reset,
+    formState: { isDirty },
   } = useForm({
     defaultValues: {
       customerType: 'existing',
@@ -112,17 +114,47 @@ const NewJob = ({ handler }) => {
     { id: 3, title: 'Package & Rates', icon: Inventory2Icon, desc: 'Pricing & package' },
   ];
 
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+
+  const checkIsDirty = () => {
+    if (isDirty) return true;
+    if (activeStep > 0) return true;
+    if (customerSearch && customerSearch.trim().length > 0) return true;
+    if (selectedServices && selectedServices.length > 0) return true;
+    const formVals = watch();
+    if (formVals.customer && formVals.customer !== '') return true;
+    if (formVals.package && formVals.package !== '') return true;
+    if (formVals.client?.firstName || formVals.client?.lastName || formVals.client?.email || formVals.client?.phone) return true;
+    if (formVals.load?.street || formVals.load?.city || formVals.load?.postcode) return true;
+    if (formVals.unload?.street || formVals.unload?.city || formVals.unload?.postcode) return true;
+    return false;
+  };
+
   const handleOpen = () => {
     setOpen(true);
     setActiveStep(0);
     fetchInitialData();
   };
 
-  const handleClose = () => {
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      handleForceClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowDirtyConfirm(false);
     setOpen(false);
     reset();
     setCustomerSearch('');
     setSelectedServices([]);
+    setActiveStep(0);
+  };
+
+  const handleContinueEditing = () => {
+    setShowDirtyConfirm(false);
   };
 
   const fetchInitialData = async () => {
@@ -315,7 +347,7 @@ const NewJob = ({ handler }) => {
       const newJob = jobResponse.data;
 
       toast.success(`Job ${newJob?.index ? '#' + newJob.index : ''} created successfully!`);
-      handleClose();
+      handleForceClose();
       if (typeof handler === 'function') {
         handler();
       }
@@ -348,7 +380,7 @@ const NewJob = ({ handler }) => {
 
       <Dialog
         open={open}
-        onClose={handleClose}
+        onClose={handleRequestClose}
         maxWidth="md"
         fullWidth
         PaperProps={{
@@ -379,7 +411,7 @@ const NewJob = ({ handler }) => {
               </p>
             </div>
           </div>
-          <IconButton onClick={handleClose} size="small" className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+          <IconButton onClick={handleRequestClose} size="small" className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
             <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
@@ -1114,7 +1146,7 @@ const NewJob = ({ handler }) => {
         >
           <button
             type="button"
-            onClick={activeStep === 0 ? handleClose : handlePrevStep}
+            onClick={activeStep === 0 ? handleRequestClose : handlePrevStep}
             className="px-6 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 transition-colors cursor-pointer inline-flex items-center gap-1.5"
           >
             {activeStep === 0 ? 'Cancel' : <><ArrowBackIcon fontSize="small" /> Back</>}
@@ -1134,6 +1166,17 @@ const NewJob = ({ handler }) => {
           </button>
         </DialogActions>
       </Dialog>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for New Job */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Job Changes"
+        message="You have unsaved changes in this job. If you close now, all your entered customer details, locations, and pricing options will be discarded. What would you like to do?"
+        discardText="Discard Job Changes"
+        continueText="Continue Editing"
+        onContinueEditing={handleContinueEditing}
+        onDiscardChanges={handleForceClose}
+      />
     </>
   );
 };

@@ -1,5 +1,6 @@
 /**
  * Global System Timezone Utility
+ * EXEC-29: Authoritative Europe/Amsterdam Timezone Standard & Date-Only Disambiguation
  * Ensures that the system-configured timezone from Settings is respected
  * throughout all date/time calculations, displays, and table rows in the CRM.
  */
@@ -52,13 +53,12 @@ export function parseIanaTimezone(input?: string | null): string {
 
   // Extract from parentheses e.g. "UTC +01:00 (Europe/Amsterdam - CET)" -> "Europe/Amsterdam"
   const parenMatch = trimmed.match(/\(([^)]+)\)/);
-  const candidate = parenMatch ? parenMatch[1].split(/[-–]/)[0].trim() : trimmed;
+  const candidate = parenMatch ? parenMatch[1].split(/[-–—]/)[0].trim() : trimmed;
 
   try {
     new Intl.DateTimeFormat(undefined, { timeZone: candidate });
     return candidate;
   } catch {
-    // fallback
     return 'Europe/Amsterdam';
   }
 }
@@ -76,7 +76,7 @@ export function getSystemTimezone(): string {
     const saved = localStorage.getItem('systemTimezone');
     if (saved) activeIanaTz = parseIanaTimezone(saved);
   }
-  return activeIanaTz;
+  return activeIanaTz || 'Europe/Amsterdam';
 }
 
 export function getSystemTimezoneLabel(): string {
@@ -104,6 +104,93 @@ export function setSystemTimezone(tzVal: string) {
 }
 
 /**
+ * EXEC-29: Format a pure calendar date (Date-Only) without timezone shifting or midnight rollback.
+ * Works uniformly for "YYYY-MM-DD", "DD-MM-YYYY", ISO midnight UTC, or Date objects.
+ */
+export function formatDateOnly(
+  dateInput: string | number | Date | null | undefined,
+  format: 'DD-MM-YYYY' | 'YYYY-MM-DD' = 'DD-MM-YYYY'
+): string {
+  if (!dateInput) return '-';
+  if (typeof dateInput === 'string') {
+    const trimmed = dateInput.trim();
+    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+      if (format === 'DD-MM-YYYY') return trimmed;
+      const [dd, mm, yyyy] = trimmed.split('-');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || /^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+      const [yyyy, mm, dd] = trimmed.split('T')[0].split('-');
+      if (format === 'DD-MM-YYYY') return `${dd}-${mm}-${yyyy}`;
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+
+  try {
+    const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    if (isNaN(d.getTime())) return String(dateInput);
+    const tz = getSystemTimezone() || 'Europe/Amsterdam';
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+
+    const day = parts.find((p) => p.type === 'day')?.value || '01';
+    const month = parts.find((p) => p.type === 'month')?.value || '01';
+    const year = parts.find((p) => p.type === 'year')?.value || '1970';
+
+    if (format === 'YYYY-MM-DD') return `${year}-${month}-${day}`;
+    return `${day}-${month}-${year}`;
+  } catch {
+    return String(dateInput);
+  }
+}
+
+/**
+ * EXEC-29: Extracts year, month, day, hour, minute in Europe/Amsterdam timezone.
+ */
+export function getAmsterdamWallClockParts(dateInput: string | Date | number | null | undefined) {
+  if (!dateInput) return null;
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(d.getTime())) return null;
+
+  const tz = getSystemTimezone() || 'Europe/Amsterdam';
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+
+  const year = Number(parts.find((p) => p.type === 'year')?.value);
+  const month = Number(parts.find((p) => p.type === 'month')?.value);
+  const day = Number(parts.find((p) => p.type === 'day')?.value);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value);
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value);
+
+  return { year, month, day, hour, minute };
+}
+
+/**
+ * EXEC-29: Converts any UTC instant to a local Date representing Amsterdam wall-clock time
+ * for calendar layout engines (react-big-calendar).
+ */
+export function parseAmsterdamWallClockDate(val: any): Date {
+  if (!val) return new Date();
+  const parts = getAmsterdamWallClockParts(val);
+  if (parts) {
+    return new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, 0);
+  }
+  return new Date(val);
+}
+
+/**
  * Format a Date object or timestamp string using system timezone
  */
 export function formatSystemDate(
@@ -111,7 +198,11 @@ export function formatSystemDate(
   options?: Intl.DateTimeFormatOptions,
   locale: string = 'en-GB'
 ): string {
-  if (!dateInput) return '—';
+  if (!dateInput) return '-';
+  // If it's a date-only string without time, format directly to prevent timezone rollback
+  if (typeof dateInput === 'string' && (/^\d{4}-\d{2}-\d{2}$/.test(dateInput) || /^\d{2}-\d{2}-\d{4}$/.test(dateInput))) {
+    return formatDateOnly(dateInput, 'DD-MM-YYYY');
+  }
   try {
     const d = new Date(dateInput);
     if (isNaN(d.getTime())) return String(dateInput);
@@ -130,7 +221,7 @@ export function formatSystemTime(
   options?: Intl.DateTimeFormatOptions,
   locale: string = 'en-GB'
 ): string {
-  if (!dateInput) return '—';
+  if (!dateInput) return '-';
   try {
     const d = new Date(dateInput);
     if (isNaN(d.getTime())) return String(dateInput);
@@ -151,7 +242,7 @@ export function formatSystemDateTime(
   options?: Intl.DateTimeFormatOptions,
   locale: string = 'en-GB'
 ): string {
-  if (!dateInput) return '—';
+  if (!dateInput) return '-';
   try {
     const d = new Date(dateInput);
     if (isNaN(d.getTime())) return String(dateInput);

@@ -22,6 +22,7 @@ import {
 import TeamSlider from './Teamslider';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const Team = () => {
   const [data, setData] = useState([]);
@@ -30,6 +31,7 @@ const Team = () => {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [roles, setRoles] = useState([]);
 
@@ -43,7 +45,8 @@ const Team = () => {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    watch,
+    formState: { errors, isDirty },
   } = useForm();
 
   const notify = (msg) => toast.success(msg);
@@ -101,6 +104,16 @@ const Team = () => {
   const closeEditModal = () => {
     setEditModalOpen(false);
     reset();
+  };
+
+  const handleRequestClose = () => {
+    const currentName = watch('teamName');
+    const currentMembers = watch('members') || [];
+    if (isDirty || currentName || currentMembers.length > 0) {
+      setShowDirtyConfirm(true);
+    } else {
+      closeEditModal();
+    }
   };
 
   const onEditSubmit = async (formData) => {
@@ -402,7 +415,8 @@ const Team = () => {
                 </div>
               </div>
               <button
-                onClick={closeEditModal}
+                type="button"
+                onClick={handleRequestClose}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
               >
                 <FiX className="text-lg" />
@@ -466,7 +480,7 @@ const Team = () => {
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={closeEditModal}
+                  onClick={handleRequestClose}
                   className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
                 >
                   Cancel
@@ -482,6 +496,20 @@ const Team = () => {
           </div>
         </div>
       )}
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for Team Creation */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Team Setup"
+        message="You have unsaved changes in this new team creation form. If you close now, the entered team name and member assignments will be discarded. What would you like to do?"
+        discardText="Discard Team"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDirtyConfirm(false)}
+        onDiscardChanges={() => {
+          setShowDirtyConfirm(false);
+          closeEditModal();
+        }}
+      />
 
       {/* Sleek Delete Modal */}
       {isDeleteModalOpen && (

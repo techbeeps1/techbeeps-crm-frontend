@@ -37,6 +37,9 @@ const Editoffer = ({ display, offer, onclose }) => {
   const [customer, setCustomer] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isQuoteAccepted, setIsQuoteAccepted] = useState(false);
+  const [isQuoteSuperseded, setIsQuoteSuperseded] = useState(false);
+  const [supersededByQuote, setSupersededByQuote] = useState(null);
 
   const {
     register,
@@ -157,7 +160,16 @@ const Editoffer = ({ display, offer, onclose }) => {
       const response = await axios.get(`${apiPath}/finance/finance/${Id}`);
       const invoiceData = response.data.finance;
       reset();
-      setValue('customer', invoiceData?.customer?._id, { shouldValidate: true });
+      const resolvedCustomerId = invoiceData?.customer?._id || (typeof invoiceData?.customer === 'string' ? invoiceData.customer : '');
+      if (resolvedCustomerId && invoiceData?.customer && typeof invoiceData.customer === 'object') {
+        setCustomer((prevList) => {
+          if (!prevList.some((c) => String(c._id) === String(resolvedCustomerId))) {
+            return [invoiceData.customer, ...prevList];
+          }
+          return prevList;
+        });
+      }
+      setValue('customer', resolvedCustomerId, { shouldValidate: true });
 
       if (invoiceData?.date) {
         const formattedDate = new Date(invoiceData.date)
@@ -165,9 +177,26 @@ const Editoffer = ({ display, offer, onclose }) => {
           .split('T')[0];
         setValue('date', formattedDate);
       }
-      setValue('financialTemplate', invoiceData?.financialTemplate?._id);
+      const resolvedTemplateId = invoiceData?.financialTemplate?._id || (typeof invoiceData?.financialTemplate === 'string' ? invoiceData.financialTemplate : '');
+      if (resolvedTemplateId) {
+        setTemplate((prevList) => {
+          if (!prevList.some((t) => String(t._id) === String(resolvedTemplateId))) {
+            const tObj =
+              typeof invoiceData?.financialTemplate === 'object' && invoiceData?.financialTemplate?.name
+                ? invoiceData.financialTemplate
+                : { _id: resolvedTemplateId, name: 'Selected Template' };
+            return [tObj, ...prevList];
+          }
+          return prevList;
+        });
+      }
+      setValue('financialTemplate', resolvedTemplateId, { shouldValidate: true });
       setValue('reference', invoiceData?.reference);
       setValue('Status', invoiceData?.Status);
+      const isAcc = (invoiceData?.Status || '').toLowerCase() === 'accepted' || !!invoiceData?.acceptance?.isAccepted;
+      setIsQuoteAccepted(isAcc);
+      setIsQuoteSuperseded(!!invoiceData?.isSuperseded || (invoiceData?.Status || '').toLowerCase() === 'superseded');
+      setSupersededByQuote(invoiceData?.supersededBy);
       setValue('discount', invoiceData?.discount);
       setValue('discount_description', invoiceData?.discount_description);
       setVatSelected(invoiceData?.vat || 'exclusive');
@@ -269,7 +298,36 @@ const Editoffer = ({ display, offer, onclose }) => {
     }
   };
 
+  const handleCreateRevision = async () => {
+    if (!Id) return;
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await axios.post(
+        `${apiPath}/finance/revise/${Id}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(`Revision created: #${response.data?.newQuote?.index || 'New revision'}`);
+      navigate(`/offer/${response.data?.newQuote?._id}`);
+    } catch (err) {
+      console.error('Error creating revision:', err);
+      alert(err.response?.data?.message || err.message || 'Failed to create revision');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleInvoice = async (data) => {
+    if (isQuoteAccepted) {
+      alert('Cannot modify an accepted quotation. The accepted agreement is frozen. Please create a revision.');
+      return;
+    }
+    if (isQuoteSuperseded) {
+      alert('Cannot modify a superseded quotation version. Please edit the active revision.');
+      return;
+    }
+
     setIsSubmitting(true);
     let finalData = restructureData(data);
     try {
@@ -285,7 +343,7 @@ const Editoffer = ({ display, offer, onclose }) => {
       }
     } catch (error) {
       console.error('Error updating offer:', error);
-      alert('Error updating offer proposal');
+      alert(error.response?.data?.message || 'Error updating offer proposal');
     } finally {
       setIsSubmitting(false);
     }
@@ -370,6 +428,53 @@ const Editoffer = ({ display, offer, onclose }) => {
           Editing Mode
         </span>
       </div>
+
+      {/* Accepted Immutable Warning Banner */}
+      {isQuoteAccepted && (
+        <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-emerald-900 dark:text-emerald-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+            <div>
+              <p className="font-bold text-sm">Accepted Agreement (Immutable Snapshot)</p>
+              <p className="text-emerald-700 dark:text-emerald-300">
+                This quotation has been officially accepted and cannot be modified directly. To propose changes, create a new revision.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCreateRevision}
+            disabled={isSubmitting}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap"
+          >
+            Create New Revision
+          </button>
+        </div>
+      )}
+
+      {/* Superseded Warning Banner */}
+      {isQuoteSuperseded && (
+        <div className="mb-6 p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-300 dark:border-purple-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-purple-900 dark:text-purple-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0 animate-pulse"></span>
+            <div>
+              <p className="font-bold text-sm">Superseded Quotation Version</p>
+              <p className="text-purple-700 dark:text-purple-300">
+                This version has been superseded by a newer revision and cannot be edited.
+              </p>
+            </div>
+          </div>
+          {supersededByQuote?._id && (
+            <button
+              type="button"
+              onClick={() => navigate(`/offer/${supersededByQuote._id}`)}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap"
+            >
+              Edit Active Revision
+            </button>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* General Information Card */}
@@ -474,6 +579,8 @@ const Editoffer = ({ display, offer, onclose }) => {
                 className={`w-full rounded-xl border ${errors.financialTemplate ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-300 dark:border-slate-600'
                   } bg-white dark:bg-boxdark px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium`}
                 {...register('financialTemplate', { required: 'Template is required' })}
+                value={watch('financialTemplate') || ''}
+                onChange={(e) => setValue('financialTemplate', e.target.value, { shouldValidate: true })}
               >
                 <option value="">Select Template</option>
                 {templateList.map((item, index) => (
@@ -514,8 +621,7 @@ const Editoffer = ({ display, offer, onclose }) => {
                 <option value="Draft">Draft</option>
                 <option value="Pending">Pending</option>
                 <option value="Sent">Sent</option>
-                <option value="Accepted">Accepted</option>
-                <option value="Declined">Declined</option>
+                {isQuoteAccepted && <option value="Accepted">Accepted (Locked)</option>}
               </select>
             </div>
           </div>
@@ -848,10 +954,16 @@ const Editoffer = ({ display, offer, onclose }) => {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isQuoteAccepted || isQuoteSuperseded}
             className="px-6 py-2.5 text-sm font-bold rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            {isSubmitting ? 'Updating Proposal...' : 'Update Offer'}
+            {isSubmitting
+              ? 'Updating Proposal...'
+              : isQuoteAccepted
+              ? 'Accepted Quote (Locked)'
+              : isQuoteSuperseded
+              ? 'Superseded (Locked)'
+              : 'Update Offer'}
           </button>
         </div>
       </form>

@@ -7,16 +7,43 @@ import axios from "axios";
 import { toast } from 'react-toastify';
 import Loader from "../../../common/Loader";
 import { MdWarehouse, MdAdd, MdEdit, MdCheck, MdLocationOn } from "react-icons/md";
+import DirtyConfirmDialog from "../../../components/common/DirtyConfirmDialog";
 
 const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { control, handleSubmit, setValue, formState: { errors }, reset } = useForm();
+    const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+    const { control, handleSubmit, setValue, formState: { errors, isDirty }, watch, reset } = useForm();
 
     const notify = (message: string) => toast.success(message);
     const notifyError = (message: string) => toast.error(message, {
         autoClose: 2000,
     });
+
+    const checkIsDirty = () => {
+        if (isDirty) return true;
+        const vals = watch();
+        if (vals.name || vals.postcode || vals.houseNumber || vals.street || vals.city) {
+            return true;
+        }
+        return false;
+    };
+
+    const handleRequestCancel = () => {
+        if (checkIsDirty()) {
+            setShowDirtyConfirm(true);
+        } else {
+            handleForceCancel();
+        }
+    };
+
+    const handleForceCancel = () => {
+        setShowDirtyConfirm(false);
+        setOpen(false);
+        reset();
+    };
+
+    const handleCancel = handleRequestCancel;
 
     const onSubmit = (Formdata: any) => {
         wareHouseHandlers(Formdata);
@@ -96,8 +123,7 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
             if (response.status === 201 || response.status === 200) {
                 notify("Request successfully!");
                 handler();
-                setOpen(false);
-                reset();
+                handleForceCancel();
             } else {
                 notifyError(response.data.message);
             }
@@ -107,11 +133,6 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleCancel = () => {
-        setOpen(false);
-        reset();
     };
 
     const handleOpen = () => {
@@ -436,6 +457,17 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                     </div>
                 </div>
             </Dialog>
+
+            {/* EXEC-30: Dirty Form Confirmation Dialog for Warehouse */}
+            <DirtyConfirmDialog
+                open={showDirtyConfirm}
+                title="Unsaved Warehouse Changes"
+                message="You have unsaved changes in this warehouse. If you close now, all your entered warehouse configurations will be discarded. What would you like to do?"
+                discardText="Discard Warehouse Changes"
+                continueText="Continue Editing"
+                onContinueEditing={() => setShowDirtyConfirm(false)}
+                onDiscardChanges={handleForceCancel}
+            />
         </>
     );
 };

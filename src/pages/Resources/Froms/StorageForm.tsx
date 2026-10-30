@@ -10,17 +10,19 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import Loader from '../../../common/Loader';
 import { MdWarehouse, MdEdit, MdAdd, MdClose } from 'react-icons/md';
+import DirtyConfirmDialog from '../../../components/common/DirtyConfirmDialog';
 
 const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const [storageLocation, setStorageLocation] = useState<any>([]);
   const warehousefilter = warehouse?.filter((item: any) => item.condition === 'Enable');
   const {
     control,
     handleSubmit,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
     watch,
     reset,
   } = useForm();
@@ -30,6 +32,31 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
     toast.error(message, {
       autoClose: 2000,
     });
+
+  const checkIsDirty = () => {
+    if (isDirty) return true;
+    const vals = watch();
+    if (vals.storageCode || vals.storageVolume || vals.storageType || vals.warehouse || vals.storageLocation) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleRequestCancel = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      handleForceCancel();
+    }
+  };
+
+  const handleForceCancel = () => {
+    setShowDirtyConfirm(false);
+    setOpen(false);
+    reset();
+  };
+
+  const handleCancel = handleRequestCancel;
 
   const onSubmit = (Formdata: any) => {
     storageHandlers(Formdata);
@@ -67,8 +94,7 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
       if (response.status === 201 || response.status === 200) {
         notify('Storage saved successfully!');
         handler();
-        setOpen(false);
-        reset();
+        handleForceCancel();
       } else {
         notifyError(response.data.message);
       }
@@ -110,11 +136,6 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
   useEffect(() => {
     if (warehouseId) handleAllData();
   }, [warehouseId]);
-
-  const handleCancel = () => {
-    setOpen(false);
-    reset();
-  };
 
   const handleOpen = () => {
     setOpen(true);
@@ -408,6 +429,17 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
           </div>
         </form>
       </Dialog>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for Storage */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Storage Changes"
+        message="You have unsaved changes in this storage unit. If you close now, all your entered storage configurations will be discarded. What would you like to do?"
+        discardText="Discard Storage Changes"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDirtyConfirm(false)}
+        onDiscardChanges={handleForceCancel}
+      />
     </>
   );
 };

@@ -28,6 +28,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 export const CATEGORIES = [
   {
@@ -279,6 +280,25 @@ const ApplyDeclarationModal = ({
   const [receiptName, setReceiptName] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+
+  const checkIsDirty = () => {
+    if (isLocked) return false;
+    if (description && description.trim().length > 0) return true;
+    if (selectedJobId) return true;
+    if (receiptUrl) return true;
+    if (items.length > 1) return true;
+    if (items[0]?.title || items[0]?.amount || items[0]?.distanceKm) return true;
+    return false;
+  };
+
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      onClose();
+    }
+  };
 
   // Fetch employees and jobs
   useEffect(() => {
@@ -589,61 +609,62 @@ const ApplyDeclarationModal = ({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="lg"
-      fullWidth
-      PaperProps={{
-        style: {
-          borderRadius: '24px',
-          backgroundColor: 'transparent',
-          boxShadow: 'none',
-        },
-      }}
-    >
-      <div className="bg-white dark:bg-boxdark rounded-3xl border border-slate-200 dark:border-strokedark shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Modal Header */}
-        <div className="p-5 md:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
-          <div className="flex items-center gap-3.5">
-            <div
-              className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-md ${
-                isLocked
-                  ? 'bg-amber-500 text-white shadow-amber-500/20'
-                  : 'bg-gradient-to-tr from-primary to-blue-500 text-white shadow-primary/20'
-              }`}
-            >
-              {isLocked ? <FiLock /> : <FiFileText />}
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <span>
-                  {isLocked
-                    ? `Declaration Details (${initialData?.status})`
-                    : initialData
-                    ? 'Edit Declaration Claim'
-                    : 'New Expense Declaration'}
-                </span>
-                {isLocked && (
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                    Read Only
+    <>
+      <Dialog
+        open={open}
+        onClose={handleRequestClose}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          style: {
+            borderRadius: '24px',
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+          },
+        }}
+      >
+        <div className="bg-white dark:bg-boxdark rounded-3xl border border-slate-200 dark:border-strokedark shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+          {/* Modal Header */}
+          <div className="p-5 md:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/50">
+            <div className="flex items-center gap-3.5">
+              <div
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-md ${
+                  isLocked
+                    ? 'bg-amber-500 text-white shadow-amber-500/20'
+                    : 'bg-gradient-to-tr from-primary to-blue-500 text-white shadow-primary/20'
+                }`}
+              >
+                {isLocked ? <FiLock /> : <FiFileText />}
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>
+                    {isLocked
+                      ? `Declaration Details (${initialData?.status})`
+                      : initialData
+                      ? 'Edit Declaration Claim'
+                      : 'New Expense Declaration'}
                   </span>
-                )}
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                {isLocked
-                  ? 'This declaration is locked from editing because it has already been approved or processed.'
-                  : 'Submit itemized expense claims, travel & mileage allowances, and invoice receipts'}
-              </p>
+                  {isLocked && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                      Read Only
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {isLocked
+                    ? 'This declaration is locked from editing because it has already been approved or processed.'
+                    : 'Submit itemized expense claims, travel & mileage allowances, and invoice receipts'}
+                </p>
+              </div>
             </div>
+            <IconButton
+              onClick={handleRequestClose}
+              className="text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <FiX />
+            </IconButton>
           </div>
-          <IconButton
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            <FiX />
-          </IconButton>
-        </div>
 
         {/* Scrollable Form Body */}
         <form onSubmit={handleSubmit} className="p-5 md:p-6 overflow-y-auto space-y-6">
@@ -1067,7 +1088,7 @@ const ApplyDeclarationModal = ({
               <>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleRequestClose}
                   className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
@@ -1092,6 +1113,21 @@ const ApplyDeclarationModal = ({
         </form>
       </div>
     </Dialog>
+
+    {/* EXEC-30: Dirty Form Confirmation Dialog for Declaration */}
+    <DirtyConfirmDialog
+      open={showDirtyConfirm}
+      title="Unsaved Expense Declaration"
+      message="You have unsaved changes in this declaration claim. If you close now, all your entered items and receipt details will be discarded. What would you like to do?"
+      discardText="Discard Declaration"
+      continueText="Continue Editing"
+      onContinueEditing={() => setShowDirtyConfirm(false)}
+      onDiscardChanges={() => {
+        setShowDirtyConfirm(false);
+        onClose();
+      }}
+    />
+  </>
   );
 };
 

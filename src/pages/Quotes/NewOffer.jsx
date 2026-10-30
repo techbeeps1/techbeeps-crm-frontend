@@ -45,6 +45,7 @@ const NewOffer = ({ display, job, onclose }) => {
     formState: { errors },
   } = useForm({
     defaultValues: {
+      Status: 'Draft',
       items: [
         { salesgroup: '', description: '', quantity: 1, btw: '', price: 0 },
       ],
@@ -248,7 +249,12 @@ const NewOffer = ({ display, job, onclose }) => {
       return response.data;
     } catch (error) {
       console.error('Error creating offer:', error);
-      alert(error.message || 'Failed to create quotation');
+      const serverMsg =
+        error.response?.data?.message ||
+        error.response?.data?.msg ||
+        error.message ||
+        'Failed to create quotation';
+      alert(serverMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -484,8 +490,6 @@ const NewOffer = ({ display, job, onclose }) => {
                 <option value="Draft">Draft</option>
                 <option value="Pending">Pending</option>
                 <option value="Sent">Sent</option>
-                <option value="Accepted">Accepted</option>
-                <option value="Declined">Declined</option>
               </select>
             </div>
           </div>

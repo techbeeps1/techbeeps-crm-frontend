@@ -10,6 +10,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import ElevatorOutlined from '@mui/icons-material/ElevatorOutlined';
 import GifBoxOutlined from '@mui/icons-material/GifBoxOutlined';
 import ApprovalOutlined from '@mui/icons-material/ApprovalOutlined';
+import HistoryIcon from '@mui/icons-material/History';
 import CloseIcon from '@mui/icons-material/Close';
 import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -25,6 +26,7 @@ const Offer = ({ data, notes, fetchInvoice }) => {
   const { Id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [revising, setRevising] = useState(false);
   const [openPopup, setOpenPopup] = useState(false);
   const [openOnSiteModal, setOpenOnSiteModal] = useState(false);
   const [onSiteCustomerName, setOnSiteCustomerName] = useState('');
@@ -141,6 +143,30 @@ const Offer = ({ data, notes, fetchInvoice }) => {
     }
   };
 
+  const handleCreateRevision = async () => {
+    if (!Id) return;
+    if (!window.confirm(`Create a new revision of Quotation #${data?.index || ''}? This will freeze the current version and generate version ${(data?.version || 1) + 1}.`)) {
+      return;
+    }
+    setRevising(true);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await axios.post(
+        `${apiPath}/finance/revise/${Id}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      notify(`Revision created: #${response.data?.newQuote?.index || 'New revision'}`);
+      if (typeof fetchInvoice === 'function') fetchInvoice();
+      navigate(`/offer/${response.data?.newQuote?._id}`);
+    } catch (err) {
+      console.error('Error creating revision:', err);
+      notifyError(err.response?.data?.message || err.message || 'Failed to create revision');
+    } finally {
+      setRevising(false);
+    }
+  };
+
   const handleActivity = async (activityData) => {
     try {
       await axios.post(`${apiPath}/api/activities`, activityData);
@@ -159,11 +185,27 @@ const Offer = ({ data, notes, fetchInvoice }) => {
 
   const getStatusBadge = (status = '') => {
     const s = (status || '').toLowerCase();
+    if (data?.isSuperseded || s === 'superseded') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-300">
+          <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+          Superseded (v{data?.version || 1})
+        </span>
+      );
+    }
+    if (s === 'rejected' || s === 'declined') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300 border border-rose-300">
+          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+          Rejected
+        </span>
+      );
+    }
     if (s === 'accepted') {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300">
           <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          Accepted
+          Accepted {data?.version > 1 ? `(v${data.version})` : ''}
         </span>
       );
     }
@@ -171,7 +213,7 @@ const Offer = ({ data, notes, fetchInvoice }) => {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300 border border-blue-300">
           <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-          Sent
+          Sent {data?.version > 1 ? `(v${data.version})` : ''}
         </span>
       );
     }
@@ -179,22 +221,14 @@ const Offer = ({ data, notes, fetchInvoice }) => {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-300">
           <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-          Pending
-        </span>
-      );
-    }
-    if (s === 'declined') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300 border border-rose-300">
-          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-          Declined
+          Pending {data?.version > 1 ? `(v${data.version})` : ''}
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300">
         <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-        {status || 'Draft'}
+        {status || 'Draft'} {data?.version > 1 ? `(v${data.version})` : ''}
       </span>
     );
   };
@@ -272,11 +306,38 @@ const Offer = ({ data, notes, fetchInvoice }) => {
           {isUserAdmin && (
             <button
               type="button"
-              onClick={() => navigate(`/offer/${Id}`)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition-all cursor-pointer"
+              disabled={data.Status === 'Accepted' || data.isSuperseded}
+              title={
+                data.Status === 'Accepted'
+                  ? 'Accepted quotation is frozen. Click "Create Revision" to propose changes.'
+                  : data.isSuperseded
+                  ? 'Superseded quotation cannot be edited. Please view active revision.'
+                  : 'Edit Offer'
+              }
+              onClick={() => {
+                if (data.Status === 'Accepted' || data.isSuperseded) return;
+                navigate(`/offer/${Id}`);
+              }}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border font-bold text-xs transition-all ${
+                data.Status === 'Accepted' || data.isSuperseded
+                  ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 pointer-events-auto'
+                  : 'border-slate-200 dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'
+              }`}
             >
               <EditIcon fontSize="small" />
               <span>Edit</span>
+            </button>
+          )}
+
+          {isUserAdmin && !data.isSuperseded && (
+            <button
+              type="button"
+              onClick={handleCreateRevision}
+              disabled={revising}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+            >
+              <HistoryIcon fontSize="small" />
+              <span>{revising ? 'Revising...' : 'Create Revision'}</span>
             </button>
           )}
 
@@ -395,6 +456,65 @@ const Offer = ({ data, notes, fetchInvoice }) => {
           </div>
         </Dialog>
       </div>
+
+      {/* Superseded Warning Banner */}
+      {data.isSuperseded && (
+        <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-purple-900 dark:text-purple-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 flex-shrink-0 animate-pulse"></span>
+            <div>
+              <p className="font-bold">This quotation version (v{data.version || 1}) has been superseded.</p>
+              <p className="text-purple-700 dark:text-purple-300">
+                {data.supersededBy?.index
+                  ? `Active revision is #${data.supersededBy.index} (v${data.supersededBy.version || 2}).`
+                  : 'A newer revision has superseded this document.'}
+              </p>
+            </div>
+          </div>
+          {data.supersededBy?._id && (
+            <button
+              type="button"
+              onClick={() => navigate(`/offer-detail/${data.supersededBy._id}`)}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold transition-all shadow-xs cursor-pointer"
+            >
+              View Active Revision
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Predecessor Link Banner */}
+      {data.parentQuote && (
+        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-strokedark rounded-2xl p-3 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">Revision Lineage:</span>
+            <span>Created from predecessor Quotation #{data.parentQuote?.index || 'N/A'} (v{data.parentQuote?.version || 1})</span>
+          </div>
+          {data.parentQuote?._id && (
+            <button
+              type="button"
+              onClick={() => navigate(`/offer-detail/${data.parentQuote._id}`)}
+              className="text-primary hover:underline font-semibold cursor-pointer"
+            >
+              View Predecessor
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Rejection Banner */}
+      {(data.Status === 'Rejected' || data.Status === 'Declined') && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl p-4 flex items-center gap-2.5 text-xs text-rose-900 dark:text-rose-200">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 flex-shrink-0"></span>
+          <div>
+            <p className="font-bold">Quotation Declined / Rejected</p>
+            <p className="text-rose-700 dark:text-rose-300">
+              Reason: {data.rejectionReason || 'Customer declined proposal'}
+              {data.rejectedAt ? ` (${new Date(data.rejectedAt).toLocaleDateString('en-GB')})` : ''}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Acceptance Provenance & Audit Card (Shown when quote is Accepted) */}
       {data.Status === 'Accepted' && (

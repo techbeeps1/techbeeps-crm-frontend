@@ -21,18 +21,23 @@ import {
   MdNotificationsActive,
   MdBolt
 } from 'react-icons/md';
+import DirtyConfirmDialog from '../../../components/common/DirtyConfirmDialog';
 
 export const OPERATIONAL_TRIGGERS = [
   { key: 'quote', label: 'Quote: Fixed Price Proposal' },
   { key: 'quoteReminders', label: 'Quote: Follow-up Reminder' },
+  { key: 'quoteAcceptance', label: 'Quote: Acceptance Acknowledgment' },
   { key: 'appointment', label: 'Appointment: Booking Confirmation' },
   { key: 'rescheduleAppointment', label: 'Appointment: Rescheduled Notice' },
   { key: 'invoice', label: 'Invoice: Billing & Payment Due' },
   { key: 'invoiceReminder', label: 'Invoice: Follow-up Reminder' },
+  { key: 'paymentReceived', label: 'Invoice: Payment Received Receipt' },
   { key: 'confirmation', label: 'Job: Move Confirmation & Schedule' },
   { key: 'cancellation', label: 'Booking: Cancellation Notice' },
   { key: 'paymentReminder', label: 'Payment: 1st Reminder Notice' },
   { key: 'paymentReminder2', label: 'Payment: Final Notice' },
+  { key: 'employeeWelcome', label: 'Internal: Employee Welcome & Credentials' },
+  { key: 'taskAssignment', label: 'Internal: Task Assignment Notice' },
   { key: 'thankyou', label: 'Customer: Thank You & Feedback' },
   { key: 'storageInovice', label: 'Storage: Monthly Rental Invoice' },
 ];
@@ -54,6 +59,7 @@ interface FormData {
 
 const EmailTemplateList: React.FC = () => {
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState<boolean>(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState<boolean>(false);
   const [data, setData] = useState<Template[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -70,8 +76,9 @@ const EmailTemplateList: React.FC = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
+    watch,
   } = useForm<FormData>({
     defaultValues: {
       documentType: '',
@@ -105,6 +112,14 @@ const EmailTemplateList: React.FC = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     reset();
+  };
+
+  const handleRequestClose = () => {
+    if (isDirty || watch('name')) {
+      setShowDirtyConfirm(true);
+    } else {
+      handleCloseModal();
+    }
   };
 
   const handleAllReports = async () => {
@@ -296,20 +311,36 @@ const EmailTemplateList: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Assigned Operational Trigger (Display Only) */}
+                      {/* Assigned Operational Trigger */}
                       <td className="py-3.5 px-5">
-                        {assignedKey ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary border border-primary/25">
-                            <MdBolt className="text-sm shrink-0 text-primary" />
-                            <span className="truncate max-w-[240px]">
-                              {OPERATIONAL_TRIGGERS.find((t) => t.key === assignedKey)?.label || assignedKey}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-meta-4/30 border border-slate-200 dark:border-strokedark">
-                            Unassigned
-                          </span>
-                        )}
+                        <div className="relative inline-block max-w-[280px]">
+                          <select
+                            disabled={isUpdating}
+                            value={assignedKey}
+                            onChange={(e) => handleAssignTrigger(item._id, e.target.value)}
+                            className={`text-xs font-semibold py-1.5 px-3 rounded-xl border outline-none cursor-pointer transition-all ${
+                              assignedKey
+                                ? 'bg-primary/10 text-primary border-primary/25 hover:bg-primary/15'
+                                : 'text-slate-400 dark:text-slate-400 bg-slate-100 dark:bg-meta-4/30 border-slate-200 dark:border-strokedark hover:border-primary/40'
+                            }`}
+                          >
+                            <option value="">-- Unassigned --</option>
+                            {OPERATIONAL_TRIGGERS.map((trigger) => {
+                              const currentAssignedId = emailSettings[trigger.key];
+                              const isTaken = currentAssignedId && String(currentAssignedId) !== String(item._id);
+                              return (
+                                <option
+                                  key={trigger.key}
+                                  value={trigger.key}
+                                  disabled={Boolean(isTaken)}
+                                  className="text-black dark:text-white bg-white dark:bg-boxdark"
+                                >
+                                  {trigger.label} {isTaken ? '(In use)' : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
                       </td>
 
                       {/* Status */}
@@ -361,13 +392,13 @@ const EmailTemplateList: React.FC = () => {
       />
 
       {/* New Email Template Modal */}
-      <Modal open={showModal} onClose={handleCloseModal}>
+      <Modal open={showModal} onClose={handleRequestClose}>
         <Box className="fixed inset-0 flex items-center justify-center p-4 z-99999 outline-none">
           <div className="bg-white dark:bg-boxdark rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-stroke dark:border-strokedark relative max-h-[90vh] overflow-y-auto">
             {/* Close Button */}
             <button
               type="button"
-              onClick={handleCloseModal}
+              onClick={handleRequestClose}
               className="absolute top-5 right-5 text-slate-400 hover:text-black dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-meta-4 transition-colors cursor-pointer"
             >
               <MdClose className="text-xl" />
@@ -463,7 +494,7 @@ const EmailTemplateList: React.FC = () => {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-stroke dark:border-strokedark">
                 <button
                   type="button"
-                  onClick={handleCloseModal}
+                  onClick={handleRequestClose}
                   className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-gray-2 dark:hover:bg-strokedark transition-colors cursor-pointer"
                 >
                   Cancel
@@ -481,6 +512,20 @@ const EmailTemplateList: React.FC = () => {
           </div>
         </Box>
       </Modal>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for Email Template */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Email Template"
+        message="You have unsaved changes in this email template draft. If you close now, your template name and trigger assignments will be discarded. What would you like to do?"
+        discardText="Discard Template"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDirtyConfirm(false)}
+        onDiscardChanges={() => {
+          setShowDirtyConfirm(false);
+          handleCloseModal();
+        }}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>

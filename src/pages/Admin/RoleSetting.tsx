@@ -20,6 +20,7 @@ import {
   MdShield
 } from 'react-icons/md';
 import { useForm, Controller } from 'react-hook-form';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 interface RoleOption {
   label: string;
@@ -49,8 +50,9 @@ const RoleSettings = () => {
   const [roleFilter, setRoleFilter] = useState('All');
 
   const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  const { control, register, handleSubmit, reset, setValue, watch } = useForm();
+  const { control, register, handleSubmit, reset, setValue, watch, formState: { isDirty } } = useForm();
 
   const watchedAccess = watch('access') || [];
 
@@ -73,6 +75,14 @@ const RoleSettings = () => {
   const closeEditModal = () => {
     setEditModalOpen(false);
     setSelectedUser(null);
+  };
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDirtyConfirm(true);
+    } else {
+      closeEditModal();
+    }
   };
 
   const toggleAccessModule = (moduleValue: string) => {
@@ -304,13 +314,13 @@ const RoleSettings = () => {
       </div>
 
       {/* Edit Role Modal */}
-      <Modal open={isEditModalOpen} onClose={closeEditModal}>
+      <Modal open={isEditModalOpen} onClose={handleRequestClose}>
         <Box className="fixed inset-0 flex items-center justify-center p-4 z-99999 outline-none">
           <div className="bg-white dark:bg-boxdark rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border border-stroke dark:border-strokedark relative max-h-[90vh] overflow-y-auto">
             {/* Close Button */}
             <button
               type="button"
-              onClick={closeEditModal}
+              onClick={handleRequestClose}
               className="absolute top-5 right-5 text-slate-400 hover:text-black dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-meta-4 transition-colors cursor-pointer"
             >
               <MdClose className="text-xl" />
@@ -410,7 +420,7 @@ const RoleSettings = () => {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-stroke dark:border-strokedark">
                 <button
                   type="button"
-                  onClick={closeEditModal}
+                  onClick={handleRequestClose}
                   className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border border-stroke dark:border-strokedark text-slate-700 dark:text-slate-200 hover:bg-gray-2 dark:hover:bg-strokedark transition-colors cursor-pointer"
                 >
                   Cancel
@@ -428,6 +438,20 @@ const RoleSettings = () => {
           </div>
         </Box>
       </Modal>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for Role Privileges */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Role Changes"
+        message="You have unsaved changes in this user's role permissions. If you close now, all your module access selections will be discarded. What would you like to do?"
+        discardText="Discard Privileges"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDirtyConfirm(false)}
+        onDiscardChanges={() => {
+          setShowDirtyConfirm(false);
+          closeEditModal();
+        }}
+      />
     </div>
   );
 };

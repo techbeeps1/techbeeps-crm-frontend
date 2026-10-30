@@ -18,7 +18,7 @@ const SearchableClientSelect = ({ customerList = [], value, onChange, disabled, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedCustomer = customerList.find((item) => item._id === value);
+  const selectedCustomer = value ? customerList.find((item) => String(item._id) === String(value)) : null;
 
   const filteredCustomers = customerList.filter((item) => {
     const fullName = `${item.firstName || ''} ${item.lastName || ''}`.toLowerCase();

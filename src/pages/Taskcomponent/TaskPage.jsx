@@ -31,6 +31,7 @@ import DatePickerComponent from '../../common/Datepicker';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
 import { OfflineNoticeCard } from '../../components/OfflineNoticeCard';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const avatarColors = [
   'bg-purple-600 text-white',
@@ -76,6 +77,7 @@ const TaskPage = ({ jobId }) => {
   const [error, setError] = useState(null);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [roles, setRoles] = useState([]);
   const [customer, setCustomer] = useState([]);
@@ -107,7 +109,7 @@ const TaskPage = ({ jobId }) => {
     handleSubmit,
     setValue,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm();
 
   // Fetch job information when jobId prop is present
@@ -250,6 +252,23 @@ const TaskPage = ({ jobId }) => {
   const closeEditModal = () => {
     setEditModalOpen(false);
     reset();
+  };
+
+  const handleRequestCloseModal = () => {
+    if (isDirty) {
+      setShowDirtyConfirm(true);
+    } else {
+      closeEditModal();
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    setShowDirtyConfirm(false);
+    closeEditModal();
+  };
+
+  const handleContinueEditing = () => {
+    setShowDirtyConfirm(false);
   };
 
   // Synchronize customer and job values when modal opens in job-specific mode
@@ -913,9 +932,9 @@ const TaskPage = ({ jobId }) => {
       </div>
 
       {/* Modern Create New Task Modal */}
-      <Modal open={isEditModalOpen} onClose={closeEditModal}>
+      <Modal open={isEditModalOpen} onClose={handleRequestCloseModal}>
         <Box className="fixed inset-0 flex items-center justify-center p-4 z-50">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={closeEditModal} />
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={handleRequestCloseModal} />
 
           <div className="relative bg-white dark:bg-boxdark rounded-3xl shadow-2xl max-w-xl w-full p-6 sm:p-8 border border-slate-100 dark:border-strokedark z-10 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
@@ -928,7 +947,7 @@ const TaskPage = ({ jobId }) => {
                   <p className="text-xs text-slate-500">Assign task, schedule date, and customer linking</p>
                 </div>
               </div>
-              <IconButton onClick={closeEditModal} size="small">
+              <IconButton onClick={handleRequestCloseModal} size="small">
                 <CloseIcon fontSize="small" />
               </IconButton>
             </div>
@@ -1183,7 +1202,7 @@ const TaskPage = ({ jobId }) => {
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={closeEditModal}
+                  onClick={handleRequestCloseModal}
                   className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors"
                 >
                   Cancel
@@ -1200,6 +1219,17 @@ const TaskPage = ({ jobId }) => {
           </div>
         </Box>
       </Modal>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Task Changes"
+        message="You have unsaved changes in this task. If you close now, all your entered task information will be discarded. What would you like to do?"
+        discardText="Discard Task Changes"
+        continueText="Continue Editing"
+        onContinueEditing={handleContinueEditing}
+        onDiscardChanges={handleConfirmDiscard}
+      />
 
       {/* Modern Delete Confirmation Dialog */}
       <Modal open={isDeleteModalOpen} onClose={closeDeleteModal}>

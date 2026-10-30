@@ -60,6 +60,12 @@ const coreRoutes = [
     component: TaskPage,
   },
   {
+    path: '/task',
+    title: 'Tasks',
+    access: 'Tasks',
+    component: TaskPage,
+  },
+  {
     path: '/offer/:Id',
     title: 'editoffer',
     access: 'Finance',

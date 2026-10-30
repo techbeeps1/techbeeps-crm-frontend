@@ -6,22 +6,45 @@ import { apiPath } from '../../../apiPath';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { isValidPhoneNumber } from '../../utils/phoneUtil';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     control,
     reset,
+    watch,
   } = useForm({});
 
   const [loading, setLoading] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
 
-  const handleClose = () => {
+  const checkIsDirty = () => {
+    if (isDirty) return true;
+    const vals = watch();
+    if (vals.firstName || vals.lastName || vals.email || vals.contact || vals.postcode || vals.city || vals.typeOfCustomer || vals.gender) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      handleForceClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowDirtyConfirm(false);
     reset();
     setOpen(false);
   };
+
+  const handleClose = handleRequestClose;
 
   const notify = (message) =>
     toast.success(message, {
@@ -99,9 +122,8 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
         },
       );
       if (response.data.success === true) {
-        handleClose();
+        handleForceClose();
         handler();
-        reset();
         setLoading(false);
         notify(type === 'leads' ? 'Lead added successfully' : 'Customer added successfully');
       }
@@ -420,6 +442,17 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
           </button>
         </div>
       </div>
+
+      {/* EXEC-30: Dirty Form Confirmation Dialog for New Lead */}
+      <DirtyConfirmDialog
+        open={showDirtyConfirm}
+        title="Unsaved Lead Changes"
+        message="You have unsaved changes in this lead. If you close now, all your entered information will be discarded. What would you like to do?"
+        discardText="Discard Lead Changes"
+        continueText="Continue Editing"
+        onContinueEditing={() => setShowDirtyConfirm(false)}
+        onDiscardChanges={handleForceClose}
+      />
     </div>
   );
 };

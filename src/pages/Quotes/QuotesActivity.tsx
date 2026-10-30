@@ -34,6 +34,10 @@ interface Activity {
   status?: string;
   sender: string;
   email: string;
+  actor?: string;
+  actorName?: string;
+  action?: string;
+  isStaffPreview?: boolean;
 }
 
 const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
@@ -86,15 +90,12 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "N/A";
 
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const mins = String(date.getMinutes()).padStart(2, '0');
+    return `${day}-${month}-${year} ${hours}:${mins}`;
   }
 
   useEffect(() => {
@@ -116,6 +117,15 @@ const QuotesActivity: React.FC<{ invoiceData: any }> = ({ invoiceData }) => {
   const getActivityStyle = (activity: Activity) => {
     const status = (activity.status || activity.type || '').toLowerCase();
     const title = (activity.title || '').toLowerCase();
+
+    if (activity.isStaffPreview || activity.actor === 'Staff' || title.includes('preview')) {
+      return {
+        icon: <VisibilityIcon style={{ fontSize: 18 }} />,
+        iconBg: 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800',
+        badge: 'Staff Preview',
+        badgeColor: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300'
+      };
+    }
 
     if (activity.email || status.includes('email') || title.includes('email')) {
       return {

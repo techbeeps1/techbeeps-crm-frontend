@@ -8,12 +8,14 @@ import { toast } from 'react-toastify';
 import Loader from "../../../common/Loader";
 import { useCurrency } from "../../../utils/currencyUtil";
 import { MdAllInbox, MdLayers, MdAdd, MdEdit } from "react-icons/md";
+import DirtyConfirmDialog from "../../../components/common/DirtyConfirmDialog";
 
 const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
     const { symbol: currencySymbol } = useCurrency();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { control, handleSubmit, setValue, formState: { errors }, reset } = useForm();
+    const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+    const { control, handleSubmit, setValue, formState: { errors, isDirty }, watch, reset } = useForm();
 
     const isBox = type === 'Box';
     const Icon = isBox ? MdAllInbox : MdLayers;
@@ -22,6 +24,31 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
     const notifyError = (message: string) => toast.error(message, {
         autoClose: 2000,
     });
+
+    const checkIsDirty = () => {
+        if (isDirty) return true;
+        const vals = watch();
+        if (vals.name || vals.rentalPrice || vals.sellingPrice || vals.length || vals.width || vals.height) {
+            return true;
+        }
+        return false;
+    };
+
+    const handleRequestCancel = () => {
+        if (checkIsDirty()) {
+            setShowDirtyConfirm(true);
+        } else {
+            handleForceCancel();
+        }
+    };
+
+    const handleForceCancel = () => {
+        setShowDirtyConfirm(false);
+        setOpen(false);
+        reset();
+    };
+
+    const handleCancel = handleRequestCancel;
 
     const onSubmit = (Formdata: any) => {
         wareHouseHandlers(Formdata);
@@ -49,8 +76,7 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
             if (response.status === 201 || response.status === 200) {
                 notify(`${type} saved successfully!`);
                 handler();
-                setOpen(false);
-                reset();
+                handleForceCancel();
             } else {
                 notifyError(response.data.message);
             }
@@ -60,11 +86,6 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleCancel = () => {
-        setOpen(false);
-        reset();
     };
 
     const handleOpen = () => {
@@ -313,6 +334,17 @@ const BoxFrom: React.FC<any> = ({ type, data, handler }) => {
                     </div>
                 </div>
             </Dialog>
+
+            {/* EXEC-30: Dirty Form Confirmation Dialog for Box / Inventory */}
+            <DirtyConfirmDialog
+                open={showDirtyConfirm}
+                title={`Unsaved ${type} Changes`}
+                message={`You have unsaved changes in this ${type.toLowerCase()}. If you close now, all your entered specifications will be discarded. What would you like to do?`}
+                discardText={`Discard ${type} Changes`}
+                continueText="Continue Editing"
+                onContinueEditing={() => setShowDirtyConfirm(false)}
+                onDiscardChanges={handleForceCancel}
+            />
         </>
     );
 };

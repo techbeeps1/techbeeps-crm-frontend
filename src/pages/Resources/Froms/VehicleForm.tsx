@@ -22,14 +22,16 @@ import {
     MdVisibility,
     MdVisibilityOff
 } from 'react-icons/md';
+import DirtyConfirmDialog from '../../../components/common/DirtyConfirmDialog';
 
 const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
     const { symbol: currencySymbol } = useCurrency();
-    const { control, handleSubmit, reset, setValue, formState: { errors }, watch } = useForm<any>();
+    const { control, handleSubmit, reset, setValue, formState: { errors, isDirty }, watch } = useForm<any>();
     const [open, setOpen] = useState(false);
     const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [showPin, setShowPin] = useState(false);
+    const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
 
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -37,6 +39,33 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
     const notifyError = (message: string) => toast.error(message, {
         autoClose: 2000,
     });
+
+    const checkIsDirty = () => {
+        if (isDirty) return true;
+        if (activeStep > 0) return true;
+        const vals = watch();
+        if (vals.vehicleName || vals.numberPlate || vals.model || vals.fuelType || vals.pricePerKm || vals.pricePerHour) {
+            return true;
+        }
+        return false;
+    };
+
+    const handleRequestClose = () => {
+        if (checkIsDirty()) {
+            setShowDirtyConfirm(true);
+        } else {
+            handleForceClose();
+        }
+    };
+
+    const handleForceClose = () => {
+        setShowDirtyConfirm(false);
+        setOpen(false);
+        setActiveStep(0);
+        reset();
+    };
+
+    const handleClose = handleRequestClose;
 
     useEffect(() => {
         if (data && open) {
@@ -65,11 +94,6 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
         })();
     };
     const handleBack = () => setActiveStep((prev) => prev - 1);
-    const handleClose = () => {
-        setOpen(false);
-        setActiveStep(0);
-        reset();
-    };
 
     const steps = [
         { label: 'Vehicle Specs', icon: MdDirectionsCar },
@@ -100,9 +124,7 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
                 notify("Vehicle saved successfully!");
                 const savedId = response.data?._id || data?._id;
                 if (handler) handler(savedId);
-                setOpen(false);
-                setActiveStep(0);
-                reset();
+                handleForceClose();
             } else {
                 notifyError(response.data?.message || "Failed to save vehicle");
             }
@@ -1032,6 +1054,17 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
                     </div>
                 </div>
             </Dialog>
+
+            {/* EXEC-30: Dirty Form Confirmation Dialog for Vehicle */}
+            <DirtyConfirmDialog
+                open={showDirtyConfirm}
+                title="Unsaved Vehicle Changes"
+                message="You have unsaved changes in this vehicle. If you close now, all your entered fleet specifications, licenses, and fuel card details will be discarded. What would you like to do?"
+                discardText="Discard Vehicle Changes"
+                continueText="Continue Editing"
+                onContinueEditing={() => setShowDirtyConfirm(false)}
+                onDiscardChanges={handleForceClose}
+            />
         </>
     );
 };

@@ -24,6 +24,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import HistoryIcon from '@mui/icons-material/History';
 import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
@@ -206,11 +207,19 @@ const QuoteList = ({ customerId }) => {
         </span>
       );
     }
-    if (s === 'declined') {
+    if (s === 'superseded') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400 border border-purple-200/80 dark:border-purple-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+          Superseded
+        </span>
+      );
+    }
+    if (s === 'declined' || s === 'rejected') {
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/80 dark:border-rose-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-          Declined
+          Rejected
         </span>
       );
     }
@@ -455,7 +464,19 @@ const QuoteList = ({ customerId }) => {
                     >
                       {/* Number */}
                       <td className="py-4 px-5 font-mono font-bold text-primary dark:text-blue-400 group-hover:underline">
-                        # {item.index || 'N/A'}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span># {item.index || 'N/A'}</span>
+                          {item.version && item.version > 1 && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                              v{item.version}
+                            </span>
+                          )}
+                          {item.isSuperseded && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                              Superseded
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Client */}
@@ -576,14 +597,55 @@ const QuoteList = ({ customerId }) => {
           </MenuItem>
           {isUserAdmin && (
             <MenuItem
+              disabled={selectedAgent?.Status === 'Accepted' || selectedAgent?.isSuperseded}
+              title={
+                selectedAgent?.Status === 'Accepted'
+                  ? 'Accepted quotation is frozen. Click "Create Revision" to propose changes.'
+                  : selectedAgent?.isSuperseded
+                  ? 'Superseded quotation cannot be edited.'
+                  : 'Edit Offer'
+              }
               onClick={(e) => {
                 e.stopPropagation();
+                if (selectedAgent?.Status === 'Accepted' || selectedAgent?.isSuperseded) {
+                  handleClose();
+                  return;
+                }
                 if (selectedAgent) navigate(`/offer/${selectedAgent._id}`);
                 handleClose();
               }}
-              className="text-sm font-medium gap-2 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-meta-4"
+              className={`text-sm font-medium gap-2 ${
+                selectedAgent?.Status === 'Accepted' || selectedAgent?.isSuperseded
+                  ? 'opacity-40 cursor-not-allowed text-slate-400'
+                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-meta-4'
+              }`}
             >
-              <EditIcon fontSize="small" className="text-amber-500" /> Edit Offer
+              <EditIcon fontSize="small" className={selectedAgent?.Status === 'Accepted' || selectedAgent?.isSuperseded ? 'text-slate-400' : 'text-amber-500'} /> Edit Offer
+            </MenuItem>
+          )}
+          {isUserAdmin && selectedAgent && !selectedAgent.isSuperseded && (
+            <MenuItem
+              onClick={async (e) => {
+                e.stopPropagation();
+                handleClose();
+                try {
+                  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                  const res = await axios.post(
+                    `${apiPath}/finance/revise/${selectedAgent._id}`,
+                    {},
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                  toast.success(`Revision created: #${res.data?.newQuote?.index || 'New version'}`);
+                  handleAllInvoice();
+                  navigate(`/offer/${res.data?.newQuote?._id}`);
+                } catch (revErr) {
+                  console.error('Failed to create revision:', revErr);
+                  toast.error(revErr.response?.data?.message || 'Failed to create revision');
+                }
+              }}
+              className="text-sm font-medium gap-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+            >
+              <HistoryIcon fontSize="small" className="text-indigo-500" /> Create Revision
             </MenuItem>
           )}
           {isUserAdmin && (

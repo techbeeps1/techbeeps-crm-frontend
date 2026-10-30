@@ -99,12 +99,24 @@ const AcceptOffer: React.FC = () => {
             const viewedKey = `viewed_quote_${invoiceId}`;
             const alreadyViewed = sessionStorage.getItem(viewedKey);
             if (!alreadyViewed) {
+                const token = localStorage.getItem('token');
+                const isStaff = Boolean(token);
                 const customerName = `${data.customer?.firstName || ''} ${data.customer?.lastName || ''}`.trim() || 'Client';
+                const staffName = localStorage.getItem('username') || 'Staff Estimator';
+                
+                // EXEC-27: Truthful actor distinction - Staff preview must NEVER be logged as customer view
                 const activityData = {
                     type: 'offer',
-                    title: `Quotation # ${data.index || invoiceId} was viewed by ${customerName}`,
+                    title: isStaff
+                        ? `Quotation # ${data.index || invoiceId} previewed by staff: ${staffName}`
+                        : `Quotation # ${data.index || invoiceId} link viewed`,
                     offer: invoiceId,
-                    reference: 'Customer',
+                    reference: isStaff ? 'Staff / Preview' : 'Public Recipient',
+                    actor: isStaff ? 'Staff' : (data.customer ? 'Customer' : 'Anonymous'),
+                    actorName: isStaff ? staffName : customerName,
+                    action: isStaff ? 'PREVIEW' : 'VIEW',
+                    isStaffPreview: isStaff,
+                    documentState: data.Status || 'Sent',
                     status: 'success',
                 };
                 handleActivity(activityData);
@@ -487,6 +499,12 @@ const AcceptOffer: React.FC = () => {
             .replace(/([€$£])\s*(EUR|USD|GBP)/gi, '$1')
             .replace(/€\s*€/g, '€');
 
+        // EXEC-27: Eradicate raw implementation enums in customer facing views
+        for (const [rawKey, trans] of Object.entries(ENUM_TRANSLATIONS)) {
+            const regex = new RegExp(`\\b${rawKey}\\b`, 'g');
+            processed = processed.replace(regex, trans.en);
+        }
+
         return processed;
     };
 
@@ -549,9 +567,13 @@ const AcceptOffer: React.FC = () => {
             const payload: any = {
                 Id: invoiceId,
                 content: 'notRequired',
+                eventType: 'QUOTE_ACCEPTED',
             };
-            if (settings?.emailTemplates?.thankyou) {
-                payload.emailTemplateId = settings.emailTemplates.thankyou;
+            // EXEC-26: Use Quote Acceptance / Confirmation template, NEVER post-move thankyou template
+            if (settings?.emailTemplates?.quoteAcceptance) {
+                payload.emailTemplateId = settings.emailTemplates.quoteAcceptance;
+            } else if (settings?.emailTemplates?.confirmation) {
+                payload.emailTemplateId = settings.emailTemplates.confirmation;
             }
             const response = await axios.post(`${apiPath}/finance/send`, payload);
             if (response.status === 200) {
@@ -949,7 +971,8 @@ const AcceptOffer: React.FC = () => {
                                 const statusLower = (data?.Status || '').toLowerCase();
                                 const isDraft = statusLower === 'draft';
                                 const isAccepted = statusLower === 'accepted';
-                                const isRevoked = ['revoked', 'cancelled', 'declined'].includes(statusLower);
+                                const isSuperseded = data?.isSuperseded || statusLower === 'superseded';
+                                const isRevoked = ['revoked', 'cancelled', 'declined', 'rejected'].includes(statusLower);
 
                                 if (isDraft) {
                                     return (
@@ -1016,6 +1039,23 @@ const AcceptOffer: React.FC = () => {
                                                 <DownloadOutlinedIcon fontSize="small" />
                                                 <span>Download Quotation PDF</span>
                                             </button>
+                                        </div>
+                                    );
+                                }
+
+                                if (isSuperseded) {
+                                    return (
+                                        <div className="bg-white dark:bg-boxdark rounded-3xl p-6 md:p-8 border border-purple-200 dark:border-purple-800 shadow-xl relative overflow-hidden space-y-5">
+                                            <div className="absolute top-0 left-0 right-0 h-1.5 bg-purple-500" />
+                                            <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                                                <ErrorOutlineIcon fontSize="medium" />
+                                                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                                                    Quotation Superseded
+                                                </h2>
+                                            </div>
+                                            <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
+                                                This version (v{data?.version || 1}) has been superseded by a newer quotation revision. Please check your email for the latest official link or contact Universal Movers.
+                                            </p>
                                         </div>
                                     );
                                 }

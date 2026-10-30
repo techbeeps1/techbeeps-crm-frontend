@@ -20,6 +20,7 @@ import {
 } from 'react-icons/fi';
 import ModulePermissionsSelector, { ALL_MODULE_IDS } from './ModulePermissionsSelector';
 import { useCurrency } from '../utils/currencyUtil';
+import DirtyConfirmDialog from '../components/common/DirtyConfirmDialog';
 
 const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
   const { symbol: currencySymbol } = useCurrency();
@@ -28,7 +29,7 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
     handleSubmit,
     register,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
     watch,
   } = useForm({
     defaultValues: {
@@ -41,6 +42,7 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
   const [open, setOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
   const { settings } = useContext(EmailContext);
 
   const notify = (message) => toast.success(message);
@@ -49,13 +51,38 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
       autoClose: 2000,
     });
 
+  const checkIsDirty = () => {
+    if (isDirty) return true;
+    if (activeStep > 0) return true;
+    const vals = watch();
+    if (vals.firstName || vals.surname || vals.email || vals.phone || vals.houseNumber || vals.postcode) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      handleForceClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowDirtyConfirm(false);
+    setOpen(false);
+    setActiveStep(0);
+    reset();
+  };
+
   const handleNext = () => {
     handleSubmit(() => {
       setActiveStep((prev) => prev + 1);
     })();
   };
   const handleBack = () => setActiveStep((prev) => prev - 1);
-  const handleClose = () => setOpen(false);
+  const handleClose = handleRequestClose;
 
   const steps = [
     { label: 'Colleague', icon: <FiUser /> },
@@ -171,9 +198,8 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
 
     try {
       await axios.post(`${apiPath}/user/register`, transformedData);
-      reset();
       await sendMail(transformedData);
-      handleClose();
+      handleForceClose();
       handler();
       notify('Employee created successfully!');
     } catch (error) {
@@ -920,14 +946,23 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
 
                   {/* Footer Action Buttons */}
                   <div className="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      type="button"
-                      disabled={activeStep === 0}
-                      onClick={handleBack}
-                      className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                    >
-                      Back
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRequestClose}
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition-all cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={activeStep === 0}
+                        onClick={handleBack}
+                        className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                      >
+                        Back
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={
@@ -943,6 +978,17 @@ const MultiStepPopup = ({ skills, licenses, handler, countries }) => {
             </div>
           </div>
         </Modal>
+
+        {/* EXEC-30: Dirty Form Confirmation Dialog for Employee Registration */}
+        <DirtyConfirmDialog
+          open={showDirtyConfirm}
+          title="Unsaved Employee Registration"
+          message="You have unsaved changes in this employee registration. If you close now, all your entered colleague details, addresses, and contract specifications will be discarded. What would you like to do?"
+          discardText="Discard Employee Changes"
+          continueText="Continue Editing"
+          onContinueEditing={() => setShowDirtyConfirm(false)}
+          onDiscardChanges={handleForceClose}
+        />
       </div>
     </>
   );

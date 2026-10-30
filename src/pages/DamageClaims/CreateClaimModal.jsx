@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const ITEM_CATEGORIES = [
   'Furniture',
@@ -285,6 +286,25 @@ export default function CreateClaimModal({ open, onClose, onSuccess, initialData
   const [deductibleAmount, setDeductibleAmount] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+
+  const checkIsDirty = () => {
+    if (selectedJobId) return true;
+    if (customerName && customerName.trim().length > 0) return true;
+    if (incidentLocation || incidentDescription) return true;
+    if (deductibleAmount || policyNumber) return true;
+    if (items.length > 1) return true;
+    if (items[0]?.itemName || items[0]?.claimedAmount) return true;
+    return false;
+  };
+
+  const handleRequestClose = () => {
+    if (checkIsDirty()) {
+      setShowDirtyConfirm(true);
+    } else {
+      onClose();
+    }
+  };
 
   // Fetch Jobs and Customers when modal opens
   useEffect(() => {
@@ -586,44 +606,45 @@ export default function CreateClaimModal({ open, onClose, onSuccess, initialData
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="lg"
-      fullWidth
-      PaperProps={{
-        style: {
-          borderRadius: '24px',
-          backgroundColor: 'transparent',
-          boxShadow: 'none',
-        },
-      }}
-    >
-      <div className="bg-white dark:bg-boxdark rounded-3xl border border-slate-200 dark:border-strokedark shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Header */}
-        <div className="p-5 md:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/50">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-500 text-white flex items-center justify-center text-xl shadow-md shadow-rose-500/20">
-              <FiAlertTriangle />
+    <>
+      <Dialog
+        open={open}
+        onClose={handleRequestClose}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          style: {
+            borderRadius: '24px',
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+          },
+        }}
+      >
+        <div className="bg-white dark:bg-boxdark rounded-3xl border border-slate-200 dark:border-strokedark shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+          {/* Header */}
+          <div className="p-5 md:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/50">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-500 text-white flex items-center justify-center text-xl shadow-md shadow-rose-500/20">
+                <FiAlertTriangle />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>{initialData ? 'Edit Damage Claim' : 'Report Damage Claim'}</span>
+                  {initialData?.claimNumber && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 border border-rose-200 dark:border-rose-900">
+                      {initialData.claimNumber}
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  Log damaged furniture, transit breakage, evidence photos, and claim values
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <span>{initialData ? 'Edit Damage Claim' : 'Report Damage Claim'}</span>
-                {initialData?.claimNumber && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 border border-rose-200 dark:border-rose-900">
-                    {initialData.claimNumber}
-                  </span>
-                )}
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Log damaged furniture, transit breakage, evidence photos, and claim values
-              </p>
-            </div>
-          </div>
-          <IconButton
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
-          >
+            <IconButton
+              onClick={handleRequestClose}
+              className="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+            >
             <FiX />
           </IconButton>
         </div>
@@ -1078,7 +1099,7 @@ export default function CreateClaimModal({ open, onClose, onSuccess, initialData
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleRequestClose}
               className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               Cancel
@@ -1101,5 +1122,20 @@ export default function CreateClaimModal({ open, onClose, onSuccess, initialData
         </form>
       </div>
     </Dialog>
+
+    {/* EXEC-30: Dirty Form Confirmation Dialog for Damage Claim */}
+    <DirtyConfirmDialog
+      open={showDirtyConfirm}
+      title="Unsaved Damage Claim"
+      message="You have unsaved changes in this damage claim. If you close now, all your entered items and details will be discarded. What would you like to do?"
+      discardText="Discard Claim"
+      continueText="Continue Editing"
+      onContinueEditing={() => setShowDirtyConfirm(false)}
+      onDiscardChanges={() => {
+        setShowDirtyConfirm(false);
+        onClose();
+      }}
+    />
+  </>
   );
 }
