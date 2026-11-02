@@ -71,6 +71,18 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
             setLoading(false);
             return;
         }
+
+        if (formData.totalCapacityM3 !== undefined && formData.totalCapacityM3 !== '' && formData.totalCapacityM3 !== null) {
+            const cap = Number(formData.totalCapacityM3);
+            if (isNaN(cap) || cap < 0) {
+                notifyError("Rated capacity must be a non-negative number");
+                setLoading(false);
+                return;
+            }
+            formData.totalCapacityM3 = cap;
+        } else {
+            formData.totalCapacityM3 = 0;
+        }
         if (!formData.postcode || formData.postcode.trim() === '') {
             notifyError("Postcode is a required field");
             setLoading(false);
@@ -229,6 +241,31 @@ const PilotsForm: React.FC<any> = ({ data, handler, countries }) => {
                                 {errors.name && (
                                     <p className="text-rose-500 text-xs mt-1 font-medium">{String(errors.name.message)}</p>
                                 )}
+                            </div>
+
+                            {/* Rated Warehouse Capacity (m³) */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                    Rated Capacity (m³) <span className="text-slate-400 font-normal lowercase">(optional rated physical volume)</span>
+                                </label>
+                                <Controller
+                                    name="totalCapacityM3"
+                                    control={control}
+                                    defaultValue=""
+                                    render={({ field }) => (
+                                        <input
+                                            {...field}
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            placeholder="e.g. 500 (m³ rated capacity, 120% buffer enforced)"
+                                            className="w-full px-3.5 py-2 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        />
+                                    )}
+                                />
+                                <p className="text-[11px] text-slate-500 mt-1">
+                                    Enforces a hard operational block at 120% of rated capacity to prevent warehouse overbooking.
+                                </p>
                             </div>
 
                             {/* Own Warehouse Segmented Button */}

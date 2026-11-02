@@ -75,14 +75,20 @@ const Agentslist = () => {
     }
   };
 
-  const handleAllAgents = async () => {
+  const handleAllAgents = async (updatedStaff) => {
     try {
       setLoading(true);
-      const response = await axios.get(`${apiPath}/user/all`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/user/all`, { headers });
       setData(response.data || []);
-      // If currently selected staff was updated, refresh reference
-      if (selectedStaff) {
-        const updated = response.data.find((item) => item._id === selectedStaff._id);
+      // If an updatedStaff reference was passed from EditEmployee, use it immediately
+      if (updatedStaff && (updatedStaff._id || updatedStaff.id)) {
+        const staffId = updatedStaff._id || updatedStaff.id;
+        const fresh = (response.data || []).find((item) => (item._id || item.id) === staffId) || updatedStaff;
+        setSelectedStaff(fresh);
+      } else if (selectedStaff) {
+        const updated = (response.data || []).find((item) => item._id === selectedStaff._id);
         if (updated) setSelectedStaff(updated);
       }
     } catch (err) {

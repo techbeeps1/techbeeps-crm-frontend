@@ -17,6 +17,12 @@ import {
   Popover,
   Switch,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip,
+  Alert,
 } from '@mui/material';
 import { LocalizationProvider, StaticDatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -217,6 +223,23 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const [companyDetail, setCompanyDetail] = useState<any>(null);
   const [jobDetails, setJobDetails] = useState<any>(null);
   const [sendCustomerEmail, setSendCustomerEmail] = useState<boolean>(false);
+  // EXEC-31: Publication workflow & Conflict engine states
+  const [publicationStatus, setPublicationStatus] = useState<'Draft' | 'Published'>('Draft');
+  const [conflictDialogOpen, setConflictDialogOpen] = useState<boolean>(false);
+  const [conflictList, setConflictList] = useState<any[]>([]);
+  const [warningList, setWarningList] = useState<any[]>([]);
+  const [overrideReason, setOverrideReason] = useState<string>('');
+  const [savingWithOverride, setSavingWithOverride] = useState<boolean>(false);
+  const [activeLeaves, setActiveLeaves] = useState<any[]>([]);
+
+  const currentUserRole = (() => {
+    try {
+      const u = localStorage.getItem('user');
+      if (u) return JSON.parse(u)?.role;
+    } catch {}
+    return localStorage.getItem('role') || 'Staff';
+  })();
+  const canOverride = ['Admin', 'Manager', 'Planner', 'HR'].includes(currentUserRole);
 
   const isEditMode = Boolean(appointmentToEdit);
   const modalOpen = open !== undefined ? open : innerOpen;
@@ -536,6 +559,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       setPlanningType(appointmentToEdit.appointmentType || 'Move');
       setDepartureLocation(appointmentToEdit.departureLocation || '');
       setNotes(appointmentToEdit.notes || '');
+      setPublicationStatus(appointmentToEdit.publicationStatus || 'Draft');
 
       const appVehicle = appointmentToEdit.vehicle;
       const appVehicleId =
@@ -1038,7 +1062,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     return `${cleanDate}T${cleanTime}.000Z`;
   }
 
-  const createAppointment = async () => {
+  const createAppointment = async (
+    targetPubStatus?: 'Draft' | 'Published',
+    allowOverride: boolean = false,
+    overrideReasonText: string = '',
+  ) => {
     if (!validateForm()) {
       return;
     }
@@ -1068,6 +1096,9 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         },
       );
 
+      const targetStatus = targetPubStatus || publicationStatus || 'Draft';
+      const isPublished = targetStatus === 'Published';
+
       const payload = {
         jobId,
         appointmentType: planningType,
@@ -1078,8 +1109,16 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         notes,
         participants: employeeAssignments.length,
         assignedEmployees: employeeAssignmentsWithTimes,
-        vehicle: (employeeAssignmentsWithTimes.find((a: any) => a.vehicle)?.vehicle) || null,
-        status: employeeAssignments.length > 0 ? 'Scheduled' : 'Draft',
+        vehicle: (employeeAssignmentsWithTimes.find((a: any) => a.vehicle)?.vehicle) || selectedVehicleId || null,
+        vehicleName: (() => {
+          const v = vehicleOptions.find((opt) => opt._id === selectedVehicleId);
+          return v ? v.name : '';
+        })(),
+        status: isPublished ? 'Scheduled' : (employeeAssignments.length > 0 ? 'Scheduled' : 'Draft'),
+        publicationStatus: targetStatus,
+        allowOverride,
+        overrideReason: overrideReasonText,
+        sendCustomerEmail: isPublished && sendCustomerEmail,
       };
 
       const authHeaders = getAuthHeaders();
@@ -1096,9 +1135,11 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         });
       }
 
+      setConflictDialogOpen(false);
+      setOverrideReason('');
       handleClose(true);
 
-      if (sendCustomerEmail) {
+      if (isPublished && sendCustomerEmail) {
         const targetTemplateId = isEditMode
           ? (settings?.emailTemplates?.rescheduleAppointment || settings?.emailTemplates?.appointment)
           : (settings?.emailTemplates?.appointment || settings?.emailTemplates?.rescheduleAppointment);
@@ -1109,13 +1150,23 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       }
       notify(
         isEditMode
-          ? 'Planning appointment updated successfully'
-          : 'Planning appointment created successfully',
+          ? `Planning appointment updated as ${targetStatus}`
+          : `Planning appointment created as ${targetStatus}`,
       );
     } catch (error: any) {
-      notifyError(`Error saving appointment: ${error?.response?.data?.message || error.message}`);
+      if (error?.response?.status === 409 || error?.response?.data?.code === 'RESOURCE_CONFLICT') {
+        const conflicts = error.response?.data?.conflicts || [];
+        const warnings = error.response?.data?.warnings || [];
+        setConflictList(conflicts);
+        setWarningList(warnings);
+        setConflictDialogOpen(true);
+        notifyError('Resource conflicts detected. Review or provide authorized override to save.');
+      } else {
+        notifyError(`Error saving appointment: ${error?.response?.data?.message || error.message}`);
+      }
     } finally {
       setLoading(false);
+      setSavingWithOverride(false);
     }
   };
 
@@ -1257,6 +1308,33 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
 
     handleAllEmploye();
+  }, [selectedDate]);
+
+  // EXEC-31: Fetch approved leave & sickness requests for selected date
+  useEffect(() => {
+    if (!selectedDate) {
+      setActiveLeaves([]);
+      return;
+    }
+    axios
+      .get(`${apiPath}/api/leave/requests?status=Approved`, {
+        headers: getAuthHeaders(),
+      })
+      .then((res) => {
+        const list = res.data?.data || res.data || [];
+        const targetDay = new Date(selectedDate);
+        const dayStart = new Date(new Date(targetDay).setHours(0, 0, 0, 0)).getTime();
+        const dayEnd = new Date(new Date(targetDay).setHours(23, 59, 59, 999)).getTime();
+        const active = list.filter((l: any) => {
+          const s = new Date(l.startDate).getTime();
+          const e = new Date(l.endDate).getTime();
+          return s <= dayEnd && e >= dayStart;
+        });
+        setActiveLeaves(active);
+      })
+      .catch(() => {
+        setActiveLeaves([]);
+      });
   }, [selectedDate]);
 
   const roleSummary = employeeAssignments.reduce(
@@ -1749,6 +1827,21 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 isOptionEqualToValue={(option, value) =>
                                   option.value === value.value
                                 }
+                                renderOption={(props, option) => {
+                                  const empLeave = activeLeaves.find(
+                                    (l: any) => String(l.employeeId?._id || l.employeeId) === String(option.value)
+                                  );
+                                  return (
+                                    <li {...props} key={option.value} className={`${props.className || ''} flex items-center justify-between gap-2 p-2`}>
+                                      <span>{option.label}</span>
+                                      {empLeave && (
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300 shrink-0">
+                                          ⚠️ On Leave ({empLeave.leaveType || 'Leave'})
+                                        </span>
+                                      )}
+                                    </li>
+                                  );
+                                }}
                                 renderInput={(params) => (
                                   <TextField
                                     {...params}
@@ -2162,6 +2255,40 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                                 : 'No email will be sent automatically.'}
                             </p>
                           </div>
+
+                          {/* Publication Mode Selector (EXEC-31) */}
+                          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                            <Typography variant="subtitle2" className="text-slate-700 mb-1 font-bold flex items-center gap-1.5">
+                              <span>Publication State:</span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${publicationStatus === 'Published' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
+                                {publicationStatus === 'Published' ? 'Published' : 'Draft'}
+                              </span>
+                            </Typography>
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                              <div
+                                onClick={() => setPublicationStatus('Draft')}
+                                className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${publicationStatus === 'Draft' ? 'border-amber-500 bg-amber-50/70 text-amber-900 font-semibold shadow-xs' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                              >
+                                <div className="font-bold flex items-center gap-1">
+                                  <span>📝</span> Draft Mode
+                                </div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                  Private reservation for operations planning. Customer is NOT notified.
+                                </div>
+                              </div>
+                              <div
+                                onClick={() => setPublicationStatus('Published')}
+                                className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${publicationStatus === 'Published' ? 'border-emerald-500 bg-emerald-50/70 text-emerald-900 font-semibold shadow-xs' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                              >
+                                <div className="font-bold flex items-center gap-1">
+                                  <span>🚀</span> Published Mode
+                                </div>
+                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                  Finalized schedule. Customer confirmation dispatched if enabled.
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </Box>
                       </Paper>
                     )}
@@ -2185,7 +2312,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                     {activeStep === 2 && employeeAssignments.length === 0 && (
                       <Button
                         variant="outlined"
-                        onClick={createAppointment}
+                        onClick={() => createAppointment('Draft')}
                         disabled={loading}
                         style={{ borderColor: '#d97706', color: '#d97706' }}
                       >
@@ -2199,19 +2326,132 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                         Next
                       </Button>
                     ) : (
-                      <Button
-                        variant="contained"
-                        onClick={createAppointment}
-                        disabled={loading}
-                      >
-                        {loading ? 'Saving...' : (isEditMode ? 'Save changes' : 'Submit appointment')}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outlined"
+                          onClick={() => createAppointment('Draft')}
+                          disabled={loading}
+                          style={{ borderColor: '#d97706', color: '#d97706' }}
+                        >
+                          Save as Draft
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={() => createAppointment('Published')}
+                          disabled={loading}
+                          style={{ backgroundColor: '#16a34a', color: '#ffffff' }}
+                        >
+                          {loading ? 'Saving...' : (isEditMode ? 'Save & Publish' : 'Publish Schedule')}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </Box>
               </>)}
           </Box>
         </Modal>
+
+        {/* EXEC-31: Resource Conflict & Authorized Override Dialog */}
+        <Dialog
+          open={conflictDialogOpen}
+          onClose={() => setConflictDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle className="flex items-center gap-2 text-rose-700 bg-rose-50/80 border-b border-rose-200">
+            <span className="text-xl">⚠️</span>
+            <span className="font-bold text-base">Resource Conflicts Detected</span>
+          </DialogTitle>
+          <DialogContent className="pt-4 space-y-4">
+            <p className="text-xs text-slate-600 mt-2">
+              The resource planning engine detected scheduling conflicts. Save is blocked unless an authorized role (Admin, Manager, Planner, or HR) provides a documented override justification.
+            </p>
+
+            {conflictList.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-bold uppercase text-rose-700 tracking-wider">
+                  Blocking Conflicts ({conflictList.length})
+                </h5>
+                <div className="space-y-2">
+                  {conflictList.map((c, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl border border-rose-200 bg-rose-50/60 text-rose-900 text-xs flex items-start gap-2.5"
+                    >
+                      <span className="font-black text-[10px] px-2 py-0.5 rounded bg-rose-200 text-rose-800 shrink-0">
+                        {c.conflictType}
+                      </span>
+                      <span className="leading-relaxed font-medium">{c.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {warningList.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-bold uppercase text-amber-700 tracking-wider">
+                  Staffing Warnings ({warningList.length})
+                </h5>
+                <div className="space-y-2">
+                  {warningList.map((w, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl border border-amber-200 bg-amber-50/60 text-amber-900 text-xs flex items-start gap-2.5"
+                    >
+                      <span className="font-black text-[10px] px-2 py-0.5 rounded bg-amber-200 text-amber-800 shrink-0">
+                        {w.conflictType}
+                      </span>
+                      <span className="leading-relaxed font-medium">{w.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 pt-3 border-t border-slate-200">
+              <h5 className="text-xs font-bold text-slate-800 mb-1">Auditable Override Authorization</h5>
+              <p className="text-[11px] text-slate-500 mb-3">
+                Authorized roles (Admin, Manager, Planner, HR) can proceed by recording an auditable reason (minimum 5 characters).
+              </p>
+              {canOverride ? (
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  size="small"
+                  placeholder="e.g. Approved by operations lead due to emergency client move requirement..."
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  label="Override Reason (Mandatory)"
+                />
+              ) : (
+                <div className="p-3 rounded-xl bg-slate-100 text-slate-600 text-xs border border-slate-200 font-medium">
+                  ⚠️ Your current user role ({currentUserRole}) is not authorized to override conflicts. Please request an Admin, Manager, or Planner to authorize this schedule.
+                </div>
+              )}
+            </div>
+          </DialogContent>
+          <DialogActions className="p-3 border-t border-slate-100 bg-slate-50">
+            <Button onClick={() => setConflictDialogOpen(false)} variant="outlined" size="small">
+              Back & Adjust Plan
+            </Button>
+            {canOverride && (
+              <Button
+                onClick={() => {
+                  setSavingWithOverride(true);
+                  createAppointment(publicationStatus, true, overrideReason);
+                }}
+                disabled={overrideReason.trim().length < 5 || savingWithOverride}
+                variant="contained"
+                size="small"
+                style={{ backgroundColor: '#dc2626', color: '#fff' }}
+              >
+                {savingWithOverride ? 'Saving Override...' : 'Authorize & Save Override'}
+              </Button>
+            )}
+          </DialogActions>
+        </Dialog>
 
         {/* EXEC-30: Dirty Form Confirmation Dialog for Appointments */}
         <DirtyConfirmDialog

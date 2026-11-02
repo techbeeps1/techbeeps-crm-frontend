@@ -21,6 +21,7 @@ import {
   FiLayers,
   FiDollarSign,
   FiCoffee,
+  FiLock,
 } from 'react-icons/fi';
 import { Dialog } from '@mui/material';
 import toast from 'react-hot-toast';
@@ -63,7 +64,10 @@ function formatTimeOnly(isoOrTimeString) {
 
 const ApproveHoursTab = () => {
   const { userData, isAdmin, role } = useContext(UserContext) || {};
-  const isManager = isAdmin || role === 'Admin' || userData?.role === 'Admin';
+  const isManager =
+    Boolean(isAdmin) ||
+    ['admin', 'superadmin', 'manager', 'hr'].includes((role || '').toLowerCase()) ||
+    ['admin', 'superadmin', 'manager', 'hr'].includes((userData?.role || '').toLowerCase());
 
   const [shifts, setShifts] = useState([]);
   const [summary, setSummary] = useState({
@@ -359,6 +363,11 @@ const ApproveHoursTab = () => {
     e.preventDefault();
     if (!selectedShiftForReject) return;
 
+    if (!rejectionReason || rejectionReason.trim().length < 5) {
+      toast.error('A documented rejection reason of at least 5 characters is required.');
+      return;
+    }
+
     setRejectingShift(true);
     try {
       const token = localStorage.getItem('token');
@@ -368,7 +377,7 @@ const ApproveHoursTab = () => {
         appointmentId: selectedShiftForReject.appointmentId,
         employabilityId: selectedShiftForReject.employabilityId,
         employeeId: selectedShiftForReject.employeeId,
-        rejectionReason: rejectionReason.trim() || 'Rejected by supervisor',
+        rejectionReason: rejectionReason.trim(),
       };
 
       const res = await axios.post(`${apiPath}/api/hours/reject`, payload, { headers });
@@ -817,14 +826,23 @@ const ApproveHoursTab = () => {
                           )}
 
                           {/* Adjust / Edit button */}
-                          <button
-                            type="button"
-                            onClick={() => openAdjustModal(shift)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                            title="Adjust Shift Hours"
-                          >
-                            <FiEdit2 className="text-sm" />
-                          </button>
+                          {shift.status === 'Approved' && !isManager ? (
+                            <span
+                              className="p-1.5 text-slate-300 dark:text-slate-600 cursor-not-allowed flex items-center justify-center"
+                              title="Locked: Approved timesheet cannot be modified by regular staff"
+                            >
+                              <FiLock className="text-sm" />
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => openAdjustModal(shift)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              title={shift.status === 'Approved' ? 'Adjust Approved Shift (Admin)' : 'Adjust Shift Hours'}
+                            >
+                              <FiEdit2 className="text-sm" />
+                            </button>
+                          )}
 
                           {/* Reject button */}
                           {shift.status !== 'Rejected' && (
@@ -1037,10 +1055,11 @@ const ApproveHoursTab = () => {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Rejection Reason *
+                  Rejection Reason (min. 5 characters) *
                 </label>
                 <textarea
                   required
+                  minLength={5}
                   rows="3"
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}

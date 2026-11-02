@@ -119,12 +119,16 @@ export function TaskPlanningCalendar({
       });
       const list = res.data.data || res.data || [];
 
-      // Exclude Draft / unassigned appointments from the Planning Calendar
+      // EXEC-31: Draft vs Published appointment handling
+      // Planners and Admins see both Draft reservations and Published schedules;
+      // regular crew only see published schedules.
       const confirmedList = list.filter((item: any) => {
-        const isDraft = (item.status || '').toLowerCase() === 'draft';
         const hasNoEmployees = !item.assignedEmployees || item.assignedEmployees.length === 0;
         const hasNoTimes = !item.startTime && !item.endTime;
-        return !isDraft && !hasNoEmployees && !hasNoTimes;
+        if (!isUserAdmin && item.publicationStatus === 'Draft') {
+          return false;
+        }
+        return !hasNoEmployees && !hasNoTimes;
       });
 
       // Filter for non-admin staff in case not filtered by backend
@@ -244,6 +248,16 @@ export function TaskPlanningCalendar({
             <span className="font-black text-xs tracking-tight truncate flex items-center gap-1">
               <EventIcon style={{ fontSize: 13 }} />
               {event.title}
+              {event.appointment?.publicationStatus === 'Draft' && (
+                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-400 text-amber-950 font-black">
+                  DRAFT
+                </span>
+              )}
+              {event.appointment?.conflictOverrides?.length > 0 && (
+                <span title="Authorized conflict overrides logged" className="text-[10px]">
+                  ⚠️
+                </span>
+              )}
             </span>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/20 whitespace-nowrap">
               {format(event.start, 'HH:mm')} - {format(event.end, 'HH:mm')}
@@ -295,6 +309,11 @@ export function TaskPlanningCalendar({
             {format(event.start, 'HH:mm')}
           </span>
           <span className="truncate">{event.title}</span>
+          {event.appointment?.publicationStatus === 'Draft' && (
+            <span className="text-[8px] px-1 py-0.2 rounded bg-amber-400 text-amber-950 font-black shrink-0">
+              DRAFT
+            </span>
+          )}
         </div>
         {event.employees > 0 && (
           <span className="text-[9px] opacity-80 shrink-0 ml-1">
@@ -577,6 +596,54 @@ export function TaskPlanningCalendar({
 
             {/* Dialog Body */}
             <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              {/* EXEC-31: Publication Status Banner */}
+              <div className="flex items-center justify-between gap-2 p-3 rounded-xl border bg-slate-50 dark:bg-slate-800/40 border-slate-200/60 dark:border-strokedark">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    State:
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-bold ${
+                      selectedAppointment.publicationStatus === 'Published'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-amber-100 text-amber-800 border border-amber-300'
+                    }`}
+                  >
+                    {selectedAppointment.publicationStatus === 'Published' ? '🚀 Published' : '📝 Draft Reservation'}
+                  </span>
+                </div>
+                {selectedAppointment.publishedAt && (
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Published {formatDateOnly(selectedAppointment.publishedAt)} {selectedAppointment.publishedByName ? `by ${selectedAppointment.publishedByName}` : ''}
+                  </span>
+                )}
+              </div>
+
+              {/* EXEC-31: Conflict Overrides Audit Log */}
+              {Array.isArray(selectedAppointment.conflictOverrides) && selectedAppointment.conflictOverrides.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold flex items-center gap-1.5">
+                      <span>⚠️</span> Authorized Conflict Overrides ({selectedAppointment.conflictOverrides.length})
+                    </span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-200 text-amber-800">
+                      Audit Logged
+                    </span>
+                  </div>
+                  {selectedAppointment.conflictOverrides.map((ov: any, idx: number) => (
+                    <div key={idx} className="p-2.5 rounded-lg bg-white/90 border border-amber-200 text-[11px] space-y-1">
+                      <div className="font-semibold text-slate-800">
+                        Reason: &quot;{ov.reason}&quot;
+                      </div>
+                      <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                        <span>Authorized by: {ov.overriddenByName || 'Authorized User'} ({ov.userRole || 'Admin'})</span>
+                        <span>{formatDateOnly(ov.overriddenAt)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Quick Info Grid: Date & Time */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-strokedark flex items-center gap-3">

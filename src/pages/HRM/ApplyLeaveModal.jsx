@@ -210,6 +210,11 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
       return;
     }
 
+    if (isVacationOverQuota) {
+      toast.error(`Insufficient annual vacation balance. Available: ${remainingDays} days, Requested: ${calculatedTotalDays} days.`);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
@@ -252,10 +257,13 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
   const usedDays = userBalance?.usedDays || 0;
   const totalEnt = userBalance?.annualEntitlement || 12;
 
-  // Automatic Paid vs Non-Paid Split
+  // Statutory Dutch Labor Law (Wet Arbeid en Zorg): Sickness does NOT deduct from annual vacation quota
   let autoPaidDays = 0;
   let autoUnpaidDays = 0;
-  if (leaveType === 'Unpaid Leave') {
+  if (leaveType === 'Sick Leave') {
+    autoPaidDays = calculatedTotalDays;
+    autoUnpaidDays = 0;
+  } else if (leaveType === 'Unpaid Leave') {
     autoUnpaidDays = calculatedTotalDays;
   } else {
     if (remainingDays >= calculatedTotalDays) {
@@ -269,6 +277,8 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
       autoUnpaidDays = calculatedTotalDays;
     }
   }
+
+  const isVacationOverQuota = leaveType === 'Annual / Vacation' && !isUserAdmin && calculatedTotalDays > remainingDays;
 
   return (
     <>
@@ -444,6 +454,26 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
               {calculatedTotalDays} {calculatedTotalDays === 1 ? 'Day' : 'Days'}
             </div>
           </div>
+
+          {/* Statutory Sickness Notice */}
+          {leaveType === 'Sick Leave' && (
+            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold flex items-center gap-1.5">
+              <span>🛡️</span>
+              <span>
+                <strong>Statutory Sickness Protection (Wet Arbeid en Zorg):</strong> Sickness leave is tracked independently and does not deduct from your remaining {remainingDays} vacation days.
+              </span>
+            </div>
+          )}
+
+          {/* Vacation Quota Exceeded Warning */}
+          {isVacationOverQuota && (
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-[11px] font-semibold flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>
+                <strong>Quota Exceeded:</strong> Requested {calculatedTotalDays} days exceeds your available {remainingDays} annual vacation days. Please reduce days or apply for Unpaid Leave.
+              </span>
+            </div>
+          )}
 
           {/* Conflict Warning if overlapping leave exists */}
           {hasDateConflict && (

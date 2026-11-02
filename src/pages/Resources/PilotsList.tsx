@@ -199,6 +199,7 @@ const PilotsList: React.FC = () => {
                                     <th className="py-3.5 px-4">Post Code</th>
                                     <th className="py-3.5 px-4">City</th>
                                     <th className="py-3.5 px-4">Ownership</th>
+                                    <th className="py-3.5 px-4">Capacity & Allocation</th>
                                     <th className="py-3.5 px-4">Status</th>
                                     <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
                                 </tr>
@@ -206,7 +207,7 @@ const PilotsList: React.FC = () => {
                             <tbody className="divide-y divide-slate-100 text-sm">
                                 {filteredData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="py-12 text-center text-slate-400">
+                                        <td colSpan={7} className="py-12 text-center text-slate-400">
                                             <MdWarehouse className="text-4xl mx-auto mb-2 text-slate-300" />
                                             <p className="font-medium text-slate-600">No warehouses found</p>
                                             <p className="text-xs text-slate-400 mt-0.5">Try searching with a different keyword or create a new warehouse</p>
@@ -262,6 +263,43 @@ const PilotsList: React.FC = () => {
                                                     }`}>
                                                         {item.isOwnWarehouse ? 'Owned' : 'Rented'}
                                                     </span>
+                                                </td>
+
+                                                {/* Capacity & Allocation */}
+                                                <td className="py-3.5 px-4">
+                                                    {item.totalCapacityM3 > 0 ? (
+                                                        <div className="min-w-[130px]">
+                                                            <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                                                                <span className="text-slate-700">{item.allocatedM3 || 0} / {item.totalCapacityM3} m³</span>
+                                                                <span className={`text-[11px] font-bold ${
+                                                                    item.isOverCapacity
+                                                                        ? 'text-rose-600'
+                                                                        : (item.utilizationPercentage || 0) > 100
+                                                                        ? 'text-amber-600'
+                                                                        : 'text-emerald-600'
+                                                                }`}>
+                                                                    {item.utilizationPercentage || 0}%
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                                <div
+                                                                    className={`h-full rounded-full transition-all duration-300 ${
+                                                                        item.isOverCapacity
+                                                                            ? 'bg-rose-500'
+                                                                            : (item.utilizationPercentage || 0) > 100
+                                                                            ? 'bg-amber-500'
+                                                                            : 'bg-emerald-500'
+                                                                    }`}
+                                                                    style={{ width: `${Math.min(100, ((item.allocatedM3 || 0) / ((item.totalCapacityM3 || 1) * 1.2)) * 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">
+                                                                Max (120%): {item.maxAllowedM3 || Math.round((item.totalCapacityM3 || 0) * 1.2)} m³
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400 italic">Unconstrained</span>
+                                                    )}
                                                 </td>
 
                                                 {/* Status Pill */}
@@ -424,6 +462,66 @@ const PilotsList: React.FC = () => {
                                                 <span className="font-bold text-slate-800 font-mono text-sm">{selectedStaff.postcode || '—'}</span>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Capacity & Volume Staging Card */}
+                                    <div className="bg-white rounded-xl border border-slate-200/80 p-4 space-y-3 shadow-xs">
+                                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                            <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                                                <MdWarehouse className="text-primary text-base" />
+                                                <span>Capacity & Volume Allocation</span>
+                                            </div>
+                                            {selectedStaff.totalCapacityM3 > 0 && (
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                    selectedStaff.isOverCapacity
+                                                        ? 'bg-rose-100 text-rose-700'
+                                                        : (selectedStaff.utilizationPercentage || 0) > 100
+                                                        ? 'bg-amber-100 text-amber-700'
+                                                        : 'bg-emerald-100 text-emerald-700'
+                                                }`}>
+                                                    {selectedStaff.utilizationPercentage || 0}% Utilized
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {selectedStaff.totalCapacityM3 > 0 ? (
+                                            <div className="space-y-3 text-xs">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Rated Capacity</span>
+                                                        <span className="font-bold text-slate-800 text-sm">{selectedStaff.totalCapacityM3} m³</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">120% Overflow Limit</span>
+                                                        <span className="font-bold text-slate-800 text-sm">{selectedStaff.maxAllowedM3 || Math.round(selectedStaff.totalCapacityM3 * 1.2)} m³</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Allocated Storage</span>
+                                                        <span className="font-bold text-slate-800 text-sm">{selectedStaff.allocatedM3 || 0} m³</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-slate-400 block font-medium mb-0.5">Remaining Buffer</span>
+                                                        <span className="font-bold text-emerald-600 text-sm">{selectedStaff.remainingM3 !== null ? `${selectedStaff.remainingM3} m³` : '—'}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full transition-all duration-300 ${
+                                                            selectedStaff.isOverCapacity
+                                                                ? 'bg-rose-500'
+                                                                : (selectedStaff.utilizationPercentage || 0) > 100
+                                                                ? 'bg-amber-500'
+                                                                : 'bg-emerald-500'
+                                                        }`}
+                                                        style={{ width: `${Math.min(100, ((selectedStaff.allocatedM3 || 0) / ((selectedStaff.totalCapacityM3 || 1) * 1.2)) * 100)}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-slate-400 italic">
+                                                No rated capacity set. Storage allocation in this warehouse is unconstrained. Edit warehouse to configure rated volume.
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Address Card */}

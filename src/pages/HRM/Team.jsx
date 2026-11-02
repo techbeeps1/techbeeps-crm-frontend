@@ -129,7 +129,9 @@ const Team = () => {
 
   const handleAllEmployee = async () => {
     try {
-      const response = await axios.get(`${apiPath}/user/all`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/user/all`, { headers });
       const employees = (response.data || []).map((employee) => ({
         label: employee.username,
         value: employee._id,

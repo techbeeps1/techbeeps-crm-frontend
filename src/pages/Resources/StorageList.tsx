@@ -15,6 +15,7 @@ import LoadingForm from './Storage/LoadingForm';
 import LoadingandUnloadingForm from './Storage/LoadingandUnloadingForm';
 import FreeupStorage from './Storage/FreeupStorage';
 import ContractForm from './Storage/ContractForm';
+import RecurringBillingModal from './Storage/RecurringBillingModal';
 import { formatCurrency } from '../../utils/currencyUtil';
 import { 
     MdWarehouse, 
@@ -67,6 +68,7 @@ const StorageList: React.FC<any> = ({ customerId }) => {
     const [tabIndex, setTabIndex] = useState<number>(0);
     const [warehouse, setWarehouse] = useState<any>([]);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
+    const [isRecurringBillingOpen, setIsRecurringBillingOpen] = useState<boolean>(false);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
@@ -285,7 +287,18 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                             </div>
 
                             {!customerId && (
-                                <StorageForm handler={handleAllData} warehouse={warehouse} />
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRecurringBillingOpen(true)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl transition-all cursor-pointer whitespace-nowrap shadow-xs"
+                                        title="Inspect pending recurring storage charges and process monthly billing"
+                                    >
+                                        <MdReceipt className="text-base" />
+                                        <span>Recurring Billing</span>
+                                    </button>
+                                    <StorageForm handler={handleAllData} warehouse={warehouse} />
+                                </div>
                             )}
                         </div>
                     </div>
@@ -708,6 +721,13 @@ const StorageList: React.FC<any> = ({ customerId }) => {
                     </div>
                 </Box>
             </Modal>
+
+            {/* EXEC-34: Recurring Storage Invoicing & Billing Modal */}
+            <RecurringBillingModal
+                open={isRecurringBillingOpen}
+                onClose={() => setIsRecurringBillingOpen(false)}
+                onSuccess={handleAllData}
+            />
         </div>
     );
 };

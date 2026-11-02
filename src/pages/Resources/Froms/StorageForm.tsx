@@ -85,6 +85,13 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
       return;
     }
 
+    const vol = Number(formData.cubicMeter);
+    if (isNaN(vol) || vol <= 0) {
+      notifyError('Storage volume must be strictly greater than 0 m³');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await axios.post(path, formData, {
         headers: {
@@ -140,6 +147,16 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
   const handleOpen = () => {
     setOpen(true);
   };
+
+  const selectedWhId = watch('warehouse');
+  const enteredVol = Number(watch('cubicMeter') || 0);
+  const selectedWh = warehouse?.find((w: any) => String(w._id) === String(selectedWhId));
+  const currentUnitVol = data ? Number(data.cubicMeter || 0) : 0;
+  const isDifferentWh = data && String(data.warehouse?._id || data.warehouse) !== String(selectedWhId);
+  const baseWhAlloc = selectedWh ? Number(selectedWh.allocatedM3 || 0) - (isDifferentWh ? 0 : currentUnitVol) : 0;
+  const projectedWhAlloc = selectedWh ? Math.round((baseWhAlloc + enteredVol) * 100) / 100 : 0;
+  const whMaxAllowed = selectedWh && selectedWh.totalCapacityM3 > 0 ? (selectedWh.maxAllowedM3 || Math.round(selectedWh.totalCapacityM3 * 1.2 * 100) / 100) : 0;
+  const isOver120 = selectedWh && selectedWh.totalCapacityM3 > 0 && projectedWhAlloc > whMaxAllowed;
 
   return (
     <>
@@ -375,6 +392,29 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
                   {errors.warehouse.message}
                 </p>
               )}
+
+              {selectedWh && selectedWh.totalCapacityM3 > 0 && (
+                <div className={`mt-2 p-2.5 rounded-xl text-xs border ${
+                  isOver120 
+                    ? 'bg-rose-50 border-rose-200 text-rose-800' 
+                    : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}>
+                  <div className="flex items-center justify-between font-bold mb-1">
+                    <span>Warehouse Rated: {selectedWh.totalCapacityM3} m³</span>
+                    <span className={isOver120 ? 'text-rose-600 font-bold' : 'text-slate-500'}>
+                      120% Cap: {whMaxAllowed} m³
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span>Projected Total: {projectedWhAlloc} m³</span>
+                    {isOver120 ? (
+                      <span className="text-rose-600 font-bold">⚠️ Exceeds limit by {(projectedWhAlloc - whMaxAllowed).toFixed(1)} m³</span>
+                    ) : (
+                      <span className="text-emerald-600 font-semibold">Remaining: {(whMaxAllowed - projectedWhAlloc).toFixed(1)} m³</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -422,7 +462,12 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] transition-all cursor-pointer"
+              disabled={Boolean(isOver120)}
+              className={`px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all ${
+                isOver120
+                  ? 'bg-slate-300 cursor-not-allowed opacity-60'
+                  : 'bg-primary hover:bg-opacity-90 shadow-sm shadow-primary/20 active:scale-[0.98] cursor-pointer'
+              }`}
             >
               {data ? 'Update Storage' : 'Create Storage'}
             </button>

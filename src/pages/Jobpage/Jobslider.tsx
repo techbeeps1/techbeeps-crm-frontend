@@ -46,6 +46,7 @@ import DocumentSelected from '../customerDetails/DocumentSelected';
 import EmailLayout from '../Emailpage/EmailComponent';
 import TaskPage from '../Taskcomponent/TaskPage';
 import JobOfferRooms from './jobDetailmodules/JobOfferRooms';
+import JobExecutionTab from './jobDetailmodules/JobExecutionTab';
 import { formatCurrency } from '../../utils/currencyUtil';
 import { formatLabel } from '../../utils/labelUtil';
 import { sanitizeSvg } from '../../utils/sanitizeUtil';
@@ -79,6 +80,14 @@ const statusOptions = [
     dotColor: '#8b5cf6',
     dotPing: true,
     badgeColor: 'bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border-purple-300 dark:border-purple-700',
+  },
+    {
+    value: 'CONFIRMED',
+    label: 'CONFIRMED',
+    desc: 'Quote accepted / Scheduled',
+    dotColor: '#0ea5e9',
+    dotPing: true,
+    badgeColor: 'bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-300 dark:border-sky-700',
   },
   {
     value: 'EXECUTION',
@@ -193,6 +202,9 @@ const Jobslider: React.FC<JobsliderProps> = ({
   const [currentStatus, setCurrentStatus] = useState<string>(job?.status || 'PROCESSING');
   const [selectedStatus, setSelectedStatus] = useState<string>(job?.status || 'PROCESSING');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
+  const [isReasonDialogOpen, setIsReasonDialogOpen] = useState<boolean>(false);
+  const [reasonDialogType, setReasonDialogType] = useState<'CANCEL' | 'REOPEN'>('CANCEL');
+  const [statusReason, setStatusReason] = useState<string>('');
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [allServices, setAllServices] = useState<any[]>([]);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
@@ -312,19 +324,53 @@ const Jobslider: React.FC<JobsliderProps> = ({
     }
   }, [job?.status, job?._id]);
 
-  const handleSaveStatus = async () => {
-    if (!job?._id || selectedStatus.toUpperCase() === currentStatus.toUpperCase()) return;
+  const initiateStatusSave = () => {
+    const target = selectedStatus.toUpperCase();
+    const current = currentStatus.toUpperCase();
+    if (target === current) return;
+
+    if (target === 'CANCELLED') {
+      setReasonDialogType('CANCEL');
+      setStatusReason('');
+      setIsReasonDialogOpen(true);
+      return;
+    }
+
+    if (current === 'COMPLETED' || current === 'CANCELLED') {
+      setReasonDialogType('REOPEN');
+      setStatusReason('');
+      setIsReasonDialogOpen(true);
+      return;
+    }
+
+    executeStatusTransition('');
+  };
+
+  const executeStatusTransition = async (reasonText: string) => {
+    if (!job?._id) return;
     setIsUpdatingStatus(true);
     try {
-      const response = await axios.put(`${apiPath}/api/job-schedule/${job._id}`, {
-        status: selectedStatus,
-      });
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        `${apiPath}/api/jobs/${job._id}/status`,
+        {
+          status: selectedStatus,
+          reason: reasonText,
+        },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
       if (response.status === 200) {
         setCurrentStatus(selectedStatus);
         if (job) job.status = selectedStatus;
         toast.success(`Job status updated to ${selectedStatus}`);
+        setIsReasonDialogOpen(false);
         if (typeof handler === 'function') {
           handler();
+        }
+        if (job?._id) {
+          fetchJobById(job._id);
         }
       }
     } catch (err: any) {
@@ -537,6 +583,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
     { label: 'Offers', icon: <LocalOfferOutlinedIcon fontSize="small" /> },
     { label: 'Financial', icon: <AccountBalanceWalletOutlinedIcon fontSize="small" /> },
     { label: 'Appointments', icon: <EventOutlinedIcon fontSize="small" /> },
+    { label: 'Execution', icon: <LocalShippingIcon fontSize="small" /> },
     { label: 'Documents', icon: <FolderOutlinedIcon fontSize="small" /> },
     { label: 'Communication', icon: <ForumOutlinedIcon fontSize="small" /> },
     { label: 'Email', icon: <EmailOutlinedIcon fontSize="small" /> },
@@ -564,7 +611,9 @@ const Jobslider: React.FC<JobsliderProps> = ({
               className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${
                 (currentStatus || '').toLowerCase() === 'execution' || (currentStatus || '').toLowerCase() === 'in progress'
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                  : (currentStatus || '').toLowerCase() === 'completed'
+                  : (currentStatus || '').toLowerCase() === 'confirmed'
+                    ? 'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300 border border-sky-300 dark:border-sky-800'
+                    : (currentStatus || '').toLowerCase() === 'completed'
                     ? 'bg-[#eff6ff] text-[#1d4ed8] dark:bg-blue/15 dark:text-blue border border-[#bfdbfe] dark:border-blue/30'
                     : (currentStatus || '').toLowerCase() === 'cancelled'
                       ? 'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
@@ -786,7 +835,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={handleSaveStatus}
+                    onClick={initiateStatusSave}
                     disabled={isUpdatingStatus}
                     className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                   >
@@ -1524,22 +1573,33 @@ const Jobslider: React.FC<JobsliderProps> = ({
         </div>
       )}
 
-      {/* Tab 4: Documents */}
+      {/* Tab 4: Execution */}
       {tabIndex === 4 && (
+        <JobExecutionTab
+          job={job}
+          onRefresh={() => {
+            if (job?._id) fetchJobById(job._id);
+            if (typeof handler === 'function') handler();
+          }}
+        />
+      )}
+
+      {/* Tab 5: Documents */}
+      {tabIndex === 5 && (
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <DocumentSelected id={job?.customer?._id} />
         </div>
       )}
 
-      {/* Tab 5: Communication */}
-      {tabIndex === 5 && (
+      {/* Tab 6: Communication */}
+      {tabIndex === 6 && (
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <CommunicationLog id={job?._id} />
         </div>
       )}
 
-      {/* Tab 6: Email */}
-      {tabIndex === 6 && (
+      {/* Tab 7: Email */}
+      {tabIndex === 7 && (
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <EmailLayout
             customerId={job?.customer?._id}
@@ -1548,19 +1608,71 @@ const Jobslider: React.FC<JobsliderProps> = ({
         </div>
       )}
 
-      {/* Tab 7: task / Tasks */}
-      {tabIndex === 7 && (
+      {/* Tab 8: task / Tasks */}
+      {tabIndex === 8 && (
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <TaskPage jobId={job._id} />
         </div>
       )}
 
-      {/* Tab 8: Activity */}
-      {tabIndex === 8 && (
+      {/* Tab 9: Activity */}
+      {tabIndex === 9 && (
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <QuotesActivity invoiceData={job?.offer[0]} />
         </div>
       )}
+
+      {/* State Machine Transition Reason Dialog */}
+      <Dialog
+        open={isReasonDialogOpen}
+        onClose={() => {
+          setIsReasonDialogOpen(false);
+          setSelectedStatus(currentStatus);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle className="text-base font-bold text-slate-800 dark:text-white pb-2">
+          {reasonDialogType === 'CANCEL' ? 'Job Cancellation Reason' : 'Reopen Job Reason'}
+        </DialogTitle>
+        <DialogContent className="space-y-3">
+          <p className="text-xs text-slate-500">
+            {reasonDialogType === 'CANCEL'
+              ? 'A documented cancellation reason (at least 5 characters) is required to cancel this job.'
+              : 'An auditable reason (at least 5 characters) is required to reopen this job.'}
+          </p>
+          <TextField
+            fullWidth
+            size="small"
+            multiline
+            rows={3}
+            placeholder="Document reason for audit log..."
+            value={statusReason}
+            onChange={(e) => setStatusReason(e.target.value)}
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions className="p-4 pt-0">
+          <button
+            type="button"
+            onClick={() => {
+              setIsReasonDialogOpen(false);
+              setSelectedStatus(currentStatus);
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={statusReason.trim().length < 5 || isUpdatingStatus}
+            onClick={() => executeStatusTransition(statusReason)}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold bg-primary text-white disabled:opacity-50 hover:bg-primary/90 transition cursor-pointer"
+          >
+            {isUpdatingStatus ? 'Transitioning...' : 'Confirm Transition'}
+          </button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

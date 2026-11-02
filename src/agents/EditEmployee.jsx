@@ -93,7 +93,7 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
       documentNumber: userData.documentNumber || '',
     };
     reset(defaultValues);
-  }, [userData, reset]);
+  }, [userData, reset, open]);
 
   const handleNext = () => {
     handleSubmit(() => {
@@ -101,6 +101,10 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
     })();
   };
   const handleBack = () => setActiveStep((prev) => prev - 1);
+  const handleOpen = () => {
+    setActiveStep(0);
+    setOpen(true);
+  };
   const handleClose = () => setOpen(false);
 
   const steps = [
@@ -157,12 +161,20 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
     };
 
     try {
-      await axios.post(`${apiPath}/user/update`, {
-        ...transformedData,
-        id: userData._id,
-      });
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.post(
+        `${apiPath}/user/update`,
+        {
+          ...transformedData,
+          id: userData._id,
+        },
+        { headers }
+      );
       handleClose();
-      handler();
+      if (handler) {
+        handler(res.data?.user || res.data);
+      }
       notify('Employee updated successfully!');
     } catch (error) {
       notifyError(`Error: ${error?.response?.data?.msg || error.message}`);
@@ -177,7 +189,7 @@ const EditEmployee = ({ handler, userData, skills, licenses, countries }) => {
       <div className="flex items-center">
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={handleOpen}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-primary hover:bg-primary/90 shadow-xs active:scale-[0.98] transition-all cursor-pointer"
         >
           <FiEdit2 className="text-xs" />

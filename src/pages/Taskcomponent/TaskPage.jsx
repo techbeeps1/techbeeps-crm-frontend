@@ -383,7 +383,9 @@ const TaskPage = ({ jobId }) => {
 
   const handleAllEmploye = async (teamsData) => {
     try {
-      const response = await axios.get(`${apiPath}/user/all`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${apiPath}/user/all`, { headers });
       let employees = (response['data'] || []).map((user) => ({
         label: (user.username || '').trim(),
         value: user._id,
