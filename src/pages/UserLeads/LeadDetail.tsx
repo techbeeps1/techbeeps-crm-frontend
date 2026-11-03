@@ -67,6 +67,7 @@ const LeadDetail = () => {
   const [open, setOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [linking, setLinking] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
@@ -135,6 +136,30 @@ const LeadDetail = () => {
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update status');
       console.error(err);
+    }
+  };
+
+  const handleLinkToCustomer = async () => {
+    if (!customerData?.existingCustomer?._id || linking) return;
+    setLinking(true);
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.post(
+        `${apiPath}/leads/link-to-customer`,
+        { leadId: id, customerId: customerData.existingCustomer._id },
+        { headers }
+      );
+      if (res.data?.success) {
+        toast.success(res.data.message || 'Lead linked to customer successfully');
+        handleCustomer();
+      } else {
+        toast.error(res.data?.message || 'Failed to link lead');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to link lead');
+    } finally {
+      setLinking(false);
     }
   };
 
@@ -319,13 +344,30 @@ const LeadDetail = () => {
 
           {/* Convert Button */}
           <button
-            disabled={customerData?.status === 'Converted'}
-            onClick={() => customerData?.status !== 'Converted' && setIsMergeModalOpen(true)}
+            disabled={customerData?.status === 'Converted' || Boolean(customerData?.existingCustomer)}
+            onClick={() => customerData?.status !== 'Converted' && !customerData?.existingCustomer && setIsMergeModalOpen(true)}
+            title={customerData?.existingCustomer ? `Customer #${customerData.existingCustomer.customerIndex || ''} (${customerData.existingCustomer.name}) already exists` : ''}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
           >
             <SwapHorizIcon style={{ fontSize: 18 }} />
-            <span>Convert as Customer</span>
+            <span>
+              {customerData?.existingCustomer
+                ? `Customer Exists (#${customerData.existingCustomer.customerIndex || ''})`
+                : 'Convert as Customer'}
+            </span>
           </button>
+
+          {customerData?.existingCustomer && (
+            <button
+              type="button"
+              onClick={() => navigate(`/customers/${customerData.existingCustomer._id || customerData.existingCustomer.id}`)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Open Customer Profile"
+            >
+              <span>View Customer</span>
+              <span className="text-xs">↗</span>
+            </button>
+          )}
 
           {/* Edit Lead Button */}
           <button
@@ -354,6 +396,44 @@ const LeadDetail = () => {
         handler={handleCustomer}
         customerData={customerData}
       />
+
+      {/* Existing Customer Notice Banner */}
+      {customerData?.existingCustomer && (
+        <div className="p-4 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-900 dark:text-emerald-200 animate-in fade-in duration-150">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center shrink-0 font-bold text-sm">
+              ✓
+            </div>
+            <div>
+              <div className="font-bold text-sm">
+                Customer Account Already Exists: #{customerData.existingCustomer.customerIndex} {customerData.existingCustomer.name}
+              </div>
+              <p className="text-emerald-700 dark:text-emerald-300/80 text-xs mt-0.5">
+                An active customer profile is already registered with email <strong>{customerData.existingCustomer.email}</strong>. Converting this lead is disabled to prevent duplicate customer records.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            {customerData?.status !== 'Converted' && (
+              <button
+                type="button"
+                onClick={handleLinkToCustomer}
+                disabled={linking}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
+              >
+                {linking ? 'Linking...' : 'Mark as Converted'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate(`/customers/${customerData.existingCustomer._id || customerData.existingCustomer.id}`)}
+              className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-boxdark border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 font-semibold text-xs hover:bg-emerald-50 dark:hover:bg-slate-800 shadow-2xs transition-all cursor-pointer"
+            >
+              View Customer Profile →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Details Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

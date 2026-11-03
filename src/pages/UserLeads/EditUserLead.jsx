@@ -379,7 +379,7 @@ const EditUserLead = ({ handler, setOpen, open, type = 'Lead', customerData }) =
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. 110001"
+                  placeholder="e.g. 1012 AB"
                   {...register('postcode', { required: 'Postal Code is required' })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
                 />

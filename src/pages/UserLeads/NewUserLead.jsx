@@ -20,6 +20,8 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
 
   const [loading, setLoading] = useState(false);
   const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const [forceDuplicate, setForceDuplicate] = useState(false);
 
   const checkIsDirty = () => {
     if (isDirty) return true;
@@ -40,6 +42,8 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
 
   const handleForceClose = () => {
     setShowDirtyConfirm(false);
+    setDuplicateWarning(null);
+    setForceDuplicate(false);
     reset();
     setOpen(false);
   };
@@ -113,11 +117,12 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
       const token = localStorage.getItem('token');
       const response = await axios.post(
         `${apiPath}/leads/leads`,
-        { ...e, type: type },
+        { ...e, type: type, allowDuplicate: forceDuplicate },
         {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(forceDuplicate ? { 'X-Allow-Duplicate': 'true' } : {}),
           },
         },
       );
@@ -130,7 +135,13 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
     } catch (error) {
       console.log(error);
       setLoading(false);
-      notifyError(error.response?.data?.error || 'Something went wrong');
+      const resData = error.response?.data;
+      if (error.response?.status === 409 && resData?.existingLead) {
+        setDuplicateWarning(resData.existingLead);
+        notifyError(resData.message || resData.error || 'A lead with matching details already exists');
+      } else {
+        notifyError(resData?.message || resData?.error || 'Something went wrong');
+      }
     }
   };
 
@@ -176,7 +187,34 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
 
         {/* Modal Body Form */}
         <div className="p-6 overflow-y-auto space-y-5">
-          <form onSubmit={handleSubmit(onSubmit)} noValidate id="customer-form" className="space-y-4">
+          {/* Duplicate Lead Detection Alert Banner */}
+            {duplicateWarning && (
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in duration-150">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 font-bold">
+                  ⚠️
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="font-bold text-sm">
+                    Existing Lead Found: #{duplicateWarning.leadIndex || ''} {duplicateWarning.name}
+                  </div>
+                  <p className="text-amber-700 dark:text-amber-300/90 text-xs">
+                    An active lead is already registered with {duplicateWarning.email ? `email (${duplicateWarning.email})` : `contact (${duplicateWarning.contact})`}. Status: <strong>{duplicateWarning.status}</strong>.
+                  </p>
+                  <div className="pt-2 flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={forceDuplicate}
+                        onChange={(e) => setForceDuplicate(e.target.checked)}
+                        className="rounded border-slate-300 text-primary focus:ring-primary/20 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Create as separate duplicate inquiry</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+            <form onSubmit={handleSubmit(onSubmit)} noValidate id="customer-form" className="space-y-4">
             {/* Customer Type Dropdown */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
@@ -357,7 +395,7 @@ const NewUserLead = ({ handler, setOpen, open, type = "leads" }) => {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. 110001"
+                  placeholder="e.g. 1012 AB"
                   {...register('postcode', { required: 'Postal Code is required' })}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-100 text-xs focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-xs placeholder:text-slate-400"
                 />

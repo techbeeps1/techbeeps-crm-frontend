@@ -583,8 +583,18 @@ const UserLeadList = ({ data = [], fetchCustomer, type = "leads" }) => {
                           {getInitials(item?.firstName, item?.lastName)}
                         </div>
                         <div>
-                          <div className="font-semibold text-slate-800 dark:text-slate-100 group-hover:text-primary transition-colors capitalize">
-                            {item?.firstName} {item?.lastName}
+                          <div className="font-semibold text-slate-800 dark:text-slate-100 group-hover:text-primary transition-colors capitalize flex items-center gap-1.5 flex-wrap">
+                            <span>{item?.firstName} {item?.lastName}</span>
+                            {item?.inquiryCount > 1 && (
+                              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" title={`${item.inquiryCount} inquiries submitted`}>
+                                {item.inquiryCount}x
+                              </span>
+                            )}
+                            {item?.duplicateOf && (
+                              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" title="Duplicate inquiry linked">
+                                Duplicate
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-slate-400 dark:text-slate-500 md:hidden">
                             {item?.email}

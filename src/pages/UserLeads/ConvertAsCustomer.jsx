@@ -193,6 +193,21 @@ const ConvertAsCustomer = ({ handler, setOpen, open, type = 'Lead', customerData
 
         {/* Modal Body Form */}
         <div className="p-6 overflow-y-auto space-y-6">
+          {customerData?.existingCustomer && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in duration-150">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 font-bold">
+                ⚠️
+              </div>
+              <div>
+                <div className="font-bold text-sm">
+                  Customer #{customerData.existingCustomer.customerIndex || ''} Already Exists
+                </div>
+                <p className="text-amber-700 dark:text-amber-300/90 text-xs mt-0.5">
+                  A customer account for <strong>{customerData.existingCustomer.name}</strong> ({customerData.existingCustomer.email}) is already active in CRM. Converting this lead is disabled to prevent duplicate customer records.
+                </p>
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit(onSubmit)} noValidate id="convert-customer-form" className="space-y-6">
             <input type="hidden" {...register("type")} value="Customer" />
 
@@ -484,7 +499,7 @@ const ConvertAsCustomer = ({ handler, setOpen, open, type = 'Lead', customerData
           <button
             type="submit"
             form="convert-customer-form"
-            disabled={loading}
+            disabled={loading || Boolean(customerData?.existingCustomer)}
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs active:scale-95 disabled:opacity-50 transition-all shadow-md shadow-emerald-600/25 cursor-pointer"
           >
             {loading ? (
