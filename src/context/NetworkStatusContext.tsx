@@ -25,11 +25,42 @@ export const NetworkStatusProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isRetrying, setIsRetrying] = useState<boolean>(false);
   const [lastDisconnected, setLastDisconnected] = useState<Date | null>(null);
 
+  /**
+   * Lightweight probe directly hitting server health endpoint using native fetch.
+   * Does NOT trigger global Axios interceptors.
+   */
+  const probeServer = async (): Promise<boolean> => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${apiPath}/health`, {
+        method: 'GET',
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+      clearTimeout(timeoutId);
+      return res.status >= 200 && res.status < 500;
+    } catch {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(`${apiPath}`, {
+          method: 'GET',
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        clearTimeout(timeoutId);
+        return res.status >= 200 && res.status < 500;
+      } catch {
+        return false;
+      }
+    }
+  };
+
   // Monitor browser online / offline events
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      // Quick probe to verify server connectivity
       probeServer().then((reachable) => {
         if (reachable) {
           setIsServerReachable(true);
@@ -59,24 +90,58 @@ export const NetworkStatusProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       (response) => {
-        // Successful response proves connectivity
+        // Any successful response from server proves connectivity
         if (!isServerReachable) {
           setIsServerReachable(true);
+          setLastDisconnected(null);
         }
         return response;
       },
       (error) => {
+        // Ignore aborted / cancelled requests (e.g. user navigated or debounced typing)
         if (
-          !navigator.onLine ||
+          axios.isCancel(error) ||
+          error.name === 'CanceledError' ||
+          error.code === 'ERR_CANCELED'
+        ) {
+          return Promise.reject(error);
+        }
+
+        // Only monitor calls to our CRM backend (ignore 3rd party services like map tiles or chat)
+        const reqUrl = String(error.config?.url || '');
+        const isCrmRequest = !reqUrl.startsWith('http') || reqUrl.startsWith(apiPath);
+        if (!isCrmRequest) {
+          return Promise.reject(error);
+        }
+
+        // If browser is physically offline:
+        if (!navigator.onLine) {
+          setIsOnline(false);
+          setIsServerReachable(false);
+          if (!lastDisconnected) setLastDisconnected(new Date());
+          return Promise.reject(error);
+        }
+
+        // For suspected network errors, do NOT immediately show the red banner!
+        // Run a lightweight probe to confirm whether the server is ACTUALLY down.
+        if (
           error.code === 'ERR_NETWORK' ||
           error.message === 'Network Error' ||
           error.code === 'ECONNABORTED'
         ) {
-          setIsServerReachable(false);
-          if (!lastDisconnected) {
-            setLastDisconnected(new Date());
-          }
+          probeServer().then((reachable) => {
+            if (!reachable) {
+              setIsServerReachable(false);
+              if (!lastDisconnected) {
+                setLastDisconnected(new Date());
+              }
+            } else {
+              // Server is alive! The individual request was just an isolated glitch/timeout.
+              setIsServerReachable(true);
+            }
+          });
         }
+
         return Promise.reject(error);
       }
     );
@@ -86,22 +151,22 @@ export const NetworkStatusProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [isServerReachable, lastDisconnected]);
 
-  const probeServer = async (): Promise<boolean> => {
-    try {
-      // Light ping to server root or health probe with 4s timeout
-      await axios.get(`${apiPath}/health`, { timeout: 4000 }).catch(() => {
-        // If /health doesn't exist, try simple head/get to apiPath
-        return axios.get(`${apiPath}`, { timeout: 4000 });
-      });
-      return true;
-    } catch (err: any) {
-      // If server responded with 404 or 401, server IS reachable (HTTP layer is up!)
-      if (err.response && err.response.status) {
-        return true;
-      }
-      return false;
+  // Automated background reconnection polling: periodically test /health when disconnected
+  useEffect(() => {
+    if (!isServerReachable && navigator.onLine) {
+      const pollInterval = setInterval(async () => {
+        const reachable = await probeServer();
+        if (reachable) {
+          setIsServerReachable(true);
+          setLastDisconnected(null);
+          toast.success('Server connection restored!');
+          window.dispatchEvent(new CustomEvent('app:network-reconnected'));
+        }
+      }, 4000);
+
+      return () => clearInterval(pollInterval);
     }
-  };
+  }, [isServerReachable]);
 
   const retryConnection = useCallback(async (): Promise<boolean> => {
     setIsRetrying(true);
@@ -118,7 +183,6 @@ export const NetworkStatusProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsOnline(true);
         setLastDisconnected(null);
         toast.success('Connection successfully restored!');
-        // Broadcast custom event so active pages can re-trigger their fetchers
         window.dispatchEvent(new CustomEvent('app:network-reconnected'));
         return true;
       } else {

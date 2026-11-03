@@ -281,6 +281,8 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
         return calculateHaversineFallback(startCoords, endCoords);
     };
 
+    const currentAddressKey = buildRouteCacheKey(watch('load'), watch('unload'));
+
     async function getDistanceAndTime(force = false) {
         const load = watch('load');
         const unload = watch('unload');
@@ -289,21 +291,28 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
             return;
         }
 
-        const hasLoadInfo = load.city || load.postcode || load.street;
-        const hasUnloadInfo = unload.city || unload.postcode || unload.street;
+        const hasLoadInfo = Boolean(load.city || load.postcode || load.street);
+        const hasUnloadInfo = Boolean(unload.city || unload.postcode || unload.street);
 
         if (!hasLoadInfo || !hasUnloadInfo) {
             return;
         }
 
         const addressKey = buildRouteCacheKey(load, unload);
-        const isAddressChanged = Boolean(lastAddressKey.current && addressKey !== lastAddressKey.current);
-
+        const savedRouteKey = watch('relocation.routeAddressKey');
         const currentDistance = Number(watch('relocation.distance'));
         const currentTravelTime = Number(watch('relocation.travelTime'));
 
-        // If distance and travel time already exist, ONLY skip if address DID NOT change and force is false
-        if (!force && !isAddressChanged && currentDistance > 0 && currentTravelTime > 0) {
+        // If route has already been calculated for this EXACT address key and values exist, skip (unless force is true)
+        const isAlreadyCalculated = Boolean(
+            !force &&
+            savedRouteKey &&
+            savedRouteKey === addressKey &&
+            currentDistance > 0 &&
+            currentTravelTime > 0
+        );
+
+        if (isAlreadyCalculated) {
             return;
         }
 
@@ -324,10 +333,11 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
                     return;
                 }
                 lastAddressKey.current = addressKey;
-                setValue('relocation.distance', route.distanceKm.toFixed(2));
-                setValue('relocation.travelTime', route.durationHours.toFixed(2));
-                setValue('relocation.routeSource', route.source);
-                setValue('relocation.routeStatus', route.status);
+                setValue('relocation.distance', route.distanceKm.toFixed(2), { shouldDirty: true, shouldValidate: true });
+                setValue('relocation.travelTime', route.durationHours.toFixed(2), { shouldDirty: true, shouldValidate: true });
+                setValue('relocation.routeAddressKey', addressKey, { shouldDirty: true });
+                setValue('relocation.routeSource', route.source, { shouldDirty: true });
+                setValue('relocation.routeStatus', route.status, { shouldDirty: true });
             }
         } catch (error) {
             console.error('Error calculating distance and time:', error);
@@ -338,18 +348,9 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
         }
     }
 
-    const loadStreet = watch('load.street');
-    const loadHouse = watch('load.houseNumber');
-    const loadPost = watch('load.postcode');
-    const loadCity = watch('load.city');
-    const unloadStreet = watch('unload.street');
-    const unloadHouse = watch('unload.houseNumber');
-    const unloadPost = watch('unload.postcode');
-    const unloadCity = watch('unload.city');
-
     useEffect(() => {
         getDistanceAndTime().catch(console.error);
-    }, [loadStreet, loadHouse, loadPost, loadCity, unloadStreet, unloadHouse, unloadPost, unloadCity]);
+    }, [currentAddressKey]);
 
     let totalVolume = Number(watch('relocation.totalVolume')) || 0;
     let pricePerMeterCubic = Number(watch('relocation.pricePerMeterCubic')) || 0;

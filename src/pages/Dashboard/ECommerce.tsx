@@ -11,6 +11,10 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import PendingActionsIcon from '@mui/icons-material/PendingActions';
+import CampaignIcon from '@mui/icons-material/Campaign';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { apiPath } from '../../../apiPath';
@@ -56,6 +60,7 @@ const ECommerce = () => {
     return <StaffDashboard />;
   }
 
+  const [kpiData, setKpiData] = useState<any>(null);
   const [customerCount, setCustomerCount] = useState<number | null>(null);
   const [totalLeadCount, setTotalLeadCount] = useState<number | null>(null);
   const [activeLeadCount, setActiveLeadCount] = useState<number | null>(null);
@@ -77,6 +82,24 @@ const ECommerce = () => {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+      // 1. Primary: Authoritative KPI Aggregator Endpoint (EXEC-38)
+      try {
+        const kpiRes = await axios.get(`${apiPath}/api/dashboard/kpis`, { headers });
+        if (kpiRes.data?.success && kpiRes.data?.data) {
+          const kpi = kpiRes.data.data;
+          setKpiData(kpi);
+          if (kpi.crm) {
+            setCustomerCount(kpi.crm.totalCustomers);
+            setTotalLeadCount(kpi.crm.totalLeads);
+            setActiveLeadCount(kpi.crm.activeLeads);
+          }
+          return;
+        }
+      } catch (kpiErr) {
+        console.warn('Dashboard KPI endpoint not yet loaded, falling back to direct endpoints:', kpiErr);
+      }
+
+      // 2. Fallback: Direct list calls
       const custPromise = axios.get(`${apiPath}/customer/customerList?type=Customer`, { headers });
       const leadPromise = axios.get(`${apiPath}/leads/leadList`, { headers })
         .catch(() => axios.get(`${apiPath}/customer/customerList?type=leads`, { headers }));
@@ -100,7 +123,6 @@ const ECommerce = () => {
     } catch (err: any) {
       console.error('Error fetching metrics:', err);
       setFetchError(err.message || 'Failed to load metrics');
-      // Do not deceptively reset to 0 (business zero) if fetch failed
     } finally {
       setLoading(false);
     }
@@ -178,6 +200,11 @@ const ECommerce = () => {
     return (f + l) || 'J';
   };
 
+  const fmtCurrency = (amt: number | null | undefined) => {
+    const val = typeof amt === 'number' ? amt : 0;
+    return `€${val.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   return (
     <div className="w-full min-h-[calc(100vh-84px)] bg-slate-50/50 dark:bg-boxdark-2 p-4 md:p-6 space-y-6 font-sans">
       {/* Top Welcome Executive Banner */}
@@ -195,6 +222,18 @@ const ECommerce = () => {
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               Universal Movers CRM Dashboard
             </h1>
+            <p className="text-xs md:text-sm text-slate-300 mt-1 max-w-xl">
+              Live operational telemetry, statutory revenue reconciliation, and team scheduling.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/settings?tab=rollback')}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30 hover:bg-emerald-500/30 transition-all cursor-pointer"
+              >
+                <span>Release & Rollback Audit ↗</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -238,105 +277,230 @@ const ECommerce = () => {
         <Shortcuts />
       </div>
 
-      {/* Dynamic KPI Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Customers */}
-        <div
-          onClick={() => navigate('/customers')}
-          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Total Customers
-              </p>
-              <h4 className="text-2xl font-bold text-slate-800 dark:text-white mt-1">
-                {loading ? '...' : customerCount !== null ? customerCount : '—'}
-              </h4>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
-              <PeopleIcon />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-              <TrendingUpIcon style={{ fontSize: 16 }} /> Active database entries
+      {/* EXEC-38: Authoritative Financial Management KPIs */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+              Financial Management & Revenue Performance
+            </h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+              Authoritative Reconciliation
             </span>
-            <span className="text-primary font-semibold text-[11px] hover:underline">View All →</span>
           </div>
+          <button
+            onClick={() => navigate('/invoices')}
+            className="text-xs font-bold text-primary hover:underline cursor-pointer"
+          >
+            All Invoices →
+          </button>
         </div>
 
-        {/* Active Leads */}
-        <div
-          onClick={() => navigate('/leads?filter=pipeline')}
-          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Active Leads
-              </p>
-              <h4 className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-                {loading ? '...' : activeLeadCount !== null ? activeLeadCount : '—'}
-              </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Revenue Invoiced */}
+          <div
+            onClick={() => navigate('/invoices')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Total Invoiced
+                </p>
+                <h4 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                  {loading ? '...' : fmtCurrency(kpiData?.financials?.totalInvoiced)}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
+                <AttachMoneyIcon />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-inner">
-              <AssignmentIcon />
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+              <span>{kpiData?.financials?.totalInvoicesCount || 0} total invoices issued</span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">View Invoices →</span>
             </div>
           </div>
-          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
-            <span>
-              {activeLeadCount !== null ? `${activeLeadCount} active of ${totalLeadCount || 0} total leads` : 'Pipeline opportunities'}
-            </span>
-            <span className="text-primary font-semibold text-[11px] hover:underline">View Leads →</span>
+
+          {/* Total Paid / Collected */}
+          <div
+            onClick={() => navigate('/invoices')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Revenue Collected
+                </p>
+                <h4 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {loading ? '...' : fmtCurrency(kpiData?.financials?.totalPaid)}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
+                <AccountBalanceWalletIcon />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                {kpiData?.financials?.collectionRatePercentage || 0}% collection rate
+              </span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">{kpiData?.financials?.paidInvoicesCount || 0} paid</span>
+            </div>
+          </div>
+
+          {/* Outstanding Receivables */}
+          <div
+            onClick={() => navigate('/invoices')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Outstanding Receivables
+                </p>
+                <h4 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                  {loading ? '...' : fmtCurrency(kpiData?.financials?.totalOutstanding)}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner">
+                <PendingActionsIcon />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+              <span>{kpiData?.financials?.pendingInvoicesCount || 0} unpaid / balance open</span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">Reconcile →</span>
+            </div>
+          </div>
+
+          {/* CRM Conversion & Win Rate */}
+          <div
+            onClick={() => navigate('/leads')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Lead Conversion Rate
+                </p>
+                <h4 className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  {loading ? '...' : `${kpiData?.crm?.conversionRatePercentage ?? 0}%`}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-inner">
+                <TrendingUpIcon />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+              <span>{kpiData?.crm?.convertedLeads || 0} of {kpiData?.crm?.totalLeads || 0} leads converted</span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">Pipeline →</span>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Active Jobs Card */}
-        <div
-          onClick={() => navigate('/jobs?filter=ACTIVE')}
-          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Active Jobs
-              </p>
-              <h4 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                {jobsLoading ? '...' : jobsError ? '—' : activeJobs.length}
-              </h4>
+      {/* Dynamic Operational KPI Stat Cards */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider px-1">
+          Operational Logistics & Team Telemetry
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Customers */}
+          <div
+            onClick={() => navigate('/customers')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Total Customers
+                </p>
+                <h4 className="text-2xl font-bold text-slate-800 dark:text-white mt-1">
+                  {loading ? '...' : customerCount !== null ? customerCount : '—'}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-inner">
+                <PeopleIcon />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
-              <WorkOutlineIcon />
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <TrendingUpIcon style={{ fontSize: 16 }} /> Active database entries
+              </span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">View All →</span>
             </div>
           </div>
-          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
-            <span>{jobsList !== null ? `${activeJobs.length} active of ${jobsList.length} total operations` : 'Active operations'}</span>
-            <span className="text-primary font-semibold text-[11px] hover:underline">View Jobs →</span>
-          </div>
-        </div>
 
-        {/* Scheduled Tasks Card */}
-        <div
-          onClick={() => navigate('/tasks')}
-          className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Pending Tasks
-              </p>
-              <h4 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-                {tasksLoading ? '...' : tasksError ? '—' : pendingTasks.length}
-              </h4>
+          {/* Active Leads */}
+          <div
+            onClick={() => navigate('/leads?filter=pipeline')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Active Leads
+                </p>
+                <h4 className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">
+                  {loading ? '...' : activeLeadCount !== null ? activeLeadCount : '—'}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-inner">
+                <AssignmentIcon />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner">
-              <TaskAltIcon />
+            <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
+              <span>
+                {activeLeadCount !== null ? `${activeLeadCount} active of ${totalLeadCount || 0} total leads` : 'Pipeline opportunities'}
+              </span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">View Leads →</span>
             </div>
           </div>
-          <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
-            <span>{tasksList !== null ? `${pendingTasks.length} open of ${tasksList.length} total tasks` : 'Pending tasks'}</span>
-            <span className="text-primary font-semibold text-[11px] hover:underline">View Tasks →</span>
+
+          {/* Active Jobs Card */}
+          <div
+            onClick={() => navigate('/jobs?filter=ACTIVE')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Active Jobs
+                </p>
+                <h4 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {jobsLoading ? '...' : jobsError ? '—' : activeJobs.length}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
+                <WorkOutlineIcon />
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
+              <span>{jobsList !== null ? `${activeJobs.length} active of ${jobsList.length} total operations` : 'Active operations'}</span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">View Jobs →</span>
+            </div>
+          </div>
+
+          {/* Scheduled Tasks Card */}
+          <div
+            onClick={() => navigate('/tasks')}
+            className="bg-white dark:bg-boxdark p-5 rounded-2xl border border-slate-200/80 dark:border-strokedark shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Pending Tasks
+                </p>
+                <h4 className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                  {tasksLoading ? '...' : tasksError ? '—' : pendingTasks.length}
+                </h4>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-inner">
+                <TaskAltIcon />
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between">
+              <span>{tasksList !== null ? `${pendingTasks.length} open of ${tasksList.length} total tasks` : 'Pending tasks'}</span>
+              <span className="text-primary font-semibold text-[11px] hover:underline">View Tasks →</span>
+            </div>
           </div>
         </div>
       </div>
@@ -531,10 +695,58 @@ const ECommerce = () => {
           </div>
         </div>
       </div>
+
+      {/* EXEC-38: Company Announcements & Broadcast Updates Widget */}
+      {kpiData?.recentAnnouncements && kpiData.recentAnnouncements.length > 0 && (
+        <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-5 md:p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-strokedark pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-primary dark:text-indigo-400 flex items-center justify-center">
+                <CampaignIcon />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                  Company Announcements & Official Notices
+                </h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Broadcast notices published by management
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/Communication?news=true')}
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline cursor-pointer"
+            >
+              <span>Manage News</span>
+              <ArrowForwardIcon style={{ fontSize: 14 }} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {kpiData.recentAnnouncements.map((ann: any, idx: number) => (
+              <div
+                key={ann.id || ann._id || idx}
+                onClick={() => navigate('/Communication?news=true')}
+                className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 hover:border-primary/40 hover:bg-white dark:hover:bg-slate-900 transition-all cursor-pointer space-y-1.5"
+              >
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span className="font-semibold text-primary">By {ann.publisherName || 'Management'}</span>
+                  <span>{new Date(ann.publishAt).toLocaleDateString()}</span>
+                </div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-white">
+                  {ann.title}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                  {ann.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default ECommerce;
-
-

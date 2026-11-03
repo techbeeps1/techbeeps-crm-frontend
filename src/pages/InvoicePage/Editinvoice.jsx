@@ -939,7 +939,7 @@ const EditInvoice = () => {
                         </div>
 
                         {/* Table */}
-                        <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark">
+                        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark">
                             <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
                                 <thead className="bg-slate-50/90 dark:bg-slate-800/70 text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-strokedark">
                                     <tr>
@@ -1064,6 +1064,144 @@ const EditInvoice = () => {
                                  </tbody>
                              </table>
                          </div>
+
+                        {/* Mobile Responsive Card View (< 768px, optimized for 375px/390px phones) */}
+                        <div className="block md:hidden space-y-3" role="region" aria-label="Mobile Line Items List">
+                            {fields.map((item, index) => {
+                                const currentQty = Number(watchedItems?.[index]?.quantity) || 0;
+                                const currentPrice = Number(watchedItems?.[index]?.price) || 0;
+                                const lineSubtotal = currentQty * currentPrice;
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="p-3.5 bg-slate-50/90 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-strokedark space-y-3"
+                                    >
+                                        {/* Mobile Item Card Header */}
+                                        <div className="flex items-center justify-between pb-2 border-b border-slate-200/70 dark:border-slate-700/70">
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-6 h-6 rounded-md bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
+                                                    #{index + 1}
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                    Item Row
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-extrabold text-xs border border-emerald-200/80 dark:border-emerald-800/80">
+                                                    {formatCurrency(lineSubtotal)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => remove(index)}
+                                                    disabled={fields.length === 1}
+                                                    aria-label={`Remove Line ${index + 1}`}
+                                                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                                    title="Remove Line"
+                                                >
+                                                    <DeleteOutlineIcon fontSize="small" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Sales Group */}
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                Sales Group *
+                                            </label>
+                                            <select
+                                                aria-label={`Item ${index + 1} Sales Group`}
+                                                className={`w-full p-2.5 rounded-xl border ${
+                                                    errors?.items?.[index]?.salesgroup
+                                                        ? 'border-rose-500'
+                                                        : 'border-slate-200 dark:border-strokedark'
+                                                } bg-white dark:bg-boxdark text-xs focus:ring-2 focus:ring-primary`}
+                                                {...register(`items.${index}.salesgroup`, {
+                                                    required: 'Sales group is required',
+                                                })}
+                                            >
+                                                <option value="">Select Group</option>
+                                                {salesGroupList.map((sg) => (
+                                                    <option key={sg._id} value={sg._id}>
+                                                        {sg.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Description */}
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                                                Description
+                                            </label>
+                                            <input
+                                                type="text"
+                                                aria-label={`Item ${index + 1} Description`}
+                                                placeholder="Line description"
+                                                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-2 focus:ring-primary"
+                                                {...register(`items.${index}.description`)}
+                                            />
+                                        </div>
+
+                                        {/* 3-column compact inputs: Qty, BTW %, Unit Price */}
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                                    Qty *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="any"
+                                                    placeholder="Qty"
+                                                    aria-label={`Item ${index + 1} Quantity`}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-center focus:ring-2 focus:ring-primary"
+                                                    {...register(`items.${index}.quantity`, {
+                                                        valueAsNumber: true,
+                                                        min: { value: 0, message: 'Must be >= 0' },
+                                                    })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                                    BTW % *
+                                                </label>
+                                                <select
+                                                    aria-label={`Item ${index + 1} Tax`}
+                                                    className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-center focus:ring-2 focus:ring-primary"
+                                                    {...register(`items.${index}.btw`)}
+                                                >
+                                                    {getStandardTaxOptions().map((tax) => (
+                                                        <option key={tax.id} value={tax.code}>
+                                                            {tax.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                                    Price (${currencySymbol}) *
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="any"
+                                                    placeholder="0.00"
+                                                    aria-label={`Item ${index + 1} Unit Price`}
+                                                    onFocus={(e) => e.target.select()}
+                                                    className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-right focus:ring-2 focus:ring-primary"
+                                                    {...register(`items.${index}.price`, {
+                                                        valueAsNumber: true,
+                                                        min: { value: 0, message: 'Must be >= 0' },
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                      </div>
 
                      {/* Card 3: Executive Invoice Billing Breakdown & Payment Terms */}

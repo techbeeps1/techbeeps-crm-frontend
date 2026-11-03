@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CloseIcon from '@mui/icons-material/Close';
 import CloudOffIcon from '@mui/icons-material/CloudOff';
 import SyncProblemIcon from '@mui/icons-material/SyncProblem';
 import { useNetworkStatus } from '../context/NetworkStatusContext';
@@ -102,9 +103,17 @@ export const OfflineNoticeCard: React.FC<OfflineNoticeCardProps> = ({
  */
 export const OfflineBanner: React.FC = () => {
   const { isOnline, isServerReachable, isRetrying, retryConnection } = useNetworkStatus();
+  const [dismissed, setDismissed] = useState(false);
 
-  // If online and server is reachable, do not render banner
-  if (isOnline && isServerReachable) {
+  // Automatically reset dismissed state when connectivity changes
+  useEffect(() => {
+    if (isOnline && isServerReachable) {
+      setDismissed(false);
+    }
+  }, [isOnline, isServerReachable]);
+
+  // If online and server is reachable, or user dismissed the warning, do not render banner
+  if ((isOnline && isServerReachable) || dismissed) {
     return null;
   }
 
@@ -134,6 +143,16 @@ export const OfflineBanner: React.FC = () => {
               style={{ fontSize: 14 }}
             />
             <span>{isRetrying ? 'Reconnecting...' : 'Retry'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-all cursor-pointer"
+            aria-label="Dismiss banner"
+            title="Dismiss notification"
+          >
+            <CloseIcon style={{ fontSize: 16 }} />
           </button>
         </div>
       </div>

@@ -3,6 +3,8 @@ import CompanySettings from './CompanyDetail';
 import MoneyFormatSettings from './CurrencySetting';
 import LogoUploadForm from './Logo';
 import Header from './Header';
+import SystemReleaseAudit from './SystemReleaseAudit';
+import { MdShield } from 'react-icons/md';
 import { UserContext } from '../../UserContext';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -31,7 +33,11 @@ import {
 } from 'react-icons/md';
 
 const AppSettings = () => {
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'rollback' || params.get('tab') === 'release') return 4;
+    return 0;
+  });
   const { userData } = useContext(UserContext) || {};
 
   const [generalSettings, setGeneralSettings] = useState({
@@ -179,6 +185,13 @@ const AppSettings = () => {
       icon: MdOutlineImage,
       desc: 'Official logo & visual identity',
     },
+    ...(userData?.role === 'Admin' || !userData?.role ? [{
+      id: 4,
+      title: 'Release & Rollback Audit',
+      shortTitle: 'Release Gate',
+      icon: MdShield,
+      desc: 'System health & disaster recovery',
+    }] : []),
   ];
 
   const renderGeneralSettings = () => (
@@ -367,6 +380,8 @@ const AppSettings = () => {
             <LogoUploadForm />
           </div>
         );
+      case 4:
+        return <SystemReleaseAudit />;
       default:
         return null;
     }

@@ -19,6 +19,7 @@ import {
   KeyboardArrowRight,
   Menu,
   MenuOpen,
+  Close,
   Inventory2,
   Gavel,
 } from '@mui/icons-material';
@@ -79,11 +80,42 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     return () => window.removeEventListener('logoUpdated', handleLogoUpdate);
   }, []);
 
+  // Track mobile viewport (< 1024px)
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Auto-close mobile sidebar on route change
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  }, [pathname, isMobile]);
+
+  // Close mobile sidebar on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
+
   // hover expand state
   const [hovered, setHovered] = useState(false);
 
   // final sidebar state
-  const isExpanded = !sidebarCollapsed || hovered;
+  const isExpanded = isMobile || !sidebarCollapsed || hovered;
 
   // save collapse state
   useEffect(() => {
@@ -275,25 +307,35 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   };
 
   return (
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs transition-opacity duration-300 lg:hidden"
+          aria-hidden="true"
+        />
+      )}
+
     <aside
       ref={sidebar}
       onMouseEnter={() => {
-        if (sidebarCollapsed) {
+        if (!isMobile && sidebarCollapsed) {
           setHovered(true);
         }
       }}
       onMouseLeave={() => {
-        if (sidebarCollapsed) {
+        if (!isMobile && sidebarCollapsed) {
           setHovered(false);
         }
       }}
       className={`
-      absolute top-0 left-0 z-50
+      fixed top-0 left-0 z-50
       h-screen bg-slate-950
       border-r border-slate-800
       shadow-2xl overflow-y-hidden
       transition-all duration-300 ease-in-out
-       flex  flex-col  bg-black   lg:static lg:translate-x-0 -translate-x-full
+       flex flex-col bg-black lg:static
       ${isExpanded ? 'w-[280px]' : 'w-[80px]'}
 
       ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -336,9 +378,22 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           )}
         </div>
 
+        {/* On Mobile: Close Sidebar Button */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="h-10 w-10 rounded-xl flex lg:hidden items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          aria-label="Close Mobile Sidebar"
+          title="Close Sidebar"
+        >
+          <Close />
+        </button>
+
+        {/* On Desktop: Collapse/Expand Sidebar Button */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="h-10 w-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          className="h-10 w-10 rounded-xl hidden lg:flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          aria-label={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {sidebarCollapsed ? <Menu /> : <MenuOpen />}
         </button>
@@ -450,6 +505,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                               <li key={child.path}>
                                 <NavLink
                                   to={child.path!}
+                                  onClick={() => { if (isMobile) setSidebarOpen(false); }}
                                   className={() => {
                                     const isActive =
                                       isRouteActive(child.path);
@@ -478,6 +534,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 ) : (
                   <NavLink
                     to={item.path!}
+                    onClick={() => { if (isMobile) setSidebarOpen(false); }}
                     className={({ isActive }) =>
                       `
                       flex items-center
@@ -509,6 +566,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         </ul>
       </div>
     </aside>
+    </>
   );
 };
 

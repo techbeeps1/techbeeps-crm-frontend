@@ -15,10 +15,11 @@ import { useFormContext } from "react-hook-form";
 
 export const AddressDrawer: React.FC<any> = ({selectItem, setSelectItem, countries, type, property }) => {
 
-    const {handleSubmit } = useFormContext() as any;
+    const { handleSubmit, setValue } = useFormContext() as any;
 
     const handleNext = () => {
         handleSubmit(() => {
+            setValue('relocation.routeAddressKey', '', { shouldDirty: true });
             setSelectItem(false);
             console.log(type)
         })();

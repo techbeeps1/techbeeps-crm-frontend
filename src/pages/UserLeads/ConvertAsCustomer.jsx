@@ -28,6 +28,15 @@ const ConvertAsCustomer = ({ handler, setOpen, open, type = 'Lead', customerData
 
   const handleClose = () => setOpen(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
   const notify = (message) =>
     toast.success(message, {
       autoClose: 2000,

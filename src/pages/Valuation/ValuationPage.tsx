@@ -45,6 +45,7 @@ import {
   formatDraftTime,
   IntakeDraftPayload,
 } from '../../utils/intakeDraftUtil';
+import { buildRouteCacheKey } from '../../utils/routeCalculator';
 
 const steps = [
   { label: 'Customer Details', heading: 'CUSTOMER' },
@@ -449,6 +450,10 @@ const ValuationPage: React.FC = () => {
             unpacked.relocation[key] = value;
           }
         });
+
+        if (jobData.load && jobData.unload && !unpacked.relocation.routeAddressKey) {
+          unpacked.relocation.routeAddressKey = buildRouteCacheKey(jobData.load, jobData.unload);
+        }
 
         prefixes.forEach((p) => {
           if (Object.keys(unpacked[p]).length > 0) {

@@ -48,6 +48,7 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                 if (!watch(`${type}.country`)) {
                     setValue(`${type}.country`, 'Netherlands', { shouldValidate: true, shouldDirty: true });
                 }
+                setValue('relocation.routeAddressKey', '', { shouldDirty: true });
                 setLookupStatus(result.message || `✓ Address found: ${result.street}, ${result.city}`);
             } else if (result.message && !result.message.includes('Foreign country')) {
                 setLookupStatus(result.message);
@@ -99,7 +100,10 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                         {isLookingUp && <span className="text-xs text-primary animate-pulse">Looking up Dutch address...</span>}
                     </div>
                     <input
-                        {...register(`${type}.postcode`, { required: "Postcode is required." })}
+                        {...register(`${type}.postcode`, {
+                            required: "Postcode is required.",
+                            onChange: () => setValue('relocation.routeAddressKey', '', { shouldDirty: true }),
+                        })}
                         type="text"
                         id="postcode"
                         placeholder="e.g. 1012 JS"
@@ -113,7 +117,10 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                 <div className="mb-4">
                     <label htmlFor="houseNumber" className="block text-lg font-medium">House number*</label>
                     <input
-                        {...register(`${type}.houseNumber`, { required: "House number is required." })}
+                        {...register(`${type}.houseNumber`, {
+                            required: "House number is required.",
+                            onChange: () => setValue('relocation.routeAddressKey', '', { shouldDirty: true }),
+                        })}
                         type="text"
                         id="houseNumber"
                         placeholder="e.g. 1"
@@ -127,7 +134,9 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                 <div className="mb-4">
                     <label htmlFor="addition" className="block text-lg font-medium">Addition</label>
                     <input
-                        {...register(`${type}.addition`)}
+                        {...register(`${type}.addition`, {
+                            onChange: () => setValue('relocation.routeAddressKey', '', { shouldDirty: true }),
+                        })}
                         type="text"
                         id="addition"
                         placeholder="e.g. A / bis"
@@ -145,7 +154,10 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                 <div className="mb-4">
                     <label htmlFor="street" className="block text-lg font-medium">Street*</label>
                     <input
-                        {...register(`${type}.street`, { required: "street is required." })}
+                        {...register(`${type}.street`, {
+                            required: "street is required.",
+                            onChange: () => setValue('relocation.routeAddressKey', '', { shouldDirty: true }),
+                        })}
                         type="text"
                         id="street"
                         placeholder="Street name"
@@ -156,7 +168,10 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                 <div className="mb-4">
                     <label htmlFor="city" className="block text-lg font-medium">City*</label>
                     <input
-                        {...register(`${type}.city`, { required: "city is required." })}
+                        {...register(`${type}.city`, {
+                            required: "city is required.",
+                            onChange: () => setValue('relocation.routeAddressKey', '', { shouldDirty: true }),
+                        })}
                         type="text"
                         id="city"
                         placeholder="City"
@@ -169,7 +184,10 @@ const AddressForm: React.FC<any> = ({ countries, type, property }) => {
                 <div className="mb-4">
                     <label htmlFor="country" className="block text-lg font-medium">Country*</label>
                     <select
-                        {...register(`${type}.country`, { required: "Please select a country." })}
+                        {...register(`${type}.country`, {
+                            required: "Please select a country.",
+                            onChange: () => setValue('relocation.routeAddressKey', '', { shouldDirty: true }),
+                        })}
                         id="country"
                         defaultValue="Netherlands"
                         className="mt-1 font-medium block w-full px-4 py-2 border border-gray shadow focus:outline-none focus:ring-2 focus:ring-blue"

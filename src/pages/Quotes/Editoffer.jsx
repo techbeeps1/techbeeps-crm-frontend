@@ -719,12 +719,26 @@ const Editoffer = ({ display, offer, onclose }) => {
           </div>
 
           {/* Item Rows */}
-          <div className="space-y-3">
-            {fields.map((item, index) => (
+          <div className="space-y-3" role="region" aria-label="Quote Line Items">
+            {fields.map((item, index) => {
+              const rowQty = Number(items?.[index]?.quantity) || 0;
+              const rowPrice = Number(items?.[index]?.price) || 0;
+              const rowSubtotal = rowQty * rowPrice;
+
+              return (
               <div
                 key={item.id}
                 className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-white dark:bg-boxdark p-3.5 rounded-xl border border-slate-200/90 dark:border-strokedark shadow-sm"
               >
+                {/* Mobile-only item card subtotal and indicator (< 768px) */}
+                <div className="flex md:hidden items-center justify-between col-span-1 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Line Item #{index + 1}
+                  </span>
+                  <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/60">
+                    Subtotal: €{rowSubtotal.toFixed(2)}
+                  </span>
+                </div>
                 {/* Sales group */}
                 <div className="col-span-1 md:col-span-3">
                   <label className="md:hidden text-xs font-bold text-slate-500 uppercase mb-1 block">
@@ -732,6 +746,7 @@ const Editoffer = ({ display, offer, onclose }) => {
                   </label>
                   <select
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-3 py-2 text-sm focus:outline-none focus:border-primary font-medium"
+                    aria-label={`Item ${index + 1} Sales Group`}
                     {...register(`items.${index}.salesgroup`, {
                       required: 'Sales group is required',
                     })}
@@ -758,6 +773,7 @@ const Editoffer = ({ display, offer, onclose }) => {
                   <input
                     type="text"
                     placeholder="Item details or specification..."
+                    aria-label={`Item ${index + 1} Description`}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-3 py-2 text-sm focus:outline-none focus:border-primary font-medium"
                     {...register(`items.${index}.description`)}
                   />
@@ -773,6 +789,7 @@ const Editoffer = ({ display, offer, onclose }) => {
                     min="0"
                     step="any"
                     placeholder="1"
+                    aria-label={`Item ${index + 1} Quantity`}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-3 py-2 text-sm focus:outline-none focus:border-primary font-medium"
                     onFocus={(e) => e.target.select()}
                     onKeyDown={(e) => {
@@ -791,6 +808,7 @@ const Editoffer = ({ display, offer, onclose }) => {
                   </label>
                   <select
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-3 py-2 text-sm focus:outline-none focus:border-primary font-medium"
+                    aria-label={`Item ${index + 1} BTW Tax`}
                     {...register(`items.${index}.btw`)}
                   >
                     <option value="">Select %</option>
@@ -812,6 +830,7 @@ const Editoffer = ({ display, offer, onclose }) => {
                     min="0"
                     step="any"
                     placeholder="0"
+                    aria-label={`Item ${index + 1} Unit Price`}
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-2.5 py-2 text-sm focus:outline-none focus:border-primary font-medium"
                     onFocus={(e) => e.target.select()}
                     onKeyDown={(e) => {
@@ -830,12 +849,14 @@ const Editoffer = ({ display, offer, onclose }) => {
                     onClick={() => remove(index)}
                     className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                     title="Remove Item"
+                    aria-label={`Remove Item ${index + 1}`}
                   >
                     <DeleteOutlineIcon fontSize="small" />
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Add item button */}
