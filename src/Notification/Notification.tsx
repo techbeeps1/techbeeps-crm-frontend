@@ -15,9 +15,11 @@ const Notifications: React.FC = () => {
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const token = localStorage.getItem('token');
-  if (token) {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+  if (token && token !== 'null' && token !== 'undefined') {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete axios.defaults.headers.common['Authorization'];
   }
 
   const trigger = useRef<HTMLButtonElement | null>(null);

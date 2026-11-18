@@ -165,7 +165,6 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
         const postcode = (addr.postcode || '').trim();
         const city = (addr.city || '').trim();
         const country = (addr.country || '').trim();
-        const apiKey = '5b3ce3597851110001cf6248495a99f209a54de397d7d927a4a3f00b';
 
         // 1. Structured Postal Code lookup (Pinpoints exact postal zone & eliminates wrong village with identical name)
         if (postcode) {
@@ -216,17 +215,13 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
             }
         }
 
-        // 3. Fallback candidates via OpenRouteService
+        // 3. Fallback candidates via Backend Proxy (OpenRouteService)
         const candidates = buildAddressCandidates(addr);
         for (const query of candidates) {
             try {
-                const orsUrl = `https://api.openrouteservice.org/geocode/search?api_key=${apiKey}&text=${encodeURIComponent(query)}`;
-                const res = await axios.get(orsUrl, { timeout: 4000 });
-                if (res.data?.features?.length > 0) {
-                    const coords = res.data.features[0].geometry?.coordinates;
-                    if (coords && coords.length >= 2) {
-                        return [coords[0], coords[1]]; // [lon, lat]
-                    }
+                const res = await axios.post(`${apiPath}/api/routing/geocode`, { query }, { timeout: 4000 });
+                if (res.data?.success && Array.isArray(res.data.coords) && res.data.coords.length >= 2) {
+                    return [res.data.coords[0], res.data.coords[1]]; // [lon, lat]
                 }
             } catch (e) {
                 // proceed
@@ -239,24 +234,24 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
         startCoords: [number, number],
         endCoords: [number, number],
     ): Promise<RouteCalculationResult> => {
-        const apiKey = '5b3ce3597851110001cf6248495a99f209a54de397d7d927a4a3f00b';
-
-        // Tier 1: OpenRouteService Driving Directions
+        // Tier 1: Backend Driving Directions Proxy (OpenRouteService + OSRM + Haversine)
         try {
-            const directionsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${startCoords[0]},${startCoords[1]}&end=${endCoords[0]},${endCoords[1]}`;
-            const res = await axios.get(directionsUrl, { timeout: 5000 });
-            const summary = res.data?.features?.[0]?.properties?.summary;
-            if (summary && summary.distance !== undefined) {
+            const res = await axios.post(
+                `${apiPath}/api/routing/directions`,
+                { startCoords, endCoords },
+                { timeout: 8000 }
+            );
+            if (res.data?.success && typeof res.data.distanceKm === 'number') {
                 return {
-                    distanceKm: summary.distance / 1000,
-                    durationHours: (summary.duration || 0) / 3600,
-                    source: 'ORS',
-                    isFallback: false,
-                    status: 'CONFIRMED_ROAD',
+                    distanceKm: res.data.distanceKm,
+                    durationHours: res.data.durationHours || 0,
+                    source: res.data.source || 'ORS',
+                    isFallback: Boolean(res.data.isFallback),
+                    status: res.data.status || 'CONFIRMED_ROAD',
                 };
             }
         } catch (e) {
-            // Fallback to OSRM
+            // Fallback to local OSRM if backend unreachable
         }
 
         // Tier 2: OSRM Routing

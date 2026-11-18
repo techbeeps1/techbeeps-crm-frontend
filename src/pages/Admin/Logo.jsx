@@ -91,6 +91,9 @@ const LogoUploadForm = () => {
     try {
       const response = await fetch(`${apiPath}/api/upload-logo`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        },
         body: formData,
       });
 

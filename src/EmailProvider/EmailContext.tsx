@@ -27,8 +27,12 @@ interface EmailProviderProps {
     children: ReactNode;
 }
 export const EmailProvider: React.FC<EmailProviderProps> = ({ children }) => {
-    const token = localStorage.getItem('token');
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token && token !== 'null' && token !== 'undefined') {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+        delete axios.defaults.headers.common['Authorization'];
+    }
     const [notification, setNotification] = useState<Notification[]>([]);
     const [settings, setSettings] = useState<any>(null);
 
