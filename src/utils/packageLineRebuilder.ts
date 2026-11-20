@@ -146,7 +146,8 @@ export function generateTargetLines(options: {
   );
 
   // If a fixed package with rules is selected, generate package rules
-  if (isFixedPackage && Array.isArray(packageData?.offers?.rules) && packageData.offers.rules.length > 0) {
+  const hasPackageRules = Boolean(isFixedPackage && Array.isArray(packageData?.offers?.rules) && packageData.offers.rules.length > 0);
+  if (hasPackageRules && packageData?.offers?.rules) {
     const replacePlaceholders = (val: any) => {
       if (typeof val !== 'string') return val;
       return val.replace(/{{(.*?)}}/g, (_, key) => {
@@ -177,12 +178,19 @@ export function generateTargetLines(options: {
         });
       }
     });
-
-    return targetLines;
   }
 
+  // Helper: check if already pushed package rules explicitly cover a commercial component
+  const isCoveredByPackage = (keywords: string[]) => {
+    if (!hasPackageRules) return false;
+    return targetLines.some(l => {
+      const d = (l.description || '').toLowerCase();
+      return keywords.some(k => d.includes(k.toLowerCase()));
+    });
+  };
+
   // 1. Moving Service (Volume or Hourly)
-  if (relocation && (Number(relocation.totalVolume) > 0 || Number(relocation.appliedPrice) > 0 || Number(relocation.pricePerMeterCubic) > 0)) {
+  if (!isCoveredByPackage(['moving service', 'core moving', 'relocation', 'verhuizing', 'haul']) && relocation && (Number(relocation.totalVolume) > 0 || Number(relocation.appliedPrice) > 0 || Number(relocation.pricePerMeterCubic) > 0)) {
     if (isHourlyAgreement) {
       const hourlyRate = Number(relocation.pricePerMeterCubic) || Number(relocation.appliedPrice) || 0;
       const reqHours = parseTimeToHours(relocation.requiredHours);
@@ -220,7 +228,7 @@ export function generateTargetLines(options: {
   // 2. Travel Time
   const travelHrs = parseTimeToHours(relocation?.travelTime);
   const travelRate = Number(relocation?.pricePerHour) || 0;
-  if (travelHrs > 0 && travelRate > 0) {
+  if (!isCoveredByPackage(['travel time', 'reistijd']) && travelHrs > 0 && travelRate > 0) {
     targetLines.push({
       componentId: 'relocation_travel_time',
       description: 'Total Travel Time',
@@ -235,7 +243,7 @@ export function generateTargetLines(options: {
   // 3. Travel Distance
   const distance = Number(relocation?.distance) || 0;
   const kmRate = Number(relocation?.pricePerKilometer) || 0;
-  if (distance > 0 && kmRate > 0) {
+  if (!isCoveredByPackage(['travel distance', 'kilometer', 'afstand']) && distance > 0 && kmRate > 0) {
     targetLines.push({
       componentId: 'relocation_distance',
       description: 'Travel Distance (km)',
@@ -249,7 +257,7 @@ export function generateTargetLines(options: {
 
   // 4. Property Location Surcharge (EXEC-16: Never suppress surcharge!)
   const propertySurcharge = Number(relocation?.propertySurcharge) || 0;
-  if (propertySurcharge > 0) {
+  if (!isCoveredByPackage(['property', 'surcharge', 'toeslag']) && propertySurcharge > 0) {
     targetLines.push({
       componentId: 'relocation_property_surcharge',
       description: 'Property Location Surcharge',
@@ -262,7 +270,7 @@ export function generateTargetLines(options: {
   }
 
   // 5. Room Inventory Moving Boxes (EXEC-16: Never suppress inventory moving boxes!)
-  if (Array.isArray(rooms)) {
+  if (!isCoveredByPackage(['inventory', 'moving box', 'verhuisdoos']) && Array.isArray(rooms)) {
     const groupedBoxes: Record<string, any> = {};
     rooms.forEach(r => {
       (r?.inventoryItems || []).forEach((item: any) => {
@@ -298,7 +306,7 @@ export function generateTargetLines(options: {
   }
 
   // 6. Packing Service
-  if (isServiceActive('packing')) {
+  if (!isCoveredByPackage(['packing service', 'inpakken']) && isServiceActive('packing')) {
     const packingHrs = parseTimeToHours(packing?.requiredHours);
     const packingRate = Number(packing?.appliedPrice) || 0;
     if (packingHrs > 0 && packingRate > 0) {
@@ -315,7 +323,7 @@ export function generateTargetLines(options: {
   }
 
   // 7. Unpacking Service
-  if (isServiceActive('unpacking')) {
+  if (!isCoveredByPackage(['unpacking service', 'uitpakken']) && isServiceActive('unpacking')) {
     const unpackingHrs = parseTimeToHours(unpacking?.requiredHours);
     const unpackingRate = Number(unpacking?.appliedPrice) || 0;
     if (unpackingHrs > 0 && unpackingRate > 0) {
@@ -332,7 +340,7 @@ export function generateTargetLines(options: {
   }
 
   // 8. Furniture Assembly Service
-  if (isServiceActive('assembling')) {
+  if (!isCoveredByPackage(['furniture assembly', 'monteren', 'montage']) && isServiceActive('assembling')) {
     const assembleHrs = parseTimeToHours(assembling?.requiredHours);
     const assembleRate = Number(assembling?.appliedPrice) || 0;
     if (assembleHrs > 0 && assembleRate > 0) {
@@ -349,7 +357,7 @@ export function generateTargetLines(options: {
   }
 
   // 9. Furniture Disassembly Service (EXEC-16: Never suppress disassembly!)
-  if (isServiceActive('disassembling')) {
+  if (!isCoveredByPackage(['furniture disassembly', 'demonteren', 'demontage']) && isServiceActive('disassembling')) {
     const disHrs = parseTimeToHours(disassembling?.requiredHours);
     const disRate = Number(disassembling?.appliedPrice) || 0;
     if (disHrs > 0 && disRate > 0) {
@@ -366,7 +374,7 @@ export function generateTargetLines(options: {
   }
 
   // 10. Moving Lift
-  if (isServiceActive('movingLift')) {
+  if (!isCoveredByPackage(['moving lift', 'verhuislift', 'ladderlift']) && isServiceActive('movingLift')) {
     const liftQty = Number(movingLift?.quantity) || 0;
     const liftPrice = Number(movingLift?.price) || Number(movingLift?.appliedPrice) || 0;
     if (liftQty > 0 && liftPrice > 0) {
@@ -383,7 +391,7 @@ export function generateTargetLines(options: {
   }
 
   // 11. Storage Service
-  if (isServiceActive('storage')) {
+  if (!isCoveredByPackage(['storage', 'opslag']) && isServiceActive('storage')) {
     const sQty = Number(storage?.storageVolume) || Number(storage?.quantity) || 0;
     const sPrice = Number(storage?.appliedPrice) || Number(storage?.price) || 0;
     if (sQty > 0 && sPrice > 0) {
@@ -400,7 +408,7 @@ export function generateTargetLines(options: {
   }
 
   // 12. Insurance Coverage
-  if (isServiceActive('insurance')) {
+  if (!isCoveredByPackage(['insurance', 'verzekering']) && isServiceActive('insurance')) {
     const insQty = Number(insurance?.quantity) || 0;
     const insPrice = Number(insurance?.price) || Number(insurance?.appliedPrice) || 0;
     if (insQty > 0 && insPrice > 0) {
@@ -417,7 +425,7 @@ export function generateTargetLines(options: {
   }
 
   // 13. Certificate Service
-  if (isServiceActive('certificate')) {
+  if (!isCoveredByPackage(['certificate', 'garantie']) && isServiceActive('certificate')) {
     const certQty = Number(certificate?.quantity) || 0;
     const certPrice = Number(certificate?.price) || Number(certificate?.appliedPrice) || 0;
     if (certQty > 0 && certPrice > 0) {
@@ -451,7 +459,7 @@ export function generateTargetLines(options: {
   }
 
   // 15. Packing Materials
-  if (Array.isArray(materials)) {
+  if (!isCoveredByPackage(['packing material', 'material']) && Array.isArray(materials)) {
     materials.forEach((mat: any) => {
       const qty = Number(mat.quantity) || 0;
       const price = Number(mat.sellingPrice) || Number(mat.price) || 0;

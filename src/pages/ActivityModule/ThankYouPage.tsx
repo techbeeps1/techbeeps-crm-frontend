@@ -52,15 +52,14 @@ const ThankYouPage: React.FC = () => {
 
           {/* Actions */}
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/')}
+            <a
+              href="https://universalmovers.nl"
               className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs md:text-sm shadow-lg shadow-primary/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
               <HomeOutlinedIcon fontSize="small" />
-              <span>Go to Homepage</span>
+              <span>Go to Universal Movers Homepage</span>
               <ArrowForwardRoundedIcon fontSize="small" />
-            </button>
+            </a>
           </div>
 
           {/* Subtle Trust Footer */}

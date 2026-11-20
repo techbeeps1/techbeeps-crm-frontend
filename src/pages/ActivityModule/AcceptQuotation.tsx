@@ -271,6 +271,23 @@ const AcceptOffer: React.FC = () => {
                 return dataMap.customer?.phone || dataMap.customer?.telephone || dataMap.customer?.mobile || dataMap.customer?.contact || '';
             }
 
+            // Company phone resolution
+            if (
+                cleanPlaceholder === 'company.companyPhone' ||
+                cleanPlaceholder === 'company.phone' ||
+                cleanPlaceholder === 'company.telephone' ||
+                cleanPlaceholder === 'companyPhone' ||
+                cleanPlaceholder === 'phone' ||
+                cleanPlaceholder === 'tel'
+            ) {
+                return (
+                    dataMap.company?.companyPhone ||
+                    dataMap.company?.phone ||
+                    dataMap.company?.telephone ||
+                    '+31 20 123 4567'
+                );
+            }
+
             // Customer name resolution
             if (cleanPlaceholder === 'customer.name') {
                 return dataMap.customer?.name || `${dataMap.customer?.firstName || ''} ${dataMap.customer?.lastName || ''}`.trim() || '';
@@ -526,7 +543,7 @@ const AcceptOffer: React.FC = () => {
         fetchCompanyDetails();
     }, []);
 
-    const effectiveCompany = companyDetail || {
+    const defaultCompany = {
         companyName: 'Universal Movers B.V.',
         companyAddress: 'Starterspand, H.J.E. Wenckebachweg 53-M',
         companyState: 'Amsterdam',
@@ -534,10 +551,24 @@ const AcceptOffer: React.FC = () => {
         companyCountry: 'Netherlands',
         companyEmail: 'info@universalmovers.nl',
         companyPhone: '+31 20 123 4567',
+        phone: '+31 20 123 4567',
+        telephone: '+31 20 123 4567',
         companyWebsite: 'https://universalmovers.nl',
         companyRegNumber: '81234567',
         companyVatNumber: 'NL861234567B01',
     };
+
+    const effectiveCompany = (companyDetail && companyDetail.companyName && !companyDetail.msg && !companyDetail.error)
+        ? {
+            ...defaultCompany,
+            ...companyDetail,
+            companyPhone: companyDetail.companyPhone || companyDetail.phone || defaultCompany.companyPhone,
+            phone: companyDetail.companyPhone || companyDetail.phone || defaultCompany.companyPhone,
+            telephone: companyDetail.companyPhone || companyDetail.phone || defaultCompany.companyPhone,
+            companyEmail: companyDetail.companyEmail || companyDetail.email || defaultCompany.companyEmail,
+            companyWebsite: companyDetail.companyWebsite || companyDetail.website || defaultCompany.companyWebsite,
+        }
+        : defaultCompany;
 
     const customerObj = data?.customer || {};
     const customerFullName = customerObj.name || `${customerObj.firstName || ''} ${customerObj.lastName || ''}`.trim() || customerObj.companyName || 'Valued Customer';
