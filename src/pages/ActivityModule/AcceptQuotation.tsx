@@ -19,6 +19,7 @@ import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlin
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 import { sanitizeHtml } from '../../utils/sanitizeUtil';
+import { ENUM_TRANSLATIONS } from '../../utils/labelUtil';
 
 interface FormData {
     name: string;
@@ -500,9 +501,13 @@ const AcceptOffer: React.FC = () => {
             .replace(/€\s*€/g, '€');
 
         // EXEC-27: Eradicate raw implementation enums in customer facing views
-        for (const [rawKey, trans] of Object.entries(ENUM_TRANSLATIONS)) {
-            const regex = new RegExp(`\\b${rawKey}\\b`, 'g');
-            processed = processed.replace(regex, trans.en);
+        if (ENUM_TRANSLATIONS && typeof ENUM_TRANSLATIONS === 'object') {
+            for (const [rawKey, trans] of Object.entries(ENUM_TRANSLATIONS)) {
+                if (trans && trans.en) {
+                    const regex = new RegExp(`\\b${rawKey}\\b`, 'g');
+                    processed = processed.replace(regex, trans.en);
+                }
+            }
         }
 
         return processed;
