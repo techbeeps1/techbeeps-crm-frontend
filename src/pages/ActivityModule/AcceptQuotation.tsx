@@ -556,12 +556,18 @@ const AcceptOffer: React.FC = () => {
         companyWebsite: 'https://universalmovers.nl',
         companyRegNumber: '81234567',
         companyVatNumber: 'NL861234567B01',
+        bankName: 'ABN AMRO Bank N.V.',
+        iban: 'NL91 ABNA 0417 1643 00',
+        bic: 'ABNANL2A',
     };
 
     const effectiveCompany = (companyDetail && companyDetail.companyName && !companyDetail.msg && !companyDetail.error)
         ? {
             ...defaultCompany,
             ...companyDetail,
+            bankName: companyDetail.bankName || defaultCompany.bankName,
+            iban: companyDetail.iban || defaultCompany.iban,
+            bic: companyDetail.bic || defaultCompany.bic,
             companyPhone: companyDetail.companyPhone || companyDetail.phone || defaultCompany.companyPhone,
             phone: companyDetail.companyPhone || companyDetail.phone || defaultCompany.companyPhone,
             telephone: companyDetail.companyPhone || companyDetail.phone || defaultCompany.companyPhone,
@@ -991,9 +997,9 @@ const AcceptOffer: React.FC = () => {
                                             <span>Official Banking Details</span>
                                         </div>
                                         <p className="text-slate-600 dark:text-slate-300 font-mono text-[11px] leading-relaxed">
-                                            Bank: ABN AMRO Bank N.V.<br />
-                                            IBAN: NL91 ABNA 0417 1643 00<br />
-                                            BIC: ABNANL2A<br />
+                                            Bank: {data?.commercialTerms?.bankDetails?.bankName || data?.companyDetails?.bankName || effectiveCompany?.bankName || 'ABN AMRO Bank N.V.'}<br />
+                                            IBAN: {data?.commercialTerms?.bankDetails?.iban || data?.companyDetails?.iban || effectiveCompany?.iban || 'NL91 ABNA 0417 1643 00'}<br />
+                                            BIC: {data?.commercialTerms?.bankDetails?.bic || data?.companyDetails?.bic || effectiveCompany?.bic || 'ABNANL2A'}<br />
                                             Reference: Quote #{data?.index || invoiceId}
                                         </p>
                                     </div>
