@@ -533,11 +533,28 @@ const ValuationPage: React.FC = () => {
       ]),
     );
 
-    // EXEC-14: Zero out any services that are not selected in selectedServices
+    // EXEC-14 & UM3-132: Preserve user entered custom hours, rates and crew counts
     const isServiceActive = (typeName: string) => {
+      // 1. Never drop or zero-out explicitly entered positive custom hours, price or crew
+      const hasCustomData =
+        Number(data[`${typeName}_requiredHours`]) > 0 ||
+        Number(data[`${typeName}_appliedPrice`]) > 0 ||
+        Number(data[`${typeName}_requiredPackers`]) > 0 ||
+        Number(data[`${typeName}_requiredHandyman`]) > 0 ||
+        Number(data[`${typeName}_quantity`]) > 0 ||
+        Number(data[`${typeName}_storageVolume`]) > 0;
+
+      if (hasCustomData) return true;
+
+      // 2. Fall back to selectedServices if configured
       if (!Array.isArray(selectedServices) || selectedServices.length === 0) return false;
       return selectedServices.some(
-        (s: any) => s?.serviceTypeName === typeName || (s?.serviceName && s.serviceName.toLowerCase() === typeName.toLowerCase())
+        (s: any) => {
+          if (!s) return false;
+          if (typeof s === 'string') return s.toLowerCase() === typeName.toLowerCase();
+          const sType = s?.serviceTypeName || s?.serviceName || s?.name || s?.type || '';
+          return sType.toLowerCase() === typeName.toLowerCase() || String(s._id || s.id || '').toLowerCase() === typeName.toLowerCase();
+        }
       );
     };
 
@@ -645,7 +662,9 @@ const ValuationPage: React.FC = () => {
       knownAddress: data.knownAddress,
       signWithCustomer: data.signWithCustomer,
       sendImmediately: data.sendImmediately,
-      services: selectedServices.map((service: any) => service._id),
+      services: (Array.isArray(selectedServices) ? selectedServices : [])
+        .map((service: any) => (typeof service === 'object' && service !== null ? (service._id || service.id) : service))
+        .filter(Boolean),
     });
   };
 

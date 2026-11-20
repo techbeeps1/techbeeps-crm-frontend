@@ -262,6 +262,68 @@ export function formatSystemDateTime(
 }
 
 /**
+ * EXEC-29 / UM3-014: Formats time (HH:mm) in Europe/Amsterdam timezone.
+ * If already a clean HH:mm string (no date/T), returns as HH:mm.
+ * If an ISO timestamp or Date instant, formats strictly in Europe/Amsterdam.
+ */
+export function formatAmsterdamTime(val: any): string {
+  if (!val) return '';
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+      return trimmed.length === 4 ? `0${trimmed}` : trimmed;
+    }
+  }
+  const d = val instanceof Date ? val : new Date(val);
+  if (isNaN(d.getTime())) return String(val);
+
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Amsterdam',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(d);
+}
+
+/**
+ * EXEC-29 / UM3-014: Converts local Europe/Amsterdam wall-clock date (YYYY-MM-DD) and time (HH:mm)
+ * into a true UTC Date instant, applying Winter (+01:00 CET) vs Summer (+02:00 CEST) DST offsets.
+ * Eliminates 1-hour timezone drift caused by naive .000Z appending.
+ */
+export function toAmsterdamUtcInstant(dateStr: string, timeStr: string = '00:00'): Date {
+  const normDate = formatDateOnly(dateStr, 'YYYY-MM-DD');
+  const [yyyy, mm, dd] = normDate.split('-').map(Number);
+  const cleanTime = timeStr.length === 5 ? timeStr : (timeStr.length === 4 ? `0${timeStr}` : timeStr.slice(0, 5));
+  const [hh, min] = cleanTime.split(':').map(Number);
+
+  let target = new Date(Date.UTC(yyyy, mm - 1, dd, hh, min, 0));
+
+  const getAmsterdamHour = (date: Date) => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Amsterdam',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+    const h = Number(parts.find((p) => p.type === 'hour')?.value);
+    const d = Number(parts.find((p) => p.type === 'day')?.value);
+    return { hour: h, day: d };
+  };
+
+  for (let i = 0; i < 3; i++) {
+    const ams = getAmsterdamHour(target);
+    const hourDiff = (ams.day === dd ? ams.hour : ams.hour + (ams.day > dd ? 24 : -24)) - hh;
+    if (hourDiff === 0) break;
+    target = new Date(target.getTime() - hourDiff * 3600 * 1000);
+  }
+
+  return target;
+}
+
+/**
  * Monkey-patch Date.prototype to inject systemTimezone by default across the entire CRM app.
  * This ensures ANY call to toLocaleDateString, toLocaleTimeString, or toLocaleString automatically
  * uses the configured system timezone without needing to rewrite hundreds of components.

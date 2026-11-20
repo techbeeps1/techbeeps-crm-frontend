@@ -43,6 +43,7 @@ import { toast } from 'react-toastify';
 import Loader from '../../common/Loader';
 import { EmailContext } from '../../EmailProvider/EmailContext';
 import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
+import { toAmsterdamUtcInstant, formatAmsterdamTime } from '../../utils/timezoneUtil';
 
 interface Employee {
   label: string;
@@ -1052,14 +1053,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     return true;
   };
 
-  // Convert entered date and wall-clock time directly to ISO string without OS timezone shifting
+  // UM3-014: Convert entered date and wall-clock time to authoritative Europe/Amsterdam UTC instant
   function datetimeStringWithTime(date: string, time: string): string {
     if (!time) return '';
     const cleanDate = date
       ? (date.includes('T') ? date.split('T')[0] : date)
       : new Date().toISOString().split('T')[0];
-    const cleanTime = time.length === 5 ? `${time}:00` : (time.length === 4 ? `0${time}:00` : time);
-    return `${cleanDate}T${cleanTime}.000Z`;
+    const cleanTime = time.length === 5 ? time : (time.length === 4 ? `0${time}` : time.slice(0, 5));
+    return toAmsterdamUtcInstant(cleanDate, cleanTime).toISOString();
   }
 
   const createAppointment = async (
@@ -1197,21 +1198,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   const formatFriendlyTime = (timeVal: any) => {
     if (!timeVal) return '';
-    if (typeof timeVal === 'string') {
-      if (timeVal.includes('T')) {
-        return timeVal.slice(11, 16);
-      }
-      if (/^\d{1,2}:\d{2}/.test(timeVal)) {
-        return timeVal.length === 4 ? `0${timeVal}` : timeVal.slice(0, 5);
-      }
-    }
-    try {
-      const d = new Date(timeVal);
-      if (!isNaN(d.getTime())) {
-        return d.toISOString().slice(11, 16);
-      }
-    } catch { }
-    return String(timeVal);
+    return formatAmsterdamTime(timeVal);
   };
 
   const SendEmail = async (data: any, templateId: string) => {
