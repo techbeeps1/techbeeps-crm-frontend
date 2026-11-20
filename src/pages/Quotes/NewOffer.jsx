@@ -9,6 +9,7 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { useNavigate } from 'react-router-dom';
 import { apiPath } from '../../../apiPath';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { UserContext } from '../../UserContext';
 import SearchableClientSelect from '../../components/SearchableClientSelect';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
@@ -31,6 +32,7 @@ const NewOffer = ({ display, job, onclose }) => {
   const [inputField, setInputFields] = useState([]);
   const [customer, setcustomer] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sendEmail, setSendEmail] = useState(true);
 
   const handleVatSelect = (type) => {
     setVatSelected(type);
@@ -45,7 +47,7 @@ const NewOffer = ({ display, job, onclose }) => {
     formState: { errors },
   } = useForm({
     defaultValues: {
-      Status: 'Draft',
+      Status: 'Sent',
       items: [
         { salesgroup: '', description: '', quantity: 1, btw: '', price: 0 },
       ],
@@ -234,7 +236,16 @@ const NewOffer = ({ display, job, onclose }) => {
         ...finalData,
         ...joblinkData,
       });
-      alert('Offer quotation created successfully');
+      if (response.data?.emailDispatch?.success) {
+        toast.success(`Quotation #${response.data?.index || ''} created & email notification sent to client!`);
+        alert(`Quotation #${response.data?.index || ''} created and email notification sent successfully to client!`);
+      } else if (response.data?.emailDispatch && !response.data?.emailDispatch?.success) {
+        toast.warning(`Quotation created, but email notification could not be sent: ${response.data.emailDispatch.message || 'Check client email'}`);
+        alert(`Quotation created, but email notification could not be sent: ${response.data.emailDispatch.message || 'Check client email'}`);
+      } else {
+        toast.success('Offer quotation created successfully');
+        alert('Offer quotation created successfully');
+      }
       if (display === 'none') {
         onclose && onclose();
       } else {
@@ -277,6 +288,8 @@ const NewOffer = ({ display, job, onclose }) => {
   const onSubmit = (data) => {
     let finalData = {
       ...data,
+      sendEmail,
+      Status: sendEmail ? (data.Status === 'Draft' ? 'Sent' : data.Status) : (data.Status || 'Draft'),
       btw: taxTotal.toFixed(2),
       discountedPrice: discountAmount.toFixed(2),
       vat: vatSelected,
@@ -483,13 +496,22 @@ const NewOffer = ({ display, job, onclose }) => {
                 Proposal Status <span className="text-rose-500">*</span>
               </label>
               <select
-                defaultValue="Draft"
                 className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-boxdark px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                {...register('Status', { required: 'Status is required' })}
+                {...register('Status', {
+                  required: 'Status is required',
+                  onChange: (e) => {
+                    const newStatus = e.target.value;
+                    if (newStatus === 'Sent') {
+                      setSendEmail(true);
+                    } else if (newStatus === 'Draft') {
+                      setSendEmail(false);
+                    }
+                  }
+                })}
               >
-                <option value="Draft">Draft</option>
+                <option value="Sent">Sent (Email Notification Dispatched)</option>
+                <option value="Draft">Draft (Internal Only - No Email)</option>
                 <option value="Pending">Pending</option>
-                <option value="Sent">Sent</option>
               </select>
             </div>
           </div>
@@ -808,6 +830,24 @@ const NewOffer = ({ display, job, onclose }) => {
           </div>
         </div>
 
+        {/* Email Notification Option Banner */}
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20">
+          <input
+            type="checkbox"
+            id="sendEmailCheckbox"
+            checked={sendEmail}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setSendEmail(checked);
+              setValue('Status', checked ? 'Sent' : 'Draft');
+            }}
+            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
+          />
+          <label htmlFor="sendEmailCheckbox" className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">
+            Send quotation notification email with PDF proposal to client upon submission
+          </label>
+        </div>
+
         {/* Submit Actions */}
         <div className="flex items-center justify-end gap-3 pt-2">
           {!isModalView && (
@@ -825,7 +865,7 @@ const NewOffer = ({ display, job, onclose }) => {
             disabled={isSubmitting}
             className="px-6 py-2.5 text-sm font-bold rounded-xl bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            {isSubmitting ? 'Preparing Proposal...' : 'Prepare Quotation'}
+            {isSubmitting ? 'Preparing Proposal...' : (sendEmail ? 'Submit & Send Quotation' : 'Save as Draft')}
           </button>
         </div>
       </form>
