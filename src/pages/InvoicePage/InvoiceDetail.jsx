@@ -229,13 +229,30 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
           )}
 
           {isUserAdmin && (
-            <button
-              onClick={() => navigate(`/invoice/${Id}`)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
-            >
-              <EditIcon fontSize="small" />
-              <span>Edit</span>
-            </button>
+            (() => {
+              const isImmutable = ['sent', 'paid', 'partially paid', 'partially_paid', 'completed', 'overdue'].includes(
+                String(data?.Status || '').toLowerCase()
+              );
+              return isImmutable ? (
+                <span title="This invoice has been sent or finalized and is legally immutable. Direct edits are disabled; please issue a Credit Note.">
+                  <button
+                    disabled
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 font-bold text-xs cursor-not-allowed opacity-60"
+                  >
+                    <EditIcon fontSize="small" />
+                    <span>Edit (Locked)</span>
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={() => navigate(`/invoice/${Id}`)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs shadow-sm transition-all cursor-pointer active:scale-95"
+                >
+                  <EditIcon fontSize="small" />
+                  <span>Edit</span>
+                </button>
+              );
+            })()
           )}
         </div>
       </div>

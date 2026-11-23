@@ -139,7 +139,9 @@ const InvoiceList = ({ customerId }) => {
       }
     } catch (err) {
       console.error('Failed to delete invoice:', err);
-      toast.error('Failed to delete invoice');
+      toast.error(
+        err.response?.data?.message || err.response?.data?.msg || 'Failed to delete invoice'
+      );
     } finally {
       setIsDeleting(false);
       closeDeleteModal();
@@ -427,16 +429,32 @@ const InvoiceList = ({ customerId }) => {
                           </button>
 
                           {isUserAdmin && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDeleteModal(item);
-                              }}
-                              title="Delete Invoice"
-                              className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm cursor-pointer"
-                            >
-                              <DeleteIcon style={{ fontSize: 18 }} />
-                            </button>
+                            (() => {
+                              const isImmutable = ['sent', 'paid', 'partially paid', 'partially_paid', 'completed', 'overdue'].includes(
+                                String(item?.Status || '').toLowerCase()
+                              );
+                              return isImmutable ? (
+                                <span title="Finalized invoices are legally immutable and cannot be deleted. Please issue a Credit Note.">
+                                  <button
+                                    disabled
+                                    className="p-2 rounded-lg bg-slate-100 text-slate-300 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed shadow-none opacity-40"
+                                  >
+                                    <DeleteIcon style={{ fontSize: 18 }} />
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDeleteModal(item);
+                                  }}
+                                  title="Delete Invoice"
+                                  className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm cursor-pointer"
+                                >
+                                  <DeleteIcon style={{ fontSize: 18 }} />
+                                </button>
+                              );
+                            })()
                           )}
                         </div>
                       </td>

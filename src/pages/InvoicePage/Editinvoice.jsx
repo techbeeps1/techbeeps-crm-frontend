@@ -51,6 +51,11 @@ const EditInvoice = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [packageAutofilled, setPackageAutofilled] = useState(false);
     const [invoiceIndex, setInvoiceIndex] = useState('');
+    const [invoiceStatus, setInvoiceStatus] = useState('');
+
+    const isImmutable = ['sent', 'paid', 'partially paid', 'partially_paid', 'completed', 'overdue'].includes(
+        String(invoiceStatus || '').trim().toLowerCase()
+    );
 
     // Form Setup
     const {
@@ -185,6 +190,7 @@ const EditInvoice = () => {
             }
 
             setInvoiceIndex(invoiceData.index ? `#${invoiceData.index}` : '');
+            setInvoiceStatus(invoiceData.Status || 'Draft');
 
             // Populate core fields
             setValue('customer', invoiceData.customer?._id || invoiceData.customer || '', {
@@ -458,6 +464,10 @@ const EditInvoice = () => {
     // Submit Updated Invoice
     const onSubmit = async (formData) => {
         if (isSubmitting) return;
+        if (isImmutable) {
+            toast.error('Sent or finalized invoices are immutable and cannot be modified directly. Please issue a credit note.');
+            return;
+        }
         if (!watchedItems || watchedItems.length === 0) {
             toast.error('Please add at least one line item.');
             return;
@@ -533,14 +543,25 @@ const EditInvoice = () => {
                         <button
                             type="button"
                             onClick={handleSubmit(onSubmit)}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isImmutable}
                             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <CheckCircleOutlineIcon fontSize="small" />
-                            <span>{isSubmitting ? 'Updating Invoice...' : 'Save & Update Invoice'}</span>
+                            <span>{isImmutable ? 'Invoice Locked (Immutable)' : isSubmitting ? 'Updating Invoice...' : 'Save & Update Invoice'}</span>
                         </button>
                     </div>
                 </div>
+
+                {isImmutable && (
+                    <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 flex items-start sm:items-center gap-3 text-amber-900 dark:text-amber-200 text-xs font-semibold shadow-xs">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-950">
+                            Immutable
+                        </span>
+                        <span>
+                            This invoice has status <strong>{invoiceStatus}</strong> and is legally locked against direct modifications. Any adjustments, returns, or billing corrections must be issued via a <strong>Credit Note</strong>.
+                        </span>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     {/* Card 1: Client & Package Selection */}
@@ -1407,11 +1428,11 @@ const EditInvoice = () => {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || isImmutable}
                                         className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <CheckCircleOutlineIcon fontSize="small" />
-                                        <span>{isSubmitting ? 'Updating Invoice...' : 'Save & Update Invoice'}</span>
+                                        <span>{isImmutable ? 'Invoice Locked (Immutable)' : isSubmitting ? 'Updating Invoice...' : 'Save & Update Invoice'}</span>
                                     </button>
                                 </div>
                             </div>
