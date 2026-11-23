@@ -18,9 +18,7 @@ import {
     MdBuild, 
     MdBadge, 
     MdArrowForward, 
-    MdArrowBack,
-    MdVisibility,
-    MdVisibilityOff
+    MdArrowBack
 } from 'react-icons/md';
 import DirtyConfirmDialog from '../../../components/common/DirtyConfirmDialog';
 
@@ -30,7 +28,6 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
     const [open, setOpen] = useState(false);
     const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [showPin, setShowPin] = useState(false);
     const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
 
     const todayStr = new Date().toISOString().split('T')[0];
@@ -941,74 +938,6 @@ const VehicleForm: React.FC<any> = ({ license, data, handler }) => {
                                             />
                                             {(errors?.fuelCard as any)?.cardNumber && (
                                                 <p className="text-rose-500 text-xs mt-1 font-medium">{String((errors?.fuelCard as any)?.cardNumber?.message)}</p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                                CVC Code
-                                            </label>
-                                            <Controller
-                                                name="fuelCard.cvc"
-                                                control={control}
-                                                defaultValue=""
-                                                rules={{
-                                                    pattern: {
-                                                        value: /^[0-9]{3}$/,
-                                                        message: "CVC must be 3 digits",
-                                                    },
-                                                }}
-                                                render={({ field }) => (
-                                                    <input
-                                                        {...field}
-                                                        type="text"
-                                                        placeholder="123"
-                                                        maxLength={3}
-                                                        className="w-full px-3.5 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                                    />
-                                                )}
-                                            />
-                                            {(errors?.fuelCard as any)?.cvc && (
-                                                <p className="text-rose-500 text-xs mt-1 font-medium">{String((errors?.fuelCard as any)?.cvc?.message)}</p>
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                                                PIN Code
-                                            </label>
-                                            <Controller
-                                                name="fuelCard.pincode"
-                                                control={control}
-                                                defaultValue=""
-                                                rules={{
-                                                    pattern: {
-                                                        value: /^[0-9]{4,6}$/,
-                                                        message: "PIN must be 4 to 6 digits",
-                                                    },
-                                                }}
-                                                render={({ field }) => (
-                                                    <div className="relative">
-                                                        <input
-                                                            {...field}
-                                                            type={showPin ? "text" : "password"}
-                                                            placeholder="••••"
-                                                            maxLength={6}
-                                                            className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-sm text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowPin(!showPin)}
-                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1 cursor-pointer"
-                                                            title={showPin ? "Hide PIN" : "Show PIN"}
-                                                        >
-                                                            {showPin ? <MdVisibilityOff className="text-base" /> : <MdVisibility className="text-base" />}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            />
-                                            {(errors?.fuelCard as any)?.pincode && (
-                                                <p className="text-rose-500 text-xs mt-1 font-medium">{String((errors?.fuelCard as any)?.pincode?.message)}</p>
                                             )}
                                         </div>
                                     </div>

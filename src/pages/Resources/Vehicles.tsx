@@ -22,9 +22,7 @@ import {
     MdCalendarToday,
     MdAttachMoney,
     MdSpeed,
-    MdRoute,
-    MdVisibility,
-    MdVisibilityOff
+    MdRoute
 } from 'react-icons/md';
 
 const avatarColors = [
@@ -60,7 +58,6 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
     const [tabIndex, setTabIndex] = useState<number>(0);
     const [license, setLicense] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
-    const [showViewPin, setShowViewPin] = useState<boolean>(false);
 
     const notify = (message: string) => toast.success(message);
     const notifyError = (message: string) => toast.error(message, {
@@ -574,28 +571,6 @@ const Vehicles: React.FC<{ type: string }> = ({ type }) => {
                                                 <span className="font-bold text-slate-800 font-mono">
                                                     {selectedStaff?.fuelCard?.cardNumber ? `•••• ${selectedStaff.fuelCard.cardNumber.slice(-4)}` : '—'}
                                                 </span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-400 block font-medium mb-0.5">CVC</span>
-                                                <span className="font-bold text-slate-800 font-mono">{selectedStaff?.fuelCard?.cvc || '—'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-400 block font-medium mb-0.5">PIN</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-slate-800 font-mono">
-                                                        {showViewPin ? (selectedStaff?.fuelCard?.pincode || '—') : '••••'}
-                                                    </span>
-                                                    {selectedStaff?.fuelCard?.pincode && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowViewPin(!showViewPin)}
-                                                            className="text-slate-400 hover:text-slate-600 focus:outline-none p-0.5 rounded cursor-pointer"
-                                                            title={showViewPin ? "Hide PIN" : "Show PIN"}
-                                                        >
-                                                            {showViewPin ? <MdVisibilityOff className="text-sm" /> : <MdVisibility className="text-sm" />}
-                                                        </button>
-                                                    )}
-                                                </div>
                                             </div>
                                         </div>
                                     </div>

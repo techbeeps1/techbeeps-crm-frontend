@@ -947,34 +947,6 @@ function Resources() {
                 />
               </div>
             </div>
-            <div className="mb-4.5">
-              <label className="mb-2.5 block text-black dark:text-white">
-                CVC
-              </label>
-              <div className="relative z-20 bg-transparent dark:bg-form-input">
-                <input
-                  type="text"
-                  placeholder="cvc"
-                  className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                  name="cvc"
-                  onChange={handleVehicleFormChange}
-                />
-              </div>
-            </div>
-            <div className="mb-4.5">
-              <label className="mb-2.5 block text-black dark:text-white">
-                Pin code
-              </label>
-              <div className="relative z-20 bg-transparent dark:bg-form-input">
-                <input
-                  type="text"
-                  placeholder="pincode"
-                  className="w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-5 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                  name="pinCode"
-                  onChange={handleVehicleFormChange}
-                />
-              </div>
-            </div>
           </div>
         </form>
       </div>
@@ -5030,11 +5002,10 @@ function Resources() {
 
                           <div className="mt-10">
                             <h2 className=" font-bold bg-gradient-to-r from-primary to-danger bg-clip-text text-transparent">
-                              Fuel card
+                               Fuel card
                             </h2>
                             <p>Supplier: {selectedVehicle.supplier}</p>
-                            <p>Card cvc: {selectedVehicle.cvc}</p>
-                            <p>Pin code: {selectedVehicle.pinCode}</p>
+                            <p>Card Number: {selectedVehicle.cardNumber ? `•••• ${selectedVehicle.cardNumber.slice(-4)}` : '—'}</p>
                           </div>
                         </>
                       )}

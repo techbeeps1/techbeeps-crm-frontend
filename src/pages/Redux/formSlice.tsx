@@ -245,8 +245,6 @@ const initialState: any = {
     maintenance: '',
     suppiler: '',
     cardNumber: '',
-    cvc: '',
-    pinCode: '',
   },
 
   materials: {
