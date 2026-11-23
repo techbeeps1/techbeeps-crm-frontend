@@ -30,7 +30,7 @@ const LeaveCardsTab = () => {
 
   // Adjust quota modal
   const [editingCard, setEditingCard] = useState(null);
-  const [editEntitlement, setEditEntitlement] = useState(12);
+  const [editEntitlement, setEditEntitlement] = useState(20);
   const [editNotes, setEditNotes] = useState('');
   const [savingQuota, setSavingQuota] = useState(false);
 
@@ -67,7 +67,7 @@ const LeaveCardsTab = () => {
   // Open Edit Modal
   const handleOpenEdit = (card) => {
     setEditingCard(card);
-    setEditEntitlement(card.annualEntitlement !== undefined ? card.annualEntitlement : 12);
+    setEditEntitlement(card.annualEntitlement !== undefined ? card.annualEntitlement : 20);
     setEditNotes(card.notes || '');
   };
 
@@ -184,7 +184,7 @@ const LeaveCardsTab = () => {
               const email = card.employee?.email || '';
               const userRole = card.employee?.role || 'Staff';
 
-              const ent = card.annualEntitlement !== undefined ? card.annualEntitlement : 24;
+              const ent = card.annualEntitlement !== undefined ? card.annualEntitlement : 20;
               const used = card.usedDays || 0;
               const remaining = Math.max(0, ent - used);
               const percentUsed = Math.min(100, Math.round((used / (ent || 1)) * 100));
@@ -276,7 +276,7 @@ const LeaveCardsTab = () => {
                         Annual: {breakdown.annual || 0}
                       </span>
                       <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold text-[10px]">
-                        Sick: {breakdown.sick || 0}
+                        Paid Sick: {breakdown.sick || 0}
                       </span>
                       <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 font-bold text-[10px]">
                         Casual: {breakdown.casual || 0}
@@ -316,7 +316,7 @@ const LeaveCardsTab = () => {
               {filteredBalances.length > 0 ? (
                 filteredBalances.map((card) => {
                   const name = card.employeeName || card.employee?.username || 'Employee';
-                  const ent = card.annualEntitlement !== undefined ? card.annualEntitlement : 24;
+                  const ent = card.annualEntitlement !== undefined ? card.annualEntitlement : 20;
                   const used = card.usedDays || 0;
                   const remaining = Math.max(0, ent - used);
                   const breakdown = card.usedBreakdown || {};
@@ -346,7 +346,7 @@ const LeaveCardsTab = () => {
                         </span>
                       </td>
                       <td className="py-3 px-3 text-[11px] text-slate-500">
-                        Annual: {breakdown.annual || 0} | Sick: {breakdown.sick || 0} | Casual: {breakdown.casual || 0}
+                        Annual: {breakdown.annual || 0} | Paid Sick: {breakdown.sick || 0} | Casual: {breakdown.casual || 0}
                       </td>
                       {isUserAdmin && (
                         <td className="py-3 px-3 text-right">

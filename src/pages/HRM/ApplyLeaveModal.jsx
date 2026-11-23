@@ -252,10 +252,10 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
   };
 
   const remainingDays = userBalance
-    ? Math.max(0, (userBalance.annualEntitlement || 12) - (userBalance.usedDays || 0))
-    : 12;
+    ? Math.max(0, (userBalance.annualEntitlement || 20) - (userBalance.usedDays || 0))
+    : 20;
   const usedDays = userBalance?.usedDays || 0;
-  const totalEnt = userBalance?.annualEntitlement || 12;
+  const totalEnt = userBalance?.annualEntitlement || 20;
 
   // Statutory Dutch Labor Law (Wet Arbeid en Zorg): Sickness does NOT deduct from annual vacation quota
   let autoPaidDays = 0;

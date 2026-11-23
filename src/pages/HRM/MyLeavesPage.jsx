@@ -163,9 +163,10 @@ const MyLeavesPage = () => {
   }, [requests, statusFilter, searchTerm]);
 
   // Balance Metrics
-  const annualQuota = balance?.annualEntitlement !== undefined ? balance.annualEntitlement : 12;
+  const annualQuota = balance?.annualEntitlement !== undefined ? balance.annualEntitlement : 20;
   const usedPaidDays = balance?.usedDays || 0;
   const remainingPaidDays = Math.max(0, annualQuota - usedPaidDays);
+  const paidSickDays = balance?.usedBreakdown?.sick || 0;
   const unpaidDaysTaken = balance?.unpaidDays || balance?.usedBreakdown?.unpaid || 0;
 
   const counts = {
@@ -225,8 +226,8 @@ const MyLeavesPage = () => {
         </div>
       </div>
 
-      {/* 4 Personal Balance KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* 5 Personal Balance KPI Cards (with Dutch Statutory Sick Leave Separation) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* Paid Quota */}
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1 font-semibold">
@@ -236,25 +237,25 @@ const MyLeavesPage = () => {
           <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">
             {annualQuota} <span className="text-xs font-medium text-slate-400">Days</span>
           </div>
-          <span className="text-[10px] text-slate-400 mt-1 block">Default: 12.0 Days</span>
+          <span className="text-[10px] text-slate-400 mt-1 block">Dutch Statutory: 20.0 Days</span>
         </div>
 
         {/* Paid Leaves Used */}
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1 font-semibold">
-            <span>Paid Leaves Used</span>
+            <span>Vacation Used</span>
             <FiClock className="text-amber-500 text-base" />
           </div>
           <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
             {usedPaidDays} <span className="text-xs font-medium text-slate-400">Days</span>
           </div>
-          <span className="text-[10px] text-slate-400 mt-1 block">Approved PTO</span>
+          <span className="text-[10px] text-slate-400 mt-1 block">Approved Vacation</span>
         </div>
 
         {/* Remaining Paid Leaves */}
         <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
           <div className="flex items-center justify-between text-slate-400 text-xs mb-1 font-semibold">
-            <span>Remaining Paid Leaves</span>
+            <span>Remaining Vacation</span>
             <FiCheckCircle className="text-emerald-500 text-base" />
           </div>
           <div
@@ -268,6 +269,20 @@ const MyLeavesPage = () => {
           </div>
           <span className="text-[10px] text-slate-400 mt-1 block">
             {remainingPaidDays > 0 ? 'Available Quota' : 'Quota Exhausted'}
+          </span>
+        </div>
+
+        {/* Paid Sick Days (Dutch Statutory Law Art. 7:629 BW) */}
+        <div className="bg-white dark:bg-boxdark rounded-2xl border border-slate-200/80 dark:border-strokedark p-4 shadow-xs">
+          <div className="flex items-center justify-between text-slate-400 text-xs mb-1 font-semibold">
+            <span>Paid Sick Days</span>
+            <LocalHospitalIcon className="text-emerald-500" style={{ fontSize: 18 }} />
+          </div>
+          <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+            {paidSickDays} <span className="text-xs font-medium text-slate-400">Days</span>
+          </div>
+          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 block font-semibold">
+            Art. 7:629 BW (Separate)
           </span>
         </div>
 
