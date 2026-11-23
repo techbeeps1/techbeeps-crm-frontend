@@ -115,20 +115,30 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
     }
   };
 
-  let warehouseId = watch('warehouse');
+  const selectedWhId = watch('warehouse');
 
-  const handleAllData = async () => {
+  const handleAllData = async (targetWhId?: string) => {
+    const rawWhId = targetWhId !== undefined ? targetWhId : selectedWhId;
+    const cleanWhId = rawWhId && typeof rawWhId === 'object' ? rawWhId._id : rawWhId;
+    if (!cleanWhId) {
+      setStorageLocation([]);
+      return;
+    }
     setLoading(true);
     try {
-      warehouseId = warehouseId && typeof warehouseId === 'object'
-        ? warehouseId._id
-        : warehouseId;
       const response = await axios.get(
-        `${apiPath}/api/storage_loaction?warehouseId=${(warehouseId && warehouseId) || ''}`,
+        `${apiPath}/api/storage_loaction?warehouseId=${cleanWhId}`,
       );
-      setStorageLocation(response.data?.filter((item: any) => item.status === 'Enable') || []);
+      const locations = (response.data || []).filter(
+        (item: any) =>
+          !item.deleted &&
+          item.status !== 'Disabled' &&
+          item.status !== 'disable' &&
+          item.status !== 'inactive'
+      );
+      setStorageLocation(locations);
       if (data) {
-        setValue('storageLocation', (data && data.storageLocation?._id) || '');
+        setValue('storageLocation', (data && data.storageLocation?._id) || data.storageLocation || '');
       }
     } catch (err: any) {
       const errorMessage =
@@ -141,14 +151,17 @@ const StorageForm: React.FC<any> = ({ data, handler, warehouse }) => {
   };
 
   useEffect(() => {
-    if (warehouseId) handleAllData();
-  }, [warehouseId]);
+    if (selectedWhId) {
+      handleAllData(selectedWhId);
+    } else {
+      setStorageLocation([]);
+    }
+  }, [selectedWhId]);
 
   const handleOpen = () => {
     setOpen(true);
   };
 
-  const selectedWhId = watch('warehouse');
   const enteredVol = Number(watch('cubicMeter') || 0);
   const selectedWh = warehouse?.find((w: any) => String(w._id) === String(selectedWhId));
   const currentUnitVol = data ? Number(data.cubicMeter || 0) : 0;
