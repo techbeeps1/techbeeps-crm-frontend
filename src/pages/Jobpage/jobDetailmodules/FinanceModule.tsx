@@ -456,22 +456,33 @@ const FinanceModule: React.FC<FinanceModuleProps> = ({ data, job, onSuccess }) =
       };
 
       const token = localStorage.getItem('token');
-      await axios.post(`${apiPath}/api/packages/${packageId}`, {
+      const response = await axios.post(`${apiPath}/api/packages/${packageId}`, {
+        jobId: job?._id,
         [selectedForm]: updatedSection,
         vat: vatSelected,
       }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
+      const returnedPackage = response.data?.package || response.data;
+
       // Update in-memory objects immediately so UI remains synchronized
-      if (data) {
-        data[selectedForm] = updatedSection;
+      if (data && returnedPackage) {
+        Object.assign(data, returnedPackage);
       }
-      if (job?.package) {
-        job.package[selectedForm] = updatedSection;
+      if (job?.package && returnedPackage) {
+        if (typeof job.package === 'object') {
+          Object.assign(job.package, returnedPackage);
+        } else {
+          job.package = returnedPackage;
+        }
       }
 
-      toast.success(`Rules for "${activeStepConfig?.label || selectedForm}" saved successfully!`);
+      toast.success(
+        response.data?.cloned
+          ? `Custom rules saved for this job (master package preserved)!`
+          : `Rules for "${activeStepConfig?.label || selectedForm}" saved successfully!`
+      );
       if (onSuccess) {
         onSuccess();
       }
