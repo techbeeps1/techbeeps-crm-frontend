@@ -61,7 +61,8 @@ export function getEffectiveCountries(catalogue?: any[]): string[] {
   if (Array.isArray(catalogue) && catalogue.length > 0) {
     const list = catalogue
       .map((item) => (typeof item === 'string' ? item : item?.name))
-      .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+      .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+      .filter((name) => !/^(qa\s*test|test\s*country|test)$/i.test(name.trim()));
     if (list.length > 0) {
       // Ensure Netherlands is present and at the top if available
       const hasNetherlands = list.includes('Netherlands');

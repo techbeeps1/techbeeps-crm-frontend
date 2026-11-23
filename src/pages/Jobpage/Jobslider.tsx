@@ -28,6 +28,7 @@ import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import { formatVolume } from '../../utils/volumeUtil';
 import CheckIcon from '@mui/icons-material/Check';
 import MiscellaneousServicesIcon from '@mui/icons-material/MiscellaneousServices';
 import { DeleteForever } from '@mui/icons-material';
@@ -865,7 +866,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
                       <span className="text-slate-400 block font-medium">Total Volume</span>
                       <span className="font-extrabold text-slate-900 dark:text-white">
-                        {relocation.relocation?.totalVolume ?? 0} m³
+                        {formatVolume(relocation.relocation?.totalVolume, 2, " m³")}
                       </span>
                     </div>
                     <div className="bg-white dark:bg-boxdark p-2.5 rounded-lg border border-slate-200/60 dark:border-strokedark">
@@ -1037,7 +1038,7 @@ const Jobslider: React.FC<JobsliderProps> = ({
                   const sPrice = service.price ?? service.appliedPrice ?? 0;
                   const sHours = service.hours ? `${service.hours} hrs` : null;
                   const sQty = service.quantity ? `Qty: ${service.quantity}` : null;
-                  const sVol = service.volume ? `${service.volume} m³` : null;
+                  const sVol = service.volume ? formatVolume(service.volume, 2, " m³") : null;
 
                   return (
                     <div

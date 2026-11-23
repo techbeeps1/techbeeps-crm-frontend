@@ -1,5 +1,6 @@
 import React from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
+import { formatVolume } from "../../../utils/volumeUtil";
 
 const PackingBox: React.FC<any> = () => {
     const { control, register, setValue, watch } = useFormContext() as any;
@@ -36,7 +37,7 @@ const PackingBox: React.FC<any> = () => {
                         <label className="block text-white text-xl font-bold">{field.name}</label>
                         {field.cubicMeter && (
                             <span className="text-xs text-slate-300">
-                                {Number(field.cubicMeter).toFixed(3)} m³ / unit
+                                {formatVolume(field.cubicMeter, 3, ' m³ / unit')}
                             </span>
                         )}
                     </div>

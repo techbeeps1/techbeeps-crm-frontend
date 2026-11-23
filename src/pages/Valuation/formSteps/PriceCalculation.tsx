@@ -58,18 +58,18 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
             const filteredFurniture = Array.isArray(room.furnitureType)
                 ? room.furnitureType.filter((furniture: any) => Number(furniture.quantity) > 0)
                 : [];
-            const furnitureVolume = filteredFurniture.reduce((sum: any, furniture: any) => {
+            const furnitureVolume = Math.max(0, filteredFurniture.reduce((sum: any, furniture: any) => {
                 return sum + ((Number(furniture.cubicMeter) || 0) * (Number(furniture.quantity) || 0));
-            }, 0);
+            }, 0));
 
             const boxes = Array.isArray(room.inventoryItems)
                 ? room.inventoryItems.filter((box: any) => Number(box.quantity) > 0)
                 : [];
-            const boxesVolume = boxes.reduce((sum: any, box: any) => {
+            const boxesVolume = Math.max(0, boxes.reduce((sum: any, box: any) => {
                 return sum + ((Number(box.cubicMeter) || 0) * (Number(box.quantity) || 0));
-            }, 0);
+            }, 0));
 
-            const totalVolume = furnitureVolume + boxesVolume;
+            const totalVolume = Math.max(0, furnitureVolume + boxesVolume);
             return {
                 ...room,
                 furnitureType: filteredFurniture,
@@ -82,10 +82,10 @@ const PriceCalculation: React.FC<any> = ({ rooms, selectedServices, data, packag
 
     useEffect(() => {
         const filteredData = filterFurnitureData(rooms);
-        const calculatedVolume = filteredData.reduce((sum: any, room: any) => {
-            return sum + room.totalVolume;
-        }, 0);
-        setValue('relocation.totalVolume', calculatedVolume.toFixed(2));
+        const calculatedVolume = Math.max(0, filteredData.reduce((sum: any, room: any) => {
+            return sum + (Number(room.totalVolume) || 0);
+        }, 0));
+        setValue('relocation.totalVolume', calculatedVolume <= 0.0001 ? '0.00' : calculatedVolume.toFixed(2));
 
         // UM-013: Rate source precedence: package rates -> features/standardPrice settings -> fallback
         const pkgCubic = packageData?.offers?.pricePerMeterCubic ?? packageData?.relocation?.pricePerMeterCubic;

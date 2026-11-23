@@ -7,6 +7,7 @@ import { useFieldArray, useFormContext } from 'react-hook-form';
 import AssembleFurniture from '../InnerForm/AssembleFurniture';
 import axios from 'axios';
 import { apiPath } from '../../../../apiPath';
+import { formatVolume } from '../../../utils/volumeUtil';
 
 export const DragDrawer: React.FC<any> = ({
   selectItem,
@@ -360,14 +361,15 @@ export const DragDrawer: React.FC<any> = ({
           {steps[activeStep]?.id === 'furniture' && (
             <span className="text-sm text-gray-100 block mt-1 text-right">
               Total {roomName}:{' '}
-              {furnitureItems
-                .reduce(
+              {formatVolume(
+                furnitureItems.reduce(
                   (total: number, item: any) =>
-                    total + (item.quantity || 0) * (item.cubicMeter || 0),
+                    total + (Number(item.quantity) || 0) * (Number(item.cubicMeter) || 0),
                   0,
-                )
-                .toFixed(2)}{' '}
-              m³
+                ),
+                2,
+                ' m³'
+              )}
             </span>
           )}
           {steps[activeStep]?.id === 'name' && (
@@ -405,11 +407,15 @@ export const DragDrawer: React.FC<any> = ({
             <>
               <div className='text-right pe-5'>
                 Total Boxes:{' '}
-                {packingBoxes?.reduce(
-                  (total: number, box: any) =>
-                    total + (box.quantity || 0) * (box.cubicMeter || 0),
-                  0,
-                )} {'m³'}
+                {formatVolume(
+                  packingBoxes?.reduce(
+                    (total: number, box: any) =>
+                      total + (Number(box.quantity) || 0) * (Number(box.cubicMeter) || 0),
+                    0,
+                  ),
+                  3,
+                  ' m³'
+                )}
               </div>
               <PackingBox  />
             </>
