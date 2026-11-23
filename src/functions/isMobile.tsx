@@ -1,15 +1,21 @@
 import { useLayoutEffect, useState } from "react";
 
-// TODO: Copy paste this: https://www.codegrepper.com/code-examples/javascript/react+get+window+width+on+resize
-export const useIsMobile = () => {
-  const [size, setSize] = useState([0, 0]);
+export const useIsMobile = (breakpoint = 768) => {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < breakpoint;
+    }
+    return false;
+  });
+
   useLayoutEffect(() => {
     function updateSize() {
-      setSize([window.innerWidth, window.innerHeight]);
+      setIsMobile(window.innerWidth < breakpoint);
     }
     window.addEventListener("resize", updateSize);
     updateSize();
     return () => window.removeEventListener("resize", updateSize);
-  }, []);
-  return size[0] < 820;
+  }, [breakpoint]);
+
+  return isMobile;
 };

@@ -23,6 +23,7 @@ import NewCustomer from '../customerDetails/NewCustomer';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
 import { getStandardTaxOptions } from '../../utils/taxCatalog';
 import { calculateCommercialTotals } from '../../utils/moneyCalculator';
+import { useIsMobile } from '../../functions/isMobile';
 
 const EditInvoice = () => {
     const { id } = useContext(UserContext) || {};
@@ -33,6 +34,7 @@ const EditInvoice = () => {
     const type = queryParams.get('type'); // 'Performa' or standard
 
     const navigate = useNavigate();
+    const isMobile = useIsMobile(768);
 
     // State Lists
     const [customerList, setCustomerList] = useState([]);
@@ -938,8 +940,9 @@ const EditInvoice = () => {
                             </button>
                         </div>
 
-                        {/* Table */}
-                        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark">
+                        {!isMobile ? (
+                            /* Desktop / Tablet Table View */
+                            <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-strokedark bg-white dark:bg-boxdark">
                             <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
                                 <thead className="bg-slate-50/90 dark:bg-slate-800/70 text-[11px] font-extrabold uppercase text-slate-500 dark:text-slate-400 border-b border-slate-200/80 dark:border-strokedark">
                                     <tr>
@@ -1002,7 +1005,6 @@ const EditInvoice = () => {
                                                          min="0"
                                                          step="any"
                                                          placeholder="Qty"
-                                                         onFocus={(e) => e.target.select()}
                                                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
                                                          {...register(`items.${index}.quantity`, {
                                                              valueAsNumber: true,
@@ -1032,7 +1034,6 @@ const EditInvoice = () => {
                                                          min="0"
                                                          step="any"
                                                          placeholder="0.00"
-                                                         onFocus={(e) => e.target.select()}
                                                          className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs focus:ring-1 focus:ring-primary"
                                                          {...register(`items.${index}.price`, {
                                                              valueAsNumber: true,
@@ -1064,9 +1065,9 @@ const EditInvoice = () => {
                                  </tbody>
                              </table>
                          </div>
-
-                        {/* Mobile Responsive Card View (< 768px, optimized for 375px/390px phones) */}
-                        <div className="block md:hidden space-y-3" role="region" aria-label="Mobile Line Items List">
+                        ) : (
+                            /* Mobile Responsive Card View (< 768px, optimized for 375px/390px phones) */
+                            <div className="space-y-3" role="region" aria-label="Mobile Line Items List">
                             {fields.map((item, index) => {
                                 const currentQty = Number(watchedItems?.[index]?.quantity) || 0;
                                 const currentPrice = Number(watchedItems?.[index]?.price) || 0;
@@ -1155,7 +1156,6 @@ const EditInvoice = () => {
                                                     step="any"
                                                     placeholder="Qty"
                                                     aria-label={`Item ${index + 1} Quantity`}
-                                                    onFocus={(e) => e.target.select()}
                                                     className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-center focus:ring-2 focus:ring-primary"
                                                     {...register(`items.${index}.quantity`, {
                                                         valueAsNumber: true,
@@ -1189,7 +1189,6 @@ const EditInvoice = () => {
                                                     step="any"
                                                     placeholder="0.00"
                                                     aria-label={`Item ${index + 1} Unit Price`}
-                                                    onFocus={(e) => e.target.select()}
                                                     className="w-full p-2 rounded-lg border border-slate-200 dark:border-strokedark bg-white dark:bg-boxdark text-xs text-right focus:ring-2 focus:ring-primary"
                                                     {...register(`items.${index}.price`, {
                                                         valueAsNumber: true,
@@ -1201,7 +1200,8 @@ const EditInvoice = () => {
                                     </div>
                                 );
                             })}
-                        </div>
+                            </div>
+                        )}
                      </div>
 
                      {/* Card 3: Executive Invoice Billing Breakdown & Payment Terms */}
@@ -1253,7 +1253,6 @@ const EditInvoice = () => {
                                                 min="0"
                                                 step="any" max="100"
                                                 placeholder="0"
-                                                onFocus={(e) => e.target.select()}
                                                 className="w-full p-2.5 pr-8 rounded-xl border border-slate-200/80 dark:border-strokedark bg-slate-50/50 dark:bg-slate-800/40 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
                                                 {...register('discount', {
                                                     valueAsNumber: true,
