@@ -87,7 +87,11 @@ export default function Chat() {
   }, [onlineUsers]);
 
   useEffect(() => {
-    requestNotificationPermission();
+    try {
+      requestNotificationPermission();
+    } catch (e) {
+      console.warn("Notification init warning:", e);
+    }
     if (ws) {
       ws.addEventListener('message', handleMessage);
       return () => {
@@ -110,9 +114,35 @@ export default function Chat() {
     }
   }, [ws]);
 
+  function isNotificationSupported(): boolean {
+    try {
+      return (
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        typeof window.Notification !== 'undefined' &&
+        window.Notification !== null &&
+        typeof window.Notification.requestPermission === 'function'
+      );
+    } catch {
+      return false;
+    }
+  }
+
   function requestNotificationPermission() {
-    if (Notification.permission !== 'granted') {
-      Notification.requestPermission();
+    try {
+      if (!isNotificationSupported()) {
+        return;
+      }
+      if (window.Notification.permission !== 'granted' && window.Notification.permission !== 'denied') {
+        const promise = window.Notification.requestPermission();
+        if (promise && typeof promise.then === 'function') {
+          promise.catch((err) => {
+            console.warn('Notification permission request error:', err);
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Notification permission not supported or blocked:', err);
     }
   }
 
@@ -180,19 +210,28 @@ export default function Chat() {
   }
 
   function showNotification(senderId: string, messageText: string) {
-    if (Notification.permission === 'granted') {
-      new Notification("New message", {
-        body: `New message: ${messageText}`,
-        icon: 'https://t4.ftcdn.net/jpg/00/98/26/11/360_F_98261159_Po5JS7ds82XaePJIsG1MiEtHRzOeUPNj.jpg'
-      });
-    }    
-    setTimeout(() => {
-      toast.info(`New message: ${messageText}`, {
-        position: "top-right",
-        autoClose: 2000,
-        toastId: senderId,
-      });
-    }, 1);
+    try {
+      if (isNotificationSupported() && window.Notification.permission === 'granted') {
+        new window.Notification("New message", {
+          body: `New message: ${messageText}`,
+          icon: 'https://t4.ftcdn.net/jpg/00/98/26/11/360_F_98261159_Po5JS7ds82XaePJIsG1MiEtHRzOeUPNj.jpg'
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to display browser notification:', err);
+    }
+
+    try {
+      setTimeout(() => {
+        toast.info(`New message: ${messageText}`, {
+          position: "top-right",
+          autoClose: 2000,
+          toastId: senderId,
+        });
+      }, 1);
+    } catch {
+      // In case toast fails, ignore
+    }
   }
 
   function sendMessage(ev?: React.FormEvent<HTMLFormElement>, file?: object) {
