@@ -17,9 +17,10 @@ import axios from 'axios';
 import { apiPath } from '../../../apiPath';
 import { EmailContext } from '../../EmailProvider/EmailContext';
 import DatePickerComponent from '../../common/Datepicker';
+import { formatDateOnly } from '../../utils/timezoneUtil';
 
 const InvoicePopup = ({ type, index, date, open, onClose, SendInvoice, expireDate, status }) => {
-  const formattedDate = date ? new Date(date).toISOString().split('T')[0] : '';
+  const formattedDate = date ? formatDateOnly(date, 'YYYY-MM-DD') : '';
   const {
     control,
     handleSubmit,
@@ -39,7 +40,13 @@ const InvoicePopup = ({ type, index, date, open, onClose, SendInvoice, expireDat
 
   const handleInvoice = async (data) => {
     try {
-      const response = await axios.post(`${apiPath}/invoice/update/${Id}`, { ...data, Status: 'Sent' });
+      const payload = {
+        ...data,
+        dueDate: data.expire_date || data.dueDate,
+        expire_date: data.expire_date || data.dueDate,
+        Status: 'Sent',
+      };
+      const response = await axios.post(`${apiPath}/invoice/update/${Id}`, payload);
       if (typeof SendInvoice === 'function') {
         status === 'Sent' ? SendInvoice(settings?.emailTemplates?.invoiceReminder) : SendInvoice(settings?.emailTemplates?.invoice);
       }
@@ -49,7 +56,13 @@ const InvoicePopup = ({ type, index, date, open, onClose, SendInvoice, expireDat
   };
   const handleQuote = async (data) => {
     try {
-      const response = await axios.post(`${apiPath}/finance/update/${Id}`, { ...data, Status: 'Sent' });
+      const payload = {
+        ...data,
+        dueDate: data.expire_date || data.dueDate,
+        expire_date: data.expire_date || data.dueDate,
+        Status: 'Sent',
+      };
+      const response = await axios.post(`${apiPath}/finance/update/${Id}`, payload);
       if (typeof SendInvoice === 'function') {
         status === 'Sent' ? SendInvoice(settings?.emailTemplates?.quoteReminders) : SendInvoice(settings?.emailTemplates?.quote);
       }
@@ -60,8 +73,8 @@ const InvoicePopup = ({ type, index, date, open, onClose, SendInvoice, expireDat
 
   useEffect(() => {
     setValue('date', formattedDate);
-    setValue('expire_date', expireDate ? new Date(expireDate).toISOString().split('T')[0] : "")
-  }, [date, expireDate]);
+    setValue('expire_date', expireDate ? formatDateOnly(expireDate, 'YYYY-MM-DD') : "");
+  }, [date, expireDate, formattedDate]);
 
 
   const onSubmit = (data) => {

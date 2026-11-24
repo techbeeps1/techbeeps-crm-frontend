@@ -20,6 +20,7 @@ import Loader from '../../common/Loader';
 import InvoicePopup from './Invoicing';
 import LinkQuotePopup from '../Quotes/LinkQuotePopup';
 import { useCurrency, formatCurrency } from '../../utils/currencyUtil';
+import { formatDateOnly } from '../../utils/timezoneUtil';
 
 const Invoice = ({ data, notes, fetchInvoice }) => {
   const { Id } = useParams();
@@ -349,25 +350,25 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
             <div>
               <span className="text-slate-400 font-medium block">Creation Date</span>
               <span className="font-bold text-slate-800 dark:text-white">
-                {data?.createdAt
-                  ? new Date(data.createdAt).toLocaleDateString('en-GB')
-                  : 'N/A'}
+                {formatDateOnly(data?.createdAt)}
               </span>
             </div>
 
             <div>
               <span className="text-slate-400 font-medium block">Issue Date</span>
               <span className="font-bold text-slate-800 dark:text-white">
-                {data?.date ? new Date(data.date).toLocaleDateString('en-GB') : 'N/A'}
+                {data?.statutorySnapshot?.issueDateFormatted || data?.issueDateFormatted || formatDateOnly(data?.date) || 'N/A'}
               </span>
             </div>
 
             <div>
               <span className="text-slate-400 font-medium block">Expiry / Due Date</span>
               <span className="font-bold text-slate-800 dark:text-white">
-                {data?.expire_date
-                  ? new Date(data.expire_date).toLocaleDateString('en-GB')
-                  : '14 days after issue'}
+                {data?.statutorySnapshot?.dueDateFormatted ||
+                  data?.dueDateFormatted ||
+                  (data?.dueDate ? formatDateOnly(data.dueDate) : '') ||
+                  (data?.expire_date ? formatDateOnly(data.expire_date) : '') ||
+                  '14 days after issue'}
               </span>
             </div>
 
@@ -760,7 +761,7 @@ const Invoice = ({ data, notes, fetchInvoice }) => {
       <InvoicePopup
         type="invoice"
         status={data?.Status}
-        expireDate={data?.expire_date}
+        expireDate={data?.statutorySnapshot?.dueDateFormatted || data?.dueDateFormatted || data?.dueDate || data?.expire_date}
         index={data?.index}
         date={data?.date}
         open={openPopup}

@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import Loader from '../../common/Loader';
 import { toast } from 'react-toastify';
 import { formatCurrency } from '../../utils/currencyUtil';
+import { formatDateOnly } from '../../utils/timezoneUtil';
 import { OfflineNoticeCard } from '../../components/OfflineNoticeCard';
 import { 
   MdReceiptLong, 
@@ -358,9 +359,7 @@ const InvoiceList = ({ customerId }) => {
                     ? `${item.customer.firstName || ''} ${item.customer.lastName || ''}`.trim() 
                     : `Invoice #${item?.index || ''}`;
                   const customerSub = item?.customer?.email || item?.customer?.contact || item?.customer?.mobile || '';
-                  const invoiceDate = item?.date 
-                    ? new Date(item.date).toLocaleDateString('en-GB') 
-                    : (item?.createdAt ? new Date(item.createdAt).toLocaleDateString('en-GB') : '-');
+                  const invoiceDate = item?.issueDateFormatted || formatDateOnly(item?.date || item?.createdAt);
                   const statusStyles = getStatusStyles(item?.Status || 'Sent');
                   const statusText = item?.Status || 'Sent';
 
