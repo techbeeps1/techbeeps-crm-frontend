@@ -9,12 +9,8 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
-import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import GridViewIcon from '@mui/icons-material/GridView';
 import TableRowsIcon from '@mui/icons-material/TableRows';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
-import MoneyOffIcon from '@mui/icons-material/MoneyOff';
 import Loader from '../../common/Loader';
 import toast from 'react-hot-toast';
 

@@ -17,12 +17,6 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import PersonIcon from '@mui/icons-material/Person';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import NotesIcon from '@mui/icons-material/Notes';
-import BeachAccessIcon from '@mui/icons-material/BeachAccess';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import MoneyOffIcon from '@mui/icons-material/MoneyOff';
-import ChildFriendlyIcon from '@mui/icons-material/ChildFriendly';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import Loader from '../../common/Loader';
@@ -34,41 +28,35 @@ const getLeaveTypeBadge = (type = '') => {
     return {
       label: 'Sick Leave',
       bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-      icon: <LocalHospitalIcon style={{ fontSize: 13 }} />,
     };
   }
   if (t.includes('casual')) {
     return {
       label: 'Casual Leave',
       bg: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-      icon: <FlashOnIcon style={{ fontSize: 13 }} />,
     };
   }
   if (t.includes('emergency') || t.includes('personal')) {
     return {
       label: 'Emergency / Personal',
       bg: 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-      icon: <WarningAmberIcon style={{ fontSize: 13 }} />,
     };
   }
   if (t.includes('unpaid')) {
     return {
       label: 'Unpaid Leave',
       bg: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-      icon: <MoneyOffIcon style={{ fontSize: 13 }} />,
     };
   }
   if (t.includes('maternity') || t.includes('paternity')) {
     return {
       label: 'Parental Leave',
       bg: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-      icon: <ChildFriendlyIcon style={{ fontSize: 13 }} />,
     };
   }
   return {
     label: 'Annual / Vacation',
     bg: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-    icon: <BeachAccessIcon style={{ fontSize: 13 }} />,
   };
 };
 
@@ -499,8 +487,7 @@ const LeaveRequestsTab = () => {
 
                       {/* Leave Type */}
                       <td className="py-3 px-3">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${typeBadge.bg}`}>
-                          {typeBadge.icon}
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${typeBadge.bg}`}>
                           <span>{req.leaveType}</span>
                         </span>
                       </td>
