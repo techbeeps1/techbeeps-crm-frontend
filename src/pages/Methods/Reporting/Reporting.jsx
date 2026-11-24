@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useForm } from 'react-hook-form';
 import { Modal, Box } from '@mui/material';
 import { apiPath } from '../../../../apiPath';
 import axios from 'axios';
+import { UserContext } from '../../../UserContext';
 import TemplateEditor from './TemplateEditor';
 import { toast } from 'react-toastify';
 import Loader from '../../../common/Loader';
@@ -21,6 +22,11 @@ import {
 } from 'react-icons/md';
 
 const Reporting = () => {
+  const { userData, role, isAdmin } = useContext(UserContext) || {};
+  const isUserAdmin =
+    Boolean(isAdmin) ||
+    ['admin', 'superadmin'].includes(String(role || userData?.role || '').toLowerCase());
+
   const [showModal, setShowModal] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [data, setData] = useState([]);
@@ -84,6 +90,10 @@ const Reporting = () => {
   }, [isDeleteModalOpen]);
 
   const onSubmit = async (formData) => {
+    if (!isUserAdmin) {
+      notifyError('Access denied: Only Administrators can create document templates (Task UM3-011).');
+      return;
+    }
     setSaving(true);
     try {
       await axios.post(`${apiPath}/api/templates`, formData);
@@ -93,9 +103,12 @@ const Reporting = () => {
       reset();
     } catch (error) {
       const errorMsg =
-        error?.response?.data?.error?.errors?.name?.message ||
-        error.message ||
-        'Error saving template';
+        error?.response?.status === 403
+          ? 'Access denied (403): Only Administrators can create or modify document templates (Task UM3-011).'
+          : error?.response?.data?.error?.errors?.name?.message ||
+            error?.response?.data?.msg ||
+            error.message ||
+            'Error saving template';
       notifyError(errorMsg);
       setError('name', {
         type: 'manual',
@@ -107,13 +120,21 @@ const Reporting = () => {
   };
 
   const deletePackage = async (id) => {
+    if (!isUserAdmin) {
+      notifyError('Access denied: Only Administrators can delete document templates (Task UM3-011).');
+      return;
+    }
     try {
       await axios.delete(`${apiPath}/api/templates/${id}`);
       notify('Template deleted successfully');
       closeDeleteModal();
       handleAllPackage();
     } catch (error) {
-      notifyError(error.response?.data?.message || 'Error deleting template');
+      const errorMsg =
+        error?.response?.status === 403
+          ? 'Access denied (403): Only Administrators can delete document templates (Task UM3-011).'
+          : error.response?.data?.msg || error.response?.data?.message || 'Error deleting template';
+      notifyError(errorMsg);
     }
   };
 
@@ -130,6 +151,16 @@ const Reporting = () => {
     <div className="space-y-6">
       {loading && <Loader />}
 
+      {/* Read-Only Notice for Non-Admins (Task UM3-011) */}
+      {!isUserAdmin && (
+        <div className="flex items-center gap-2.5 p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-800 dark:text-amber-300 text-xs font-semibold">
+          <MdWarningAmber className="text-lg shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>
+            <strong>Read-Only Mode:</strong> Only Administrators can create, edit, or delete PDF document templates (Task UM3-011 security policy).
+          </span>
+        </div>
+      )}
+
       {/* Action & Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-2/70 dark:bg-meta-4/20 p-4 rounded-2xl border border-stroke dark:border-strokedark">
         <div className="relative flex-1 max-w-md">
@@ -143,14 +174,20 @@ const Reporting = () => {
           />
         </div>
 
-        <button
-          type="button"
-          onClick={handleNewReportClick}
-          className="flex items-center gap-2 bg-primary hover:bg-opacity-90 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer self-start sm:self-auto text-xs sm:text-sm"
-        >
-          <MdAdd className="text-lg" />
-          <span>New Document Template</span>
-        </button>
+        {isUserAdmin ? (
+          <button
+            type="button"
+            onClick={handleNewReportClick}
+            className="flex items-center gap-2 bg-primary hover:bg-opacity-90 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md shadow-primary/25 transition-all cursor-pointer self-start sm:self-auto text-xs sm:text-sm"
+          >
+            <MdAdd className="text-lg" />
+            <span>New Document Template</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3.5 py-2.5 bg-gray-2 dark:bg-meta-4 text-slate-500 rounded-xl text-xs font-semibold border border-stroke dark:border-strokedark">
+            <span>🔒 Admin role required to create templates</span>
+          </div>
+        )}
       </div>
 
       {/* Templates Table Card */}
@@ -213,22 +250,30 @@ const Reporting = () => {
                     {/* Actions */}
                     <td className="py-3.5 px-5 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEditTemplate(item._id)}
-                          className="p-2 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
-                          title="Edit Template"
-                        >
-                          <MdEdit className="text-base" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteModal(item)}
-                          className="p-2 text-slate-500 hover:text-meta-1 hover:bg-meta-1/10 rounded-xl transition-colors cursor-pointer"
-                          title="Delete Template"
-                        >
-                          <MdDeleteOutline className="text-base" />
-                        </button>
+                        {isUserAdmin ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleEditTemplate(item._id)}
+                              className="p-2 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
+                              title="Edit Template"
+                            >
+                              <MdEdit className="text-base" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openDeleteModal(item)}
+                              className="p-2 text-slate-500 hover:text-meta-1 hover:bg-meta-1/10 rounded-xl transition-colors cursor-pointer"
+                              title="Delete Template"
+                            >
+                              <MdDeleteOutline className="text-base" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-slate-400 italic">
+                            Read-only
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>

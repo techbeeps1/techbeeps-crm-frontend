@@ -69,7 +69,10 @@ export function UserContextProvider({ children }: UserContextProviderProps) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 
-  const isAdmin = role === 'Admin' || userData?.role === 'Admin';
+  const isAdmin =
+    role === 'Admin' ||
+    userData?.role === 'Admin' ||
+    ['admin', 'superadmin'].includes(String(role || userData?.role || '').toLowerCase());
 
   const hasAccess = (moduleName?: string): boolean => {
     if (!moduleName) return true;
