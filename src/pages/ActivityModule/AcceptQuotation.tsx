@@ -553,7 +553,7 @@ const AcceptOffer: React.FC = () => {
         companyPhone: '+31 20 123 4567',
         phone: '+31 20 123 4567',
         telephone: '+31 20 123 4567',
-        companyWebsite: 'https://universalmovers.nl',
+        companyWebsite: 'https://universal-movers-front.vercel.app',
         companyRegNumber: '81234567',
         companyVatNumber: 'NL861234567B01',
         bankName: 'ABN AMRO Bank N.V.',

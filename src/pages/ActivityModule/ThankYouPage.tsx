@@ -53,13 +53,28 @@ const ThankYouPage: React.FC = () => {
           {/* Actions */}
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
-              href="https://universalmovers.nl"
+              href="https://universal-movers-front.vercel.app/"
+              onClick={(e) => {
+                // If on same app, use client-side router navigation
+                if (window.location.origin.includes('vercel.app') || window.location.origin.includes('localhost')) {
+                  e.preventDefault();
+                  navigate('/');
+                }
+              }}
               className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-xs md:text-sm shadow-lg shadow-primary/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
               <HomeOutlinedIcon fontSize="small" />
               <span>Go to Universal Movers Homepage</span>
               <ArrowForwardRoundedIcon fontSize="small" />
             </a>
+
+            <button
+              type="button"
+              onClick={() => window.close()}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-boxdark-2 dark:hover:bg-boxdark border border-slate-200 dark:border-strokedark text-slate-700 dark:text-slate-200 font-semibold text-xs md:text-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Close Window</span>
+            </button>
           </div>
 
           {/* Subtle Trust Footer */}
