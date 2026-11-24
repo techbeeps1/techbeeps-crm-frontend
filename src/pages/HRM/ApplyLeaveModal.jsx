@@ -8,22 +8,16 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import BeachAccessIcon from '@mui/icons-material/BeachAccess';
-import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import MoneyOffIcon from '@mui/icons-material/MoneyOff';
-import ChildFriendlyIcon from '@mui/icons-material/ChildFriendly';
 import toast from 'react-hot-toast';
 import DirtyConfirmDialog from '../../components/common/DirtyConfirmDialog';
 
 const LEAVE_TYPES = [
-  { id: 'Annual / Vacation', label: 'Annual Leave', icon: <BeachAccessIcon style={{ fontSize: 15 }} className="text-blue-500" /> },
-  { id: 'Sick Leave', label: 'Sick Leave', icon: <LocalHospitalIcon style={{ fontSize: 15 }} className="text-emerald-500" /> },
-  { id: 'Casual Leave', label: 'Casual Leave', icon: <FlashOnIcon style={{ fontSize: 15 }} className="text-amber-500" /> },
-  { id: 'Emergency / Personal', label: 'Emergency', icon: <WarningAmberIcon style={{ fontSize: 15 }} className="text-rose-500" /> },
-  { id: 'Unpaid Leave', label: 'Unpaid', icon: <MoneyOffIcon style={{ fontSize: 15 }} className="text-slate-400" /> },
-  { id: 'Maternity / Paternity', label: 'Parental', icon: <ChildFriendlyIcon style={{ fontSize: 15 }} className="text-purple-500" /> },
+  { id: 'Annual / Vacation', label: 'Annual Leave' },
+  { id: 'Sick Leave', label: 'Sick Leave' },
+  { id: 'Casual Leave', label: 'Casual Leave' },
+  { id: 'Emergency / Personal', label: 'Emergency' },
+  { id: 'Unpaid Leave', label: 'Unpaid' },
+  { id: 'Maternity / Paternity', label: 'Parental' },
 ];
 
 const DURATION_TYPES = [
@@ -357,13 +351,12 @@ const ApplyLeaveModal = ({ open, onClose, onSuccess, employeesList = [], default
                   type="button"
                   key={lt.id}
                   onClick={() => setLeaveType(lt.id)}
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border text-xs font-semibold transition text-left cursor-pointer ${
+                  className={`flex items-center justify-center px-2.5 py-2.5 rounded-xl border text-xs font-semibold transition text-center cursor-pointer ${
                     isSelected
                       ? 'bg-primary/10 border-primary text-primary font-bold shadow-xs'
                       : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <span className="flex-shrink-0">{lt.icon}</span>
                   <span className="truncate">{lt.label}</span>
                 </button>
               );
